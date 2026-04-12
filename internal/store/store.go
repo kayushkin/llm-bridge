@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,6 +37,13 @@ func New(dbPath string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Enable WAL mode and busy timeout to handle concurrent writes.
+	if _, err := d.Exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;"); err != nil {
+		d.Close()
+		return nil, fmt.Errorf("sqlite pragmas: %w", err)
+	}
+
 	s := &Store{db: d}
 	if err := s.migrate(); err != nil {
 		d.Close()
@@ -62,6 +70,16 @@ func (s *Store) migrate() error {
 		);
 		CREATE INDEX IF NOT EXISTS idx_sessions_state ON sessions(state);
 		CREATE INDEX IF NOT EXISTS idx_sessions_harness ON sessions(harness);
+
+		CREATE TABLE IF NOT EXISTS events (
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			session_id TEXT NOT NULL,
+			type       TEXT NOT NULL,
+			data       TEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (session_id) REFERENCES sessions(id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id);
 	`)
 	if err != nil {
 		return err
@@ -152,6 +170,36 @@ func (s *Store) UpdateSessionPID(id string, pid int) error {
 		return sql.ErrNoRows
 	}
 	return nil
+}
+
+// StoreEvent persists a serialized event for a session.
+func (s *Store) StoreEvent(sessionID, eventType string, data []byte) error {
+	_, err := s.db.Exec(
+		`INSERT INTO events (session_id, type, data) VALUES (?,?,?)`,
+		sessionID, eventType, string(data),
+	)
+	return err
+}
+
+// ListEvents returns all stored events for a session, ordered chronologically.
+func (s *Store) ListEvents(sessionID string) ([]json.RawMessage, error) {
+	rows, err := s.db.Query(
+		`SELECT data FROM events WHERE session_id=? ORDER BY id ASC`,
+		sessionID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var events []json.RawMessage
+	for rows.Next() {
+		var data string
+		if err := rows.Scan(&data); err != nil {
+			return nil, err
+		}
+		events = append(events, json.RawMessage(data))
+	}
+	return events, rows.Err()
 }
 
 func (s *Store) DeleteSession(id string) error {

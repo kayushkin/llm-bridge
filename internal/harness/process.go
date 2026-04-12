@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"sync"
@@ -51,6 +52,7 @@ type Process struct {
 func StartProcess(ctx context.Context, binPath string, sess *store.Session) (*Process, error) {
 	cmd := exec.Command(binPath)
 	cmd.Env = os.Environ()
+	cmd.Stderr = os.Stderr // Surface harness subprocess errors
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -197,7 +199,6 @@ func (p *Process) readLoop() {
 
 		var event msg.Event
 		if err := json.Unmarshal(line, &event); err != nil {
-			// Log error but continue
 			continue
 		}
 
@@ -206,5 +207,8 @@ func (p *Process) readLoop() {
 		case <-p.done:
 			return
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		log.Printf("[harness] scanner error: %v", err)
 	}
 }

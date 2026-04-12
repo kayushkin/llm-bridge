@@ -148,6 +148,17 @@ func (s *Server) handleSendMessage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Persist user message as an event for history
+	userEvent := msg.Event{
+		Type:      "user_message",
+		SessionID: id,
+		Timestamp: time.Now(),
+		Result:    &msg.ResultEvent{Text: req.Message},
+	}
+	if data, err := json.Marshal(userEvent); err == nil {
+		s.store.StoreEvent(id, "user_message", data)
+	}
+
 	if err := s.harness.Send(id, req.Message); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -163,11 +174,8 @@ func (s *Server) handleSessionEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	events := s.harness.Events(id)
-	if events == nil {
-		http.Error(w, "session not running", http.StatusConflict)
-		return
-	}
+	// Subscribe to events fan-out — works even before process starts
+	events := s.harness.Subscribe(id)
 
 	// SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -176,6 +184,7 @@ func (s *Server) handleSessionEvents(w http.ResponseWriter, r *http.Request) {
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
+		s.harness.Unsubscribe(id, events)
 		http.Error(w, "streaming not supported", http.StatusInternalServerError)
 		return
 	}
@@ -184,6 +193,7 @@ func (s *Server) handleSessionEvents(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case <-ctx.Done():
+			s.harness.Unsubscribe(id, events)
 			return
 		case event, ok := <-events:
 			if !ok {
@@ -197,6 +207,24 @@ func (s *Server) handleSessionEvents(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+func (s *Server) handleSessionHistory(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if _, err := s.store.GetSession(id); err != nil {
+		http.Error(w, "session not found", http.StatusNotFound)
+		return
+	}
+
+	events, err := s.store.ListEvents(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if events == nil {
+		events = []json.RawMessage{}
+	}
+	writeJSON(w, events)
 }
 
 func (s *Server) handleInterruptSession(w http.ResponseWriter, r *http.Request) {

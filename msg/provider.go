@@ -49,6 +49,16 @@ const (
 	HarnessOpenClaw   Harness = "openclaw"
 	HarnessInber      Harness = "inber"
 	HarnessHermes     Harness = "hermes"
+	HarnessAider      Harness = "aider"
+	HarnessGoose      Harness = "goose"
+	HarnessAutohand   Harness = "autohand"
+	HarnessJig        Harness = "jig"
+	HarnessDexto      Harness = "dexto"
+	HarnessCommander  Harness = "commander"
+	HarnessNanoClaw   Harness = "nanoclaw"
+	HarnessCline      Harness = "cline"
+	HarnessRooCode    Harness = "roo_code"
+	HarnessKiloCode   Harness = "kilo_code"
 )
 
 // EventType classifies a harness event.

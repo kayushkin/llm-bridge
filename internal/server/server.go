@@ -40,6 +40,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /sessions/{id}/stop", s.handleStopSession)
 	s.mux.HandleFunc("POST /sessions/{id}/compact", s.handleCompactSession)
 	s.mux.HandleFunc("POST /sessions/{id}/fork", s.handleForkSession)
+	s.mux.HandleFunc("POST /sessions/{id}/config", s.handleConfigSession)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

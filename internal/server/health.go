@@ -14,9 +14,17 @@ type HealthResponse struct {
 }
 
 type HarnessStatus struct {
-	Name      string `json:"name"`
-	Available bool   `json:"available"`
-	Binary    string `json:"binary,omitempty"`
+	Name         string   `json:"name"`
+	Available    bool     `json:"available"`
+	Binary       string   `json:"binary,omitempty"`
+	Capabilities []string `json:"capabilities"`
+}
+
+// harnessCapabilities defines what features each harness supports.
+var harnessCapabilities = map[msg.Harness][]string{
+	msg.HarnessClaudeCode: {"compact", "fork", "model", "effort", "tools", "budget", "system_prompt"},
+	msg.HarnessCodex:      {"model"},
+	msg.HarnessOpenClaw:   {"compact", "model", "effort"},
 }
 
 type SessionCounts struct {
@@ -55,10 +63,15 @@ func (s *Server) discoverHarnesses() []HarnessStatus {
 	var statuses []HarnessStatus
 	for _, h := range allHarnesses {
 		path, available := harness.Available(h)
+		caps := harnessCapabilities[h]
+		if caps == nil {
+			caps = []string{}
+		}
 		statuses = append(statuses, HarnessStatus{
-			Name:      string(h),
-			Available: available,
-			Binary:    path,
+			Name:         string(h),
+			Available:    available,
+			Binary:       path,
+			Capabilities: caps,
 		})
 	}
 	return statuses

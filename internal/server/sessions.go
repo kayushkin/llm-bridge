@@ -32,6 +32,13 @@ type CompactSessionRequest struct {
 	Summary string `json:"summary,omitempty"`
 }
 
+type ConfigSessionRequest struct {
+	Model         string   `json:"model,omitempty"`
+	Effort        string   `json:"effort,omitempty"`
+	DisabledTools []string `json:"disabled_tools,omitempty"`
+	MaxBudget     *float64 `json:"max_budget,omitempty"`
+}
+
 func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
 	sessions, err := s.store.ListSessions()
 	if err != nil {
@@ -174,7 +181,7 @@ func (s *Server) handleSessionEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Subscribe to events fan-out — works even before process starts
+	// Subscribe to live events fan-out
 	events := s.harness.Subscribe(id)
 
 	// SSE headers
@@ -189,6 +196,21 @@ func (s *Server) handleSessionEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Replay current turn's events from DB — covers the race where events
+	// were persisted before this subscriber was registered.
+	replayedTimestamps := make(map[string]bool)
+	if stored, err := s.store.ListCurrentTurnEvents(id); err == nil && len(stored) > 0 {
+		for _, raw := range stored {
+			var ev msg.Event
+			if json.Unmarshal(raw, &ev) == nil {
+				fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.Type, raw)
+				// Track by timestamp+type for dedup against live events
+				replayedTimestamps[ev.Timestamp.String()+string(ev.Type)] = true
+			}
+		}
+		flusher.Flush()
+	}
+
 	ctx := r.Context()
 	for {
 		select {
@@ -197,10 +219,15 @@ func (s *Server) handleSessionEvents(w http.ResponseWriter, r *http.Request) {
 			return
 		case event, ok := <-events:
 			if !ok {
-				// Channel closed, session ended
 				w.Write([]byte("event: close\ndata: {}\n\n"))
 				flusher.Flush()
 				return
+			}
+			// Skip events already sent via replay
+			key := event.Timestamp.String() + string(event.Type)
+			if replayedTimestamps[key] {
+				delete(replayedTimestamps, key)
+				continue
 			}
 			data, _ := json.Marshal(event)
 			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, data)
@@ -342,6 +369,31 @@ func (s *Server) handleForkSession(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	writeJSON(w, forked)
+}
+
+func (s *Server) handleConfigSession(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	sess, err := s.store.GetSession(id)
+	if err != nil {
+		http.Error(w, "session not found", http.StatusNotFound)
+		return
+	}
+
+	var req ConfigSessionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Send config command to harness (the harness binary interprets the JSON params)
+	params, _ := json.Marshal(req)
+	if err := s.harness.SendCommand(id, "config:"+string(params)); err != nil {
+		// Process might not be running — store config for next start
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, sess)
 }
 
 func generateID() string {

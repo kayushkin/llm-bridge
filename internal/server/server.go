@@ -24,12 +24,18 @@ func New(s *store.Store) *Server {
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /health", s.handleHealth)
 	s.mux.HandleFunc("GET /harnesses", s.handleHarnesses)
+
 	s.mux.HandleFunc("GET /sessions", s.handleListSessions)
 	s.mux.HandleFunc("POST /sessions", s.handleCreateSession)
 	s.mux.HandleFunc("GET /sessions/{id}", s.handleGetSession)
-	s.mux.HandleFunc("POST /sessions/{id}/stop", s.handleStopSession)
 	s.mux.HandleFunc("POST /sessions/{id}/send", s.handleSendMessage)
 	s.mux.HandleFunc("GET /sessions/{id}/events", s.handleSessionEvents)
+
+	s.mux.HandleFunc("POST /sessions/{id}/interrupt", s.handleInterruptSession)
+	s.mux.HandleFunc("POST /sessions/{id}/resume", s.handleResumeSession)
+	s.mux.HandleFunc("POST /sessions/{id}/stop", s.handleStopSession)
+	s.mux.HandleFunc("POST /sessions/{id}/compact", s.handleCompactSession)
+	s.mux.HandleFunc("POST /sessions/{id}/fork", s.handleForkSession)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

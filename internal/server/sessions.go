@@ -21,6 +21,14 @@ type SendMessageRequest struct {
 	Message string `json:"message"`
 }
 
+type ForkSessionRequest struct {
+	DisplayName string `json:"display_name,omitempty"`
+}
+
+type CompactSessionRequest struct {
+	Summary string `json:"summary,omitempty"` // optional custom summary
+}
+
 func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
 	sessions, err := s.store.ListSessions()
 	if err != nil {
@@ -135,7 +143,108 @@ func (s *Server) handleSessionEvents(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) handleInterruptSession(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	sess, err := s.store.GetSession(id)
+	if err != nil {
+		http.Error(w, "session not found", http.StatusNotFound)
+		return
+	}
+
+	if sess.State != string(msg.SessionRunning) {
+		http.Error(w, "session not running", http.StatusConflict)
+		return
+	}
+
+	// TODO: send SIGINT to harness subprocess
+
+	if err := s.store.UpdateSessionState(id, string(msg.SessionIdle)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	sess.State = string(msg.SessionIdle)
+	writeJSON(w, sess)
+}
+
+func (s *Server) handleResumeSession(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	sess, err := s.store.GetSession(id)
+	if err != nil {
+		http.Error(w, "session not found", http.StatusNotFound)
+		return
+	}
+
+	if sess.State != string(msg.SessionIdle) {
+		http.Error(w, "session not idle", http.StatusConflict)
+		return
+	}
+
+	// TODO: send resume command to harness subprocess
+
+	if err := s.store.UpdateSessionState(id, string(msg.SessionRunning)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	sess.State = string(msg.SessionRunning)
+	writeJSON(w, sess)
+}
+
+func (s *Server) handleCompactSession(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	sess, err := s.store.GetSession(id)
+	if err != nil {
+		http.Error(w, "session not found", http.StatusNotFound)
+		return
+	}
+
+	var req CompactSessionRequest
+	json.NewDecoder(r.Body).Decode(&req) // optional body
+
+	// TODO: send compact command to harness subprocess
+	// For Claude Code: write "/compact" or custom summary to stdin
+
+	writeJSON(w, sess)
+}
+
+func (s *Server) handleForkSession(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	parent, err := s.store.GetSession(id)
+	if err != nil {
+		http.Error(w, "session not found", http.StatusNotFound)
+		return
+	}
+
+	var req ForkSessionRequest
+	json.NewDecoder(r.Body).Decode(&req) // optional body
+
+	displayName := req.DisplayName
+	if displayName == "" {
+		displayName = parent.DisplayName + " (fork)"
+	}
+
+	// TODO: spawn new harness subprocess with --fork-session flag
+
+	forked := &store.Session{
+		ID:          generateID(),
+		DisplayName: displayName,
+		Harness:     parent.Harness,
+		State:       string(msg.SessionIdle),
+		AgentID:     parent.AgentID,
+		SpawnerID:   parent.SpawnerID,
+		ParentID:    parent.ID,
+	}
+
+	if err := s.store.CreateSession(forked); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	writeJSON(w, forked)
+}
+
 func generateID() string {
-	// Simple ID generation - in production use UUID
 	return fmt.Sprintf("sess_%d", time.Now().UnixNano())
 }

@@ -47,6 +47,7 @@ const (
 	HarnessClaudeCode Harness = "claude_code"
 	HarnessCodex      Harness = "codex"
 	HarnessOpenClaw   Harness = "openclaw"
+	HarnessInber      Harness = "inber"
 )
 
 // EventType classifies a harness event.

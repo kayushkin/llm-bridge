@@ -25,6 +25,7 @@ var harnessCapabilities = map[msg.Harness][]string{
 	msg.HarnessClaudeCode: {"compact", "fork", "model", "effort", "tools", "budget", "system_prompt"},
 	msg.HarnessCodex:      {"model"},
 	msg.HarnessOpenClaw:   {"compact", "model", "effort"},
+	msg.HarnessInber:      {"model"},
 }
 
 type SessionCounts struct {
@@ -37,6 +38,7 @@ var allHarnesses = []msg.Harness{
 	msg.HarnessClaudeCode,
 	msg.HarnessCodex,
 	msg.HarnessOpenClaw,
+	msg.HarnessInber,
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

@@ -69,7 +69,7 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h := msg.Harness(req.Harness)
-	if h != msg.HarnessClaudeCode && h != msg.HarnessCodex && h != msg.HarnessOpenClaw {
+	if h != msg.HarnessClaudeCode && h != msg.HarnessCodex && h != msg.HarnessOpenClaw && h != msg.HarnessInber {
 		http.Error(w, "invalid harness", http.StatusBadRequest)
 		return
 	}

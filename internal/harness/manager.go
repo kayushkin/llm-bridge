@@ -38,6 +38,8 @@ func BinaryName(h msg.Harness) string {
 		return "llm-bridge-codex"
 	case msg.HarnessOpenClaw:
 		return "llm-bridge-openclaw"
+	case msg.HarnessInber:
+		return "llm-bridge-inber"
 	default:
 		return ""
 	}

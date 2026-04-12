@@ -34,6 +34,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /sessions/{id}/send", s.handleSendMessage)
 	s.mux.HandleFunc("GET /sessions/{id}/events", s.handleSessionEvents)
 
+	s.mux.HandleFunc("GET /sessions/{id}/messages", s.handleSessionMessages)
 	s.mux.HandleFunc("GET /sessions/{id}/history", s.handleSessionHistory)
 	s.mux.HandleFunc("POST /sessions/{id}/interrupt", s.handleInterruptSession)
 	s.mux.HandleFunc("POST /sessions/{id}/resume", s.handleResumeSession)

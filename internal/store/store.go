@@ -265,6 +265,99 @@ func (s *Store) ListCurrentTurnEvents(sessionID string) ([]json.RawMessage, erro
 	return events, rows.Err()
 }
 
+// EventWithID is a raw event with its database row ID.
+type EventWithID struct {
+	RowID int
+	Data  json.RawMessage
+}
+
+// ListEventsWithIDs returns events with their row IDs for SSE id: fields.
+func (s *Store) ListEventsWithIDs(sessionID string) ([]EventWithID, error) {
+	rows, err := s.db.Query(
+		`SELECT id, data FROM events WHERE session_id=? ORDER BY id ASC`,
+		sessionID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var events []EventWithID
+	for rows.Next() {
+		var ev EventWithID
+		var data string
+		if err := rows.Scan(&ev.RowID, &data); err != nil {
+			return nil, err
+		}
+		ev.Data = json.RawMessage(data)
+		events = append(events, ev)
+	}
+	return events, rows.Err()
+}
+
+// ListCurrentTurnEventsWithIDs returns current-turn events with row IDs.
+func (s *Store) ListCurrentTurnEventsWithIDs(sessionID string) ([]EventWithID, error) {
+	var lastUserID int
+	_ = s.db.QueryRow(
+		`SELECT COALESCE(MAX(id), 0) FROM events WHERE session_id=? AND type='user_message'`,
+		sessionID,
+	).Scan(&lastUserID)
+
+	rows, err := s.db.Query(
+		`SELECT id, data FROM events WHERE session_id=? AND id > ? AND type != 'user_message' ORDER BY id ASC`,
+		sessionID, lastUserID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var events []EventWithID
+	for rows.Next() {
+		var ev EventWithID
+		var data string
+		if err := rows.Scan(&ev.RowID, &data); err != nil {
+			return nil, err
+		}
+		ev.Data = json.RawMessage(data)
+		events = append(events, ev)
+	}
+	return events, rows.Err()
+}
+
+// ListEventsSinceID returns events after a specific row ID (for SSE reconnection).
+func (s *Store) ListEventsSinceID(sessionID string, afterID int) ([]EventWithID, error) {
+	rows, err := s.db.Query(
+		`SELECT id, data FROM events WHERE session_id=? AND id > ? ORDER BY id ASC`,
+		sessionID, afterID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var events []EventWithID
+	for rows.Next() {
+		var ev EventWithID
+		var data string
+		if err := rows.Scan(&ev.RowID, &data); err != nil {
+			return nil, err
+		}
+		ev.Data = json.RawMessage(data)
+		events = append(events, ev)
+	}
+	return events, rows.Err()
+}
+
+// StoreEventReturningID persists an event and returns its row ID.
+func (s *Store) StoreEventReturningID(sessionID, eventType string, data []byte) (int64, error) {
+	result, err := s.db.Exec(
+		`INSERT INTO events (session_id, type, data) VALUES (?,?,?)`,
+		sessionID, eventType, string(data),
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
 func (s *Store) DeleteSession(id string) error {
 	res, err := s.db.Exec(`DELETE FROM sessions WHERE id=?`, id)
 	if err != nil {

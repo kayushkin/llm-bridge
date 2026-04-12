@@ -8,14 +8,13 @@ import (
 )
 
 type HealthResponse struct {
-	Status   string         `json:"status"`
-	Bridges  []BridgeStatus `json:"bridges"`
-	Sessions SessionCounts  `json:"sessions"`
+	Status    string          `json:"status"`
+	Harnesses []HarnessStatus `json:"harnesses"`
+	Sessions  SessionCounts   `json:"sessions"`
 }
 
-type BridgeStatus struct {
+type HarnessStatus struct {
 	Name      string `json:"name"`
-	Type      string `json:"type"`
 	Available bool   `json:"available"`
 	Binary    string `json:"binary,omitempty"`
 }
@@ -33,47 +32,36 @@ var harnessBinaries = map[msg.Harness]string{
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	bridges := s.discoverBridges()
+	harnesses := s.discoverHarnesses()
 	counts := s.sessionCounts()
 
 	status := "ok"
-	if counts.Running == 0 && !anyAvailable(bridges) {
+	if counts.Running == 0 && !anyAvailable(harnesses) {
 		status = "degraded"
 	}
 
 	writeJSON(w, HealthResponse{
-		Status:   status,
-		Bridges:  bridges,
-		Sessions: counts,
+		Status:    status,
+		Harnesses: harnesses,
+		Sessions:  counts,
 	})
 }
 
-func (s *Server) handleBridges(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, s.discoverBridges())
+func (s *Server) handleHarnesses(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, s.discoverHarnesses())
 }
 
-func (s *Server) discoverBridges() []BridgeStatus {
-	var bridges []BridgeStatus
-
-	for _, p := range []msg.Provider{msg.ProviderAnthropic, msg.ProviderOpenAI, msg.ProviderGemini, msg.ProviderOpenRouter} {
-		bridges = append(bridges, BridgeStatus{
-			Name:      string(p),
-			Type:      "api",
-			Available: true,
-		})
-	}
-
+func (s *Server) discoverHarnesses() []HarnessStatus {
+	var harnesses []HarnessStatus
 	for h, bin := range harnessBinaries {
 		path, err := exec.LookPath(bin)
-		bridges = append(bridges, BridgeStatus{
+		harnesses = append(harnesses, HarnessStatus{
 			Name:      string(h),
-			Type:      "harness",
 			Available: err == nil,
 			Binary:    path,
 		})
 	}
-
-	return bridges
+	return harnesses
 }
 
 func (s *Server) sessionCounts() SessionCounts {
@@ -92,9 +80,9 @@ func (s *Server) sessionCounts() SessionCounts {
 	return counts
 }
 
-func anyAvailable(bridges []BridgeStatus) bool {
-	for _, b := range bridges {
-		if b.Available {
+func anyAvailable(harnesses []HarnessStatus) bool {
+	for _, h := range harnesses {
+		if h.Available {
 			return true
 		}
 	}

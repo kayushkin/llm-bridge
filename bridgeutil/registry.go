@@ -1,4 +1,4 @@
-package drift
+package bridgeutil
 
 // Registry tracks known fields and enum values per provider per type.
 // This allows detecting not just unknown fields, but also new enum values

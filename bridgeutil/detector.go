@@ -1,4 +1,5 @@
-// Package drift provides schema drift detection for LLM API payloads.
+// Package bridgeutil provides shared utilities for llm-bridge implementations,
+// including schema drift detection for LLM API payloads.
 //
 // When providers update their APIs (new fields, changed types, removed fields),
 // this package detects the changes at unmarshal time and reports them without
@@ -7,7 +8,7 @@
 // Usage:
 //
 //	var resp api.CompletionResponse
-//	report, err := drift.Unmarshal(data, &resp, drift.ProviderAnthropic)
+//	report, err := bridgeutil.Unmarshal(data, &resp, bridgeutil.ProviderAnthropic)
 //	if err != nil {
 //	    // Hard parse failure — data is malformed
 //	}
@@ -15,7 +16,7 @@
 //	    log.Warn("schema drift detected", "report", report)
 //	    // Continue operating — data was parsed, drift is informational
 //	}
-package drift
+package bridgeutil
 
 import (
 	"encoding/json"

@@ -1,4 +1,4 @@
-package drift
+package bridgeutil
 
 import (
 	"encoding/json"

@@ -4,18 +4,21 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/kayushkin/llm-bridge/internal/harness"
 	"github.com/kayushkin/llm-bridge/internal/store"
 )
 
 type Server struct {
-	mux   *http.ServeMux
-	store *store.Store
+	mux     *http.ServeMux
+	store   *store.Store
+	harness *harness.Manager
 }
 
-func New(s *store.Store) *Server {
+func New(st *store.Store) *Server {
 	srv := &Server{
-		mux:   http.NewServeMux(),
-		store: s,
+		mux:     http.NewServeMux(),
+		store:   st,
+		harness: harness.NewManager(st),
 	}
 	srv.routes()
 	return srv

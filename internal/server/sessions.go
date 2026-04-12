@@ -1,11 +1,13 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/kayushkin/llm-bridge/internal/harness"
 	"github.com/kayushkin/llm-bridge/internal/store"
 	"github.com/kayushkin/llm-bridge/msg"
 )
@@ -15,6 +17,7 @@ type CreateSessionRequest struct {
 	DisplayName string `json:"display_name,omitempty"`
 	AgentID     string `json:"agent_id,omitempty"`
 	SpawnerID   string `json:"spawner_id,omitempty"`
+	AutoStart   bool   `json:"auto_start,omitempty"` // start harness immediately
 }
 
 type SendMessageRequest struct {
@@ -26,7 +29,7 @@ type ForkSessionRequest struct {
 }
 
 type CompactSessionRequest struct {
-	Summary string `json:"summary,omitempty"` // optional custom summary
+	Summary string `json:"summary,omitempty"`
 }
 
 func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
@@ -58,14 +61,19 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	harness := msg.Harness(req.Harness)
-	if harness != msg.HarnessClaudeCode && harness != msg.HarnessCodex && harness != msg.HarnessOpenClaw {
+	h := msg.Harness(req.Harness)
+	if h != msg.HarnessClaudeCode && h != msg.HarnessCodex && h != msg.HarnessOpenClaw {
 		http.Error(w, "invalid harness", http.StatusBadRequest)
 		return
 	}
 
-	// TODO: spawn harness subprocess
-	// For now, just create session record
+	// Check harness is available if auto_start requested
+	if req.AutoStart {
+		if _, ok := harness.Available(h); !ok {
+			http.Error(w, fmt.Sprintf("harness not available: %s", harness.BinaryName(h)), http.StatusServiceUnavailable)
+			return
+		}
+	}
 
 	sess := &store.Session{
 		ID:          generateID(),
@@ -81,6 +89,17 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Start harness subprocess if requested
+	if req.AutoStart {
+		if _, err := s.harness.Start(r.Context(), sess); err != nil {
+			// Session created but harness failed to start
+			s.store.UpdateSessionState(sess.ID, string(msg.SessionError))
+			sess.State = string(msg.SessionError)
+		} else {
+			sess.State = string(msg.SessionRunning)
+		}
+	}
+
 	w.WriteHeader(http.StatusCreated)
 	writeJSON(w, sess)
 }
@@ -93,7 +112,10 @@ func (s *Server) handleStopSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: send stop signal to harness subprocess
+	// Kill the harness process
+	if err := s.harness.Kill(id); err != nil {
+		// Process might not be running, just update state
+	}
 
 	if err := s.store.UpdateSessionState(id, string(msg.SessionAborted)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -106,7 +128,8 @@ func (s *Server) handleStopSession(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSendMessage(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if _, err := s.store.GetSession(id); err != nil {
+	sess, err := s.store.GetSession(id)
+	if err != nil {
 		http.Error(w, "session not found", http.StatusNotFound)
 		return
 	}
@@ -117,7 +140,18 @@ func (s *Server) handleSendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: write message to harness subprocess stdin
+	// Start harness if not running
+	if s.harness.Get(id) == nil {
+		if _, err := s.harness.Start(r.Context(), sess); err != nil {
+			http.Error(w, fmt.Sprintf("failed to start harness: %v", err), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if err := s.harness.Send(id, req.Message); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	writeJSON(w, map[string]string{"status": "sent"})
 }
@@ -129,17 +163,39 @@ func (s *Server) handleSessionEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	events := s.harness.Events(id)
+	if events == nil {
+		http.Error(w, "session not running", http.StatusConflict)
+		return
+	}
+
 	// SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	// TODO: stream events from harness subprocess stdout
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		return
+	}
 
-	// For now, just send a ping and close
-	w.Write([]byte("event: ping\ndata: {}\n\n"))
-	if f, ok := w.(http.Flusher); ok {
-		f.Flush()
+	ctx := r.Context()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-events:
+			if !ok {
+				// Channel closed, session ended
+				w.Write([]byte("event: close\ndata: {}\n\n"))
+				flusher.Flush()
+				return
+			}
+			data, _ := json.Marshal(event)
+			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, data)
+			flusher.Flush()
+		}
 	}
 }
 
@@ -156,7 +212,10 @@ func (s *Server) handleInterruptSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// TODO: send SIGINT to harness subprocess
+	if err := s.harness.Stop(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	if err := s.store.UpdateSessionState(id, string(msg.SessionIdle)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -180,10 +239,9 @@ func (s *Server) handleResumeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: send resume command to harness subprocess
-
-	if err := s.store.UpdateSessionState(id, string(msg.SessionRunning)); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	// Restart harness with resume flag
+	if _, err := s.harness.Start(r.Context(), sess); err != nil {
+		http.Error(w, fmt.Sprintf("failed to resume: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -200,10 +258,17 @@ func (s *Server) handleCompactSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req CompactSessionRequest
-	json.NewDecoder(r.Body).Decode(&req) // optional body
+	json.NewDecoder(r.Body).Decode(&req)
 
-	// TODO: send compact command to harness subprocess
-	// For Claude Code: write "/compact" or custom summary to stdin
+	// Send compact command
+	cmd := "compact"
+	if req.Summary != "" {
+		cmd = "compact:" + req.Summary
+	}
+	if err := s.harness.SendCommand(id, cmd); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	writeJSON(w, sess)
 }
@@ -217,14 +282,12 @@ func (s *Server) handleForkSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req ForkSessionRequest
-	json.NewDecoder(r.Body).Decode(&req) // optional body
+	json.NewDecoder(r.Body).Decode(&req)
 
 	displayName := req.DisplayName
 	if displayName == "" {
 		displayName = parent.DisplayName + " (fork)"
 	}
-
-	// TODO: spawn new harness subprocess with --fork-session flag
 
 	forked := &store.Session{
 		ID:          generateID(),
@@ -239,6 +302,14 @@ func (s *Server) handleForkSession(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.CreateSession(forked); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Start forked session (harness will use parent_id to fork state)
+	if _, err := s.harness.Start(context.Background(), forked); err != nil {
+		s.store.UpdateSessionState(forked.ID, string(msg.SessionError))
+		forked.State = string(msg.SessionError)
+	} else {
+		forked.State = string(msg.SessionRunning)
 	}
 
 	w.WriteHeader(http.StatusCreated)

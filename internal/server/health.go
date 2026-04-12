@@ -2,8 +2,8 @@ package server
 
 import (
 	"net/http"
-	"os/exec"
 
+	"github.com/kayushkin/llm-bridge/internal/harness"
 	"github.com/kayushkin/llm-bridge/msg"
 )
 
@@ -25,10 +25,10 @@ type SessionCounts struct {
 	Completed int `json:"completed"`
 }
 
-var harnessBinaries = map[msg.Harness]string{
-	msg.HarnessClaudeCode: "llm-bridge-claudecode",
-	msg.HarnessCodex:      "llm-bridge-codex",
-	msg.HarnessOpenClaw:   "llm-bridge-openclaw",
+var allHarnesses = []msg.Harness{
+	msg.HarnessClaudeCode,
+	msg.HarnessCodex,
+	msg.HarnessOpenClaw,
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -52,16 +52,16 @@ func (s *Server) handleHarnesses(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) discoverHarnesses() []HarnessStatus {
-	var harnesses []HarnessStatus
-	for h, bin := range harnessBinaries {
-		path, err := exec.LookPath(bin)
-		harnesses = append(harnesses, HarnessStatus{
+	var statuses []HarnessStatus
+	for _, h := range allHarnesses {
+		path, available := harness.Available(h)
+		statuses = append(statuses, HarnessStatus{
 			Name:      string(h),
-			Available: err == nil,
+			Available: available,
 			Binary:    path,
 		})
 	}
-	return harnesses
+	return statuses
 }
 
 func (s *Server) sessionCounts() SessionCounts {

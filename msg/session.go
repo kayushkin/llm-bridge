@@ -41,3 +41,17 @@ type SessionTask struct {
 	Status     string `json:"status"`
 	ActiveForm string `json:"active_form,omitempty"`
 }
+
+// StoredSession represents a session discovered on disk from a harness's
+// native storage (e.g. ~/.claude/projects/ or ~/.codex/sessions/).
+// These are sessions that exist outside the llm-bridge-server's own store.
+type StoredSession struct {
+	ID        string    `json:"id"`
+	Harness   Harness   `json:"harness"`
+	Project   string    `json:"project,omitempty"`   // project directory or context
+	Prompt    string    `json:"prompt,omitempty"`    // initial prompt snippet
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`          // file modification time
+	Path      string    `json:"path"`                // on-disk path to session file
+	TurnCount int       `json:"turn_count,omitempty"` // approximate number of turns
+}

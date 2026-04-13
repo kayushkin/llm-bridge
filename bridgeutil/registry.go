@@ -43,6 +43,7 @@ func NewRegistry() *Registry {
 			"claude_code:stream_event":   claudeCodeStreamEvent(),
 			"codex:event":               codexEvent(),
 			"openclaw:frame":            openclawFrame(),
+			"opencode:event":            openCodeEvent(),
 		},
 	}
 }
@@ -179,6 +180,24 @@ func codexEvent() TypeSchema {
 				"item.started", "item.completed", "error",
 			}},
 			"item": {JSONType: "object"},
+		},
+	}
+}
+
+func openCodeEvent() TypeSchema {
+	return TypeSchema{
+		Provider: ProviderOpenCode,
+		TypeName: "event",
+		Fields: map[string]FieldSchema{
+			"type": {JSONType: "string", Required: true, EnumValues: []string{
+				"message.updated", "message.removed",
+				"message.part.updated", "message.part.removed",
+				"session.created", "session.updated", "session.deleted",
+				"session.status", "session.idle", "session.error",
+				"session.diff", "session.compacted",
+				"permission.updated", "permission.replied",
+			}},
+			"properties": {JSONType: "object", Required: true},
 		},
 	}
 }

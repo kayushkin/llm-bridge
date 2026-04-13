@@ -15,6 +15,7 @@ func TestNewRegistry_AllProviders(t *testing.T) {
 		"claude_code:stream_event",
 		"codex:event",
 		"openclaw:frame",
+		"opencode:event",
 	}
 	for _, key := range expectedKeys {
 		t.Run(key, func(t *testing.T) {
@@ -118,6 +119,26 @@ func TestCheckEnum_Codex_EventTypes(t *testing.T) {
 	for _, et := range validTypes {
 		t.Run(et, func(t *testing.T) {
 			drift := reg.CheckEnum(ProviderCodex, "event", "type", et)
+			if drift != nil {
+				t.Errorf("expected nil for valid type %q", et)
+			}
+		})
+	}
+}
+
+func TestCheckEnum_OpenCode_EventTypes(t *testing.T) {
+	reg := NewRegistry()
+	validTypes := []string{
+		"message.updated", "message.removed",
+		"message.part.updated", "message.part.removed",
+		"session.created", "session.updated", "session.deleted",
+		"session.status", "session.idle", "session.error",
+		"session.diff", "session.compacted",
+		"permission.updated", "permission.replied",
+	}
+	for _, et := range validTypes {
+		t.Run(et, func(t *testing.T) {
+			drift := reg.CheckEnum(ProviderOpenCode, "event", "type", et)
 			if drift != nil {
 				t.Errorf("expected nil for valid type %q", et)
 			}

@@ -38,6 +38,7 @@ const (
 	ProviderClaudeCode Provider = "claude_code"
 	ProviderCodex      Provider = "codex"
 	ProviderOpenClaw   Provider = "openclaw"
+	ProviderOpenCode   Provider = "opencode"
 )
 
 // DriftKind classifies the type of schema change detected.

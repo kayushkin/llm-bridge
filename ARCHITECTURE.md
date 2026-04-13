@@ -44,6 +44,14 @@ llm-bridge is a modular, composable system for unifying access to LLM providers 
                      | context     |                     +--------------+
                      | compaction  |
                      +-------------+
+                                                         +--------------+
+                                                         |  log-store   |
+                                                         |  (service)   |
+                                                         |              |
+                                                         | event log    |
+                                                         | msg history  |
+                                                         | JSONL storage|
+                                                         +--------------+
 
    llm-bridge-server spawns harness subprocesses:
 
@@ -90,6 +98,7 @@ All stores are **Go libraries** that open their own SQLite file. No server proce
 | **agent-store** | Go library | Agent identity, nature (principles/values), per-orchestrator configs (model, tools, limits), tool registry, agent status. |
 | **memory-store** | Go library | Context management. Persistent memories with embeddings, semantic search, context building, compaction, session tracking, recency decay. Standalone — not tied to agents. |
 | **harness-store** | Go library | Harness instance registry. Deployments of harness types on specific machines (local or SSH), credential bindings per instance with priority and concurrency limits. Static config — runtime state (active slots) lives in llm-bridge-server. |
+| **log-store** | Go service | Durable event log for llm-bridge sessions. Stores events as JSONL by date/source, materializes message history. llm-bridge-server pushes events to it and proxies `/sessions/{id}/messages` and `/sessions/{id}/history` through it. |
 | **usage-store** | Go library | Token usage tracking per agent/orchestrator/model/day. Cost calculation from model-store pricing. Aggregation queries. |
 | **aiauth** | Go library | OAuth2 flow runner (browser redirect, token exchange, refresh). Used by auth-store for token lifecycle. |
 
@@ -110,7 +119,8 @@ Manage agent harness subprocesses. Spawned by llm-bridge-server, communicate via
 
 | Repo | Type | Status |
 |------|------|--------|
-| **llm-bridge-claudecode** | Go binary | Scaffold -- wraps Claude Code CLI |
+| **llm-bridge-claudecode** | Go binary | Implemented -- wraps Claude Code CLI (`--input-format stream-json`). Session discovery, history import, auto-approve, work dir support. |
+| **llm-bridge-jig** | Go binary | Implemented -- profile manager harness for Claude Code. Loads YAML profiles with inheritance and env var substitution. |
 | **llm-bridge-codex** | Go binary | Scaffold -- wraps Codex CLI |
 | **llm-bridge-openclaw** | Go binary | Scaffold -- WebSocket client |
 | **llm-bridge-inber** | Go binary | Scaffold |
@@ -118,19 +128,21 @@ Manage agent harness subprocesses. Spawned by llm-bridge-server, communicate via
 | **llm-bridge-aider** | Go binary | Scaffold -- wraps Aider CLI |
 | **llm-bridge-goose** | Go binary | Scaffold -- wraps Goose CLI/API |
 | **llm-bridge-autohand** | Go binary | Scaffold -- wraps Autohand Code CLI (ACP stdio) |
-| **llm-bridge-jig** | Go binary | Scaffold -- wraps Jig CLI |
 | **llm-bridge-dexto** | Go binary | Scaffold -- REST+SSE client |
 | **llm-bridge-commander** | Go binary | Scaffold -- subprocess orchestrator |
 | **llm-bridge-nanoclaw** | Go binary | Scaffold -- container subprocess |
 | **llm-bridge-cline** | Go binary | Scaffold -- wraps Cline CLI |
 | **llm-bridge-roocode** | Go binary | Scaffold -- wraps Roo Code CLI |
+| **llm-bridge-opencode** | Go binary | Scaffold -- wraps OpenCode CLI |
+| **llm-bridge-kilocode** | Go binary | Scaffold -- wraps Kilo Code CLI |
 
 ### Service
 
 | Repo | Type | Description |
 |------|------|-------------|
-| **llm-bridge-server** | Go service | The gateway. HTTP API for sessions, event streaming (SSE), harness lifecycle management. Imports all store libraries. Exposes agent, model, credential, and usage data via API. Single process to run. |
-| **llm-bridge-adapter** | Go service | NATS bus adapter for integrating llm-bridge with the inber messaging ecosystem. |
+| **llm-bridge-server** | Go service | The gateway. HTTP API for sessions, event streaming (SSE), harness lifecycle management. Imports store libraries (agent-store, memory-store, harness-store, model-store, log-store). Auto-discovers harness native sessions on startup and imports history to log-store. Single process to run. |
+| **llm-bridge-adapter** | Go service | NATS bus adapter for integrating llm-bridge with the inber messaging ecosystem. Translates bus ChatInbound/ChatOutbound to bridge sessions and SSE events. |
+| **log-store** | Go service | Durable event log. Receives events from llm-bridge-server, stores as JSONL, materializes message history. Queried via REST. |
 
 ### Retired / To Delete
 
@@ -163,14 +175,19 @@ llm-bridge              (no deps -- canonical types + interfaces)
   |--- llm-bridge-openrouter  (imports llm-bridge/msg)
   |
   |--- llm-bridge-claudecode  (imports llm-bridge/msg, llm-bridge/bridge)
+  |--- llm-bridge-jig         (imports llm-bridge/msg, llm-bridge/bridge)
   |--- llm-bridge-codex       (imports llm-bridge/msg, llm-bridge/bridge)
   |--- llm-bridge-openclaw    (imports llm-bridge/msg, llm-bridge/bridge)
   |--- llm-bridge-inber       (imports llm-bridge/msg, llm-bridge/bridge)
   |--- llm-bridge-hermes      (imports llm-bridge/msg, llm-bridge/bridge)
   |
-  +--- llm-bridge-server      (imports all stores + harness bridges)
-       |-- runtime store: sessions, events, credential_slots
-       |-- imports: agent-store, memory-store, harness-store (model-store, auth-store planned)
+  +--- llm-bridge-server      (imports stores + orchestrates harness binaries)
+       |-- runtime store: sessions, events, credential_slots (internal SQLite)
+       |-- imports: agent-store, memory-store, harness-store, model-store, aiauth
+       |-- proxies: log-store (HTTP, event push + message/history queries)
+       |-- not yet wired: auth-store, usage-store
+
+  +--- llm-bridge-adapter     (imports bus, talks to llm-bridge-server via HTTP/SSE)
 ```
 
 ## Migration Plan
@@ -320,13 +337,28 @@ agent-store becomes a library only. Its HTTP+NATS server surface moves to llm-br
 - [x] Routes: `/agents/*`, `/memories/*`, `/configs`, `/reconcile`
 - [x] Removed standalone `cmd/server/` from agent-store
 
+### Post-Phase 4: Session Discovery & Log-Store Integration (2026-04-13)
+
+- [x] Created `log-store` service for durable event logging (JSONL storage, REST API)
+- [x] llm-bridge-server pushes events to log-store, proxies `/messages` and `/history`
+- [x] Removed local history store fallback — log-store is the single source for message history
+- [x] Auto-discover harness native sessions on startup (Claude Code `~/.claude/*`, Codex `~/.codex/*`)
+- [x] Import discovered session conversation history to log-store
+- [x] Assign discovered sessions to the local instance that ran discovery
+- [x] Use prompt as display_name for discovered sessions
+
+### Post-Phase 4: Harness Implementations (2026-04-13)
+
+- [x] `llm-bridge-claudecode` — full implementation: subprocess via `--input-format stream-json`, session discovery (`-discover`), history import (`-import-history`), auto-approve toggle, work dir support
+- [x] `llm-bridge-jig` — profile manager bridge with subprocess management, YAML profile inheritance
+
 ### Remaining Phases
 
 ```
 Phase 5 (wire provider bridges into harnesses)
      Ongoing as harnesses mature.
-Phase 6 (fold model-store, auth-store, usage-store into llm-bridge-server)
-     Additional stores to mount when ready.
+Phase 6 (fold auth-store, usage-store into llm-bridge-server)
+     model-store is already wired. auth-store and usage-store remain.
 ```
 
 ## Ports (post-migration)

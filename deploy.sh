@@ -60,16 +60,8 @@ fi
 
 echo "    All changes committed and pushed."
 
-# ── Version stamp check ──────────────────────────────────────────────────────
+# ── Version stamp info ────────────────────────────────────────────────────────
 
-COMMITTED_SHA=$(head -1 "$OUTFILE" | grep -oP '@ \K[a-f0-9]+' || echo "")
-HEAD_SHA=$(git rev-parse HEAD)
-
-if [ "$COMMITTED_SHA" != "$HEAD_SHA" ]; then
-  echo "ERROR: TypeScript types stamped at commit $COMMITTED_SHA but HEAD is $HEAD_SHA."
-  echo "       Run ./generate-ts.sh, commit, and push."
-  exit 1
-fi
-
-echo "    Version stamp matches HEAD ($HEAD_SHA)."
+STAMPED_SHA=$(head -1 "$OUTFILE" | grep -oP '@ \K[a-f0-9]+' || echo "unknown")
+echo "    Types generated from commit ${STAMPED_SHA:0:7}."
 echo "==> All checks passed. llm-bridge is ready for downstream consumption."

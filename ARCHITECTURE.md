@@ -459,9 +459,51 @@ GET  /instances/{id}/sessions       # list active sessions on instance
 POST /sessions                      # now accepts instance_id param
 ```
 
+## Canonical Types (`msg/`)
+
+The `msg/` package is the **single source of truth** for all shared types across the llm-bridge ecosystem. Every type that crosses a service boundary — API requests, API responses, events, sessions, instances, credentials, preferences — is defined here.
+
+### What lives in `msg/`
+
+| File | Types | Description |
+|------|-------|-------------|
+| `message.go` | `Conversation`, `Message` | LLM API wire types |
+| `content.go` | `ContentBlock`, `TextBlock`, `ImageBlock`, ... | Content block discriminated union |
+| `event.go` | `Event`, `ResultEvent`, `ToolSummary`, ... | Harness event types |
+| `session.go` | `Session`, `SessionTask`, `StoredSession` | Agent-level session state |
+| `instance.go` | `Instance`, `InstanceCredential`, `CredentialSlot`, `InstanceStatus`, `CredentialStatus` | Harness instance types |
+| `provider.go` | `Provider`, `Role`, `Harness`, `EventType`, `SessionState`, ... | Enums and constants |
+| `config.go` | `GenerationConfig`, `AnthropicConfig`, `OpenAIConfig`, ... | Provider config types |
+| `response.go` | `CompletionResponse`, `SafetyRating`, ... | LLM API response types |
+| `stream.go` | `StreamEvent`, `BlockDelta`, `MessageDelta`, ... | Streaming event types |
+| `tool.go` | `ToolDef`, `ToolChoice` | Tool definition types |
+| `usage.go` | `TokenUsage`, `Cost` | Usage tracking types |
+| `server.go` | `ManagedSession`, `HarnessInfo`, `Credential`, `BridgePrefs`, `MaterializedMessage`, request types, health types | Server API surface types |
+| `validate.go` | `ValidationError`, `ValidationFailure` | Validation types |
+
+### Adding new types
+
+**If a type is used in API responses, API requests, events, or SSE streams — it belongs in `msg/`.** Do not define API contract types locally in `llm-bridge-server`, `log-store`, or any other service. Instead:
+
+1. Define the Go struct in the appropriate `msg/*.go` file
+2. Run `./generate-ts.sh` to regenerate TypeScript
+3. Commit both Go and TypeScript changes together
+4. Import from `msg` in Go services, from `@kayushkin/llm-bridge-types` in TypeScript
+
+**Types that do NOT belong in `msg/`:** UI-only state (React hooks, component props), internal store implementation details, transport-layer types that never leave a process.
+
+### Consumers
+
+| Consumer | How it imports |
+|----------|---------------|
+| **llm-bridge-server** | Go: `import "github.com/kayushkin/llm-bridge/msg"` — uses type aliases for backward compat (e.g. `type Session = msg.ManagedSession`) |
+| **log-store** | Go: same as above |
+| **bridge-ui** | TS: `import type { ... } from '@kayushkin/llm-bridge-types'` — re-exports with aliases (e.g. `BridgeSession` = `ManagedSession`) |
+| **llmux** | TS: imports canonical types directly from `@kayushkin/llm-bridge-types`, or indirectly via `@kayushkin/bridge-ui` |
+
 ## TypeScript Types (`ts/`)
 
-The `ts/` directory contains **auto-generated TypeScript types** derived from the Go types in `msg/`. These files are the TypeScript equivalent of the canonical Go types and must never be edited by hand — any manual changes will be overwritten.
+The `ts/` directory contains **auto-generated TypeScript types** derived from the Go types in `msg/`. Published as `@kayushkin/llm-bridge-types`. These files must never be edited by hand — any manual changes will be overwritten.
 
 **Source of truth:** Go structs and constants in `msg/*.go`.
 
@@ -473,11 +515,12 @@ The `ts/` directory contains **auto-generated TypeScript types** derived from th
 1. Edit Go types in `msg/`
 2. Run `./generate-ts.sh`
 3. Commit both Go and TypeScript changes together
-4. Downstream consumers (`bridge-ui`, `llmux`) import from `ts/msg.ts`
+4. Downstream consumers (`bridge-ui`, `llmux`) import from `@kayushkin/llm-bridge-types`
 
 **Do not:**
 - Edit files in `ts/` directly
 - Add hand-written types to `ts/` — frontend-only types belong in the consuming package (e.g. `bridge-ui`)
+- Define API contract types locally in consuming services — add them to `msg/` instead
 
 ## Design Principles
 

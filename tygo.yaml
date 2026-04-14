@@ -1,0 +1,6 @@
+packages:
+  - path: "github.com/kayushkin/llm-bridge/msg"
+    output_path: "ts/msg.ts"
+    type_mappings:
+      "json.RawMessage": "Record<string, unknown>"
+      "time.Time": "string"

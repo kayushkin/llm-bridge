@@ -31,9 +31,10 @@ type ManagedSession struct {
 	PID             int       `json:"pid,omitempty"`
 	AgentID         string    `json:"agent_id,omitempty"`
 	SpawnerID       string    `json:"spawner_id,omitempty"`
-	ParentID        string    `json:"parent_id,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ParentID        string          `json:"parent_id,omitempty"`
+	HarnessConfig   json.RawMessage `json:"harness_config,omitempty"` // opaque harness-specific config
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -145,13 +146,14 @@ type SessionCounts struct {
 
 // CreateSessionRequest is the request body for POST /sessions.
 type CreateSessionRequest struct {
-	Harness     Harness `json:"harness"`
-	InstanceID  string  `json:"instance_id,omitempty"`
-	DisplayName string  `json:"display_name,omitempty"`
-	AgentID     string  `json:"agent_id,omitempty"`
-	SpawnerID   string  `json:"spawner_id,omitempty"`
-	AutoStart   bool    `json:"auto_start,omitempty"`
-	ClientID    string  `json:"client_id,omitempty"`
+	Harness       Harness         `json:"harness"`
+	InstanceID    string          `json:"instance_id,omitempty"`
+	DisplayName   string          `json:"display_name,omitempty"`
+	AgentID       string          `json:"agent_id,omitempty"`
+	SpawnerID     string          `json:"spawner_id,omitempty"`
+	AutoStart     bool            `json:"auto_start,omitempty"`
+	ClientID      string          `json:"client_id,omitempty"`
+	HarnessConfig json.RawMessage `json:"harness_config,omitempty"` // opaque harness-specific config, merged into start params
 }
 
 // SendMessageRequest is the request body for POST /sessions/{id}/send.

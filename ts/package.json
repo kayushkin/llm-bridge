@@ -1,0 +1,12 @@
+{
+  "name": "@kayushkin/llm-bridge-types",
+  "version": "0.1.0",
+  "type": "module",
+  "types": "./msg.ts",
+  "exports": {
+    ".": {
+      "types": "./msg.ts",
+      "default": "./msg.ts"
+    }
+  }
+}

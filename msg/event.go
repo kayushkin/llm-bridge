@@ -11,8 +11,9 @@ type Event struct {
 	Type    EventType `json:"type"`
 	Harness Harness   `json:"harness"`
 
-	SessionID    string `json:"session_id"`
-	CompletionID string `json:"completion_id,omitempty"`
+	SessionID       string `json:"session_id"`
+	ClientRequestID string `json:"client_request_id,omitempty"`
+	CompletionID    string `json:"completion_id,omitempty"`
 
 	Timestamp time.Time `json:"timestamp"`
 

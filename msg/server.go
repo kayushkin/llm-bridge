@@ -152,7 +152,8 @@ type SendMessageRequest struct {
 
 // ForkSessionRequest is the request body for POST /sessions/{id}/fork.
 type ForkSessionRequest struct {
-	DisplayName string `json:"display_name,omitempty"`
+	DisplayName     string `json:"display_name,omitempty"`
+	ClientRequestID string `json:"client_request_id,omitempty"`
 }
 
 // CompactSessionRequest is the request body for POST /sessions/{id}/compact.

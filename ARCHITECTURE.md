@@ -459,6 +459,26 @@ GET  /instances/{id}/sessions       # list active sessions on instance
 POST /sessions                      # now accepts instance_id param
 ```
 
+## TypeScript Types (`ts/`)
+
+The `ts/` directory contains **auto-generated TypeScript types** derived from the Go types in `msg/`. These files are the TypeScript equivalent of the canonical Go types and must never be edited by hand — any manual changes will be overwritten.
+
+**Source of truth:** Go structs and constants in `msg/*.go`.
+
+**Generation:** Run `./generate-ts.sh` to regenerate. This uses [tygo](https://github.com/gzuidhof/tygo) to parse the Go source and emit TypeScript interfaces and constants. The output is stamped with the source commit SHA.
+
+**Drift check:** `deploy.sh` regenerates the types and diffs against the committed version. If they don't match, the deploy fails. This ensures the committed TypeScript always reflects the current Go types.
+
+**Workflow:**
+1. Edit Go types in `msg/`
+2. Run `./generate-ts.sh`
+3. Commit both Go and TypeScript changes together
+4. Downstream consumers (`bridge-ui`, `llmux`) import from `ts/msg.ts`
+
+**Do not:**
+- Edit files in `ts/` directly
+- Add hand-written types to `ts/` — frontend-only types belong in the consuming package (e.g. `bridge-ui`)
+
 ## Design Principles
 
 1. **Libraries over servers.** Stores are Go packages you import. One server composes them.

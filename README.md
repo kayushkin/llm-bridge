@@ -1,51 +1,71 @@
 # llm-bridge
 
-Canonical message types and bridge interfaces for building LLM agent integrations in Go and TypeScript (with Python support planned).
+A unified interface for AI coding agents. Written in Go, with type definitions available for TypeScript and Python.
 
-Every AI coding agent — Claude Code, Codex, Aider, Goose, Cline, and others — speaks its own protocol. llm-bridge defines a single canonical format so that **any harness can be consumed by any receiver through one uniform interface**. The agent is a black box. The harness bridge translates. Your application just reads `msg.Event`.
+AI coding agents — Claude Code, Codex, Aider, Goose, Cline, and others — each have their own protocol, CLI interface, and event format. llm-bridge treats every agent as a **black box** and provides a single canonical event stream to your application. You don't need to know which agent is running. You just consume `msg.Event`.
 
-Every component in the ecosystem is a separate repo and **completely optional**. Use only what you need.
+Every component is a separate repo and completely optional. Use only what you need.
 
 ## How it works
 
 ```
-  ┌───────────────────────────────────────────────────────┐
-  │                   Your Application                    │
-  │              (dashboard, CLI, bot, ...)                │
-  └───────────────────────┬───────────────────────────────┘
-                          │ consumes msg.Event via HTTP/SSE
-                          ▼
-  ┌───────────────────────────────────────────────────────┐
-  │                  llm-bridge-server                    │
-  │         HTTP gateway + SSE event streaming            │
-  │     session lifecycle, credential management          │
-  │                                                       │
-  │  ┌─────────────┐ ┌─────────────┐ ┌────────────────┐  │
-  │  │ agent-store │ │ model-store │ │ harness-store  │  │
-  │  │ (optional)  │ │ (optional)  │ │  (optional)    │  │
-  │  └─────────────┘ └─────────────┘ └────────────────┘  │
-  └───────────────────────┬───────────────────────────────┘
-                          │ stdin/stdout NDJSON
-                          ▼
-  ┌───────────────────────────────────────────────────────┐
-  │                  Harness Bridges                      │
-  │       Black-box wrappers around agent CLIs            │
-  │    Each translates native output → msg.Event          │
-  │                                                       │
-  │  claudecode · jig · codex · hermes · aider · goose   │
-  │  openclaw · nanoclaw · cline · roocode · kilocode    │
-  │  commander · autohand · dexto · inber                 │
-  └───────────────────────┬───────────────────────────────┘
-                          │ native protocol (varies)
-                          ▼
-  ┌───────────────────────────────────────────────────────┐
-  │                    Agent CLIs                         │
-  │     Claude Code, Codex, Aider, Goose, Cline, ...     │
-  │           (completely opaque to consumers)            │
-  └───────────────────────────────────────────────────────┘
+  ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
+    Your Application  (dashboard, CLI, bot, anything)
+  └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┬ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+                            │ msg.Event via HTTP/SSE
+  ╔═════════════════════════╪═════════════════════════════╗
+  ║              llm-bridge ecosystem                     ║
+  ║                         │                             ║
+  ║   ┌─────────────────────▼───────────────────────┐     ║
+  ║   │            llm-bridge-server                │     ║
+  ║   │     HTTP gateway + SSE event streaming      │     ║
+  ║   │                                             │     ║
+  ║   │  Sessions: start, send, stop, resume, fork, │     ║
+  ║   │    interrupt, compact, config, discover     │     ║
+  ║   │                                             │     ║
+  ║   │  Optional stores:                           │     ║
+  ║   │    agent-store · model-store                │     ║
+  ║   │    harness-store · memory-store · log-store │     ║
+  ║   └─────────────────────┬───────────────────────┘     ║
+  ║                         │ stdin/stdout NDJSON          ║
+  ║   ┌─────────────────────▼───────────────────────┐     ║
+  ║   │            Harness Bridges                  │     ║
+  ║   │     One per agent, translates native        │     ║
+  ║   │     protocol → canonical msg.Event          │     ║
+  ║   │                                             │     ║
+  ║   │  claudecode · jig · codex · hermes · aider  │     ║
+  ║   │  goose · openclaw · nanoclaw · cline        │     ║
+  ║   │  roocode · kilocode · commander             │     ║
+  ║   │  autohand · dexto · inber                   │     ║
+  ║   └─────────────────────┬───────────────────────┘     ║
+  ╚═════════════════════════╪═════════════════════════════╝
+                            │ native protocol (varies)
+  ┌─────────────────────────▼───────────────────────────┐
+  │                    Agent CLIs                       │
+  │   Claude Code, Codex, Aider, Goose, Cline, ...     │
+  │          (completely opaque — black boxes)          │
+  └─────────────────────────────────────────────────────┘
 ```
 
-**The core flow is vertical: Agent → Harness Bridge → Server → Receiver.** Each agent is treated as an opaque subprocess. The harness bridge is the only thing that knows how to speak the agent's native protocol — it translates everything into canonical `msg.Event` streams. The server manages sessions and exposes those streams over HTTP/SSE. Your application subscribes and gets a uniform event feed regardless of which agent is running underneath.
+Your application sits on one side, the agents sit on the other, and the llm-bridge ecosystem handles everything in between. The harness bridge is the only component that knows an agent's native protocol. Everything above it — the server, the stores, your code — just sees canonical events.
+
+## What you get from every agent
+
+Regardless of which agent is behind the harness, your application receives a uniform set of capabilities through the server API:
+
+| Capability | Description |
+|------------|-------------|
+| **Event streaming** | Real-time `msg.Event` stream over SSE — results, tool calls, tool results, thinking, errors, state changes |
+| **Action approval** | Approval events surface tool/command permission requests; your app can confirm or deny |
+| **Session lifecycle** | Start, stop, resume, and discover sessions across any harness |
+| **Forking** | Fork a session to branch a conversation from a specific point |
+| **Compaction** | Compact a session's context to stay within token limits |
+| **Interruption** | Interrupt a running session mid-turn, then resume or send a new message |
+| **Configuration** | Update session config (model, tools, permissions) on the fly |
+| **Usage tracking** | Token counts, cost, duration, API call breakdowns per session |
+| **Task tracking** | Structured task/todo state from agents that support it |
+| **Thinking/planning** | Extended thinking and plan events surfaced from agents that emit them |
+| **Message history** | Materialized conversation history via log-store (optional) |
 
 ## Packages
 

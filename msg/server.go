@@ -12,8 +12,18 @@ import (
 // ManagedSession is a session as tracked by llm-bridge-server.
 // This is the server's lightweight session management entity, distinct from
 // [Session] which models rich agent-level state (usage, tasks, context).
+//
+// Three IDs track a session through its lifecycle:
+//   - BridgeID: server-generated primary key, stable from creation.
+//   - HarnessID: the canonical harness session ID (e.g. CC UUID). Empty until
+//     the harness reports it on first event.
+//   - ClientID: the frontend's correlation key (fe_*). Set at creation,
+//     never changes. Used by the frontend to relate the response back to its
+//     optimistic UI entry.
 type ManagedSession struct {
-	ID              string    `json:"id"`
+	BridgeID  string `json:"bridge_id"`
+	HarnessID string `json:"harness_id,omitempty"`
+	ClientID  string `json:"client_id,omitempty"`
 	DisplayName     string    `json:"display_name"`
 	Harness         Harness   `json:"harness"`
 	InstanceID      string    `json:"instance_id,omitempty"`
@@ -22,7 +32,6 @@ type ManagedSession struct {
 	AgentID         string    `json:"agent_id,omitempty"`
 	SpawnerID       string    `json:"spawner_id,omitempty"`
 	ParentID        string    `json:"parent_id,omitempty"`
-	ClientRequestID string    `json:"client_request_id,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
@@ -136,13 +145,13 @@ type SessionCounts struct {
 
 // CreateSessionRequest is the request body for POST /sessions.
 type CreateSessionRequest struct {
-	Harness         Harness `json:"harness"`
-	InstanceID      string `json:"instance_id,omitempty"`
-	DisplayName     string `json:"display_name,omitempty"`
-	AgentID         string `json:"agent_id,omitempty"`
-	SpawnerID       string `json:"spawner_id,omitempty"`
-	AutoStart       bool   `json:"auto_start,omitempty"`
-	ClientRequestID string `json:"client_request_id,omitempty"`
+	Harness     Harness `json:"harness"`
+	InstanceID  string  `json:"instance_id,omitempty"`
+	DisplayName string  `json:"display_name,omitempty"`
+	AgentID     string  `json:"agent_id,omitempty"`
+	SpawnerID   string  `json:"spawner_id,omitempty"`
+	AutoStart   bool    `json:"auto_start,omitempty"`
+	ClientID    string  `json:"client_id,omitempty"`
 }
 
 // SendMessageRequest is the request body for POST /sessions/{id}/send.
@@ -152,8 +161,8 @@ type SendMessageRequest struct {
 
 // ForkSessionRequest is the request body for POST /sessions/{id}/fork.
 type ForkSessionRequest struct {
-	DisplayName     string `json:"display_name,omitempty"`
-	ClientRequestID string `json:"client_request_id,omitempty"`
+	DisplayName string `json:"display_name,omitempty"`
+	ClientID    string `json:"client_id,omitempty"`
 }
 
 // CompactSessionRequest is the request body for POST /sessions/{id}/compact.

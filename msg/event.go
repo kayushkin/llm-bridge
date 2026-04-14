@@ -12,7 +12,7 @@ type Event struct {
 	Harness Harness   `json:"harness"`
 
 	SessionID       string `json:"session_id"`
-	ClientRequestID string `json:"client_request_id,omitempty"`
+	ClientID string `json:"client_id,omitempty"`
 	CompletionID    string `json:"completion_id,omitempty"`
 
 	Timestamp time.Time `json:"timestamp"`

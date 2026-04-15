@@ -71,7 +71,7 @@ llm-bridge is a modular, composable system for unifying access to LLM providers 
            v                   v                   v
    +----------------+ +----------------+ +----------------+
    | llm-bridge-    | | llm-bridge-    | | llm-bridge-    |  ...
-   | anthropic      | | openai         | | gemini         |
+   | anthropic      | | openai         | | google         |
    | (provider lib) | | (provider lib) | | (provider lib) |
    +----------------+ +----------------+ +----------------+
            |                   |                   |
@@ -110,7 +110,7 @@ Convert between canonical `msg` types and provider-specific wire formats. Statel
 |------|------|--------|
 | **llm-bridge-anthropic** | Go library | Has implementation (from msgbridge-anthropic) |
 | **llm-bridge-openai** | Go library | Has implementation (from msgbridge-openai) |
-| **llm-bridge-gemini** | Go library | Scaffold |
+| **llm-bridge-google** | Go library | Implemented |
 | **llm-bridge-openrouter** | Go library | Scaffold |
 
 ### Harness Bridges
@@ -125,6 +125,7 @@ Manage agent harness subprocesses. Spawned by llm-bridge-server, communicate via
 | **llm-bridge-openclaw** | Go binary | Scaffold -- WebSocket client |
 | **llm-bridge-inber** | Go binary | Scaffold |
 | **llm-bridge-hermes** | Go binary | Scaffold |
+| **llm-bridge-gemini** | Go binary | Scaffold -- wraps Gemini CLI |
 | **llm-bridge-aider** | Go binary | Scaffold -- wraps Aider CLI |
 | **llm-bridge-goose** | Go binary | Scaffold -- wraps Goose CLI/API |
 | **llm-bridge-autohand** | Go binary | Scaffold -- wraps Autohand Code CLI (ACP stdio) |
@@ -151,7 +152,7 @@ Manage agent harness subprocesses. Spawned by llm-bridge-server, communicate via
 | **llm-msg-spec** | Empty shell, never populated. Types live in `llm-bridge/msg/`. Delete. |
 | **msgbridge-anthropic** | Rename to `llm-bridge-anthropic`, migrate implementation. Delete original. |
 | **msgbridge-openai** | Rename to `llm-bridge-openai`, migrate implementation. Delete original. |
-| **msgbridge-gemini** | Scaffold only. Recreate as `llm-bridge-gemini`. Delete original. |
+| **msgbridge-gemini** | Scaffold only. Recreate as `llm-bridge-google`. Delete original. |
 | **msgbridge-openrouter** | Scaffold only. Recreate as `llm-bridge-openrouter`. Delete original. |
 | **msgbridge-claudecode** | Scaffold only. Functionality covered by `llm-bridge-claudecode`. Delete. |
 | **msgbridge-codex** | Scaffold only. Functionality covered by `llm-bridge-codex`. Delete. |
@@ -171,7 +172,7 @@ llm-bridge              (no deps -- canonical types + interfaces)
   |
   |--- llm-bridge-anthropic   (imports llm-bridge/msg)
   |--- llm-bridge-openai      (imports llm-bridge/msg)
-  |--- llm-bridge-gemini      (imports llm-bridge/msg)
+  |--- llm-bridge-google      (imports llm-bridge/msg)
   |--- llm-bridge-openrouter  (imports llm-bridge/msg)
   |
   |--- llm-bridge-claudecode  (imports llm-bridge/msg, llm-bridge/bridge)
@@ -179,6 +180,7 @@ llm-bridge              (no deps -- canonical types + interfaces)
   |--- llm-bridge-codex       (imports llm-bridge/msg, llm-bridge/bridge)
   |--- llm-bridge-openclaw    (imports llm-bridge/msg, llm-bridge/bridge)
   |--- llm-bridge-inber       (imports llm-bridge/msg, llm-bridge/bridge)
+  |--- llm-bridge-gemini      (imports llm-bridge/msg, llm-bridge/bridge)
   |--- llm-bridge-hermes      (imports llm-bridge/msg, llm-bridge/bridge)
   |
   +--- llm-bridge-server      (imports stores + orchestrates harness binaries)
@@ -267,7 +269,7 @@ agent-store becomes a library only. Its HTTP+NATS server surface moves to llm-br
 - Update imports
 
 **3c. Create scaffold provider bridges**
-- `llm-bridge-gemini` -- new repo, scaffold from msgbridge-gemini TODOs
+- `llm-bridge-google` -- new repo, from msgbridge-gemini (renamed: provider bridges use company name)
 - `llm-bridge-openrouter` -- new repo, scaffold from msgbridge-openrouter TODOs
 
 **3d. Delete old repos**
@@ -317,7 +319,7 @@ agent-store becomes a library only. Its HTTP+NATS server surface moves to llm-br
 
 - [x] Created `llm-bridge-anthropic` with full implementation (build, parse, stream)
 - [x] Created `llm-bridge-openai` with full implementation (build, parse, stream)
-- [x] Created scaffold `llm-bridge-gemini`
+- [x] Created `llm-bridge-google` (renamed from llm-bridge-gemini, provider bridges use company name)
 - [x] Created scaffold `llm-bridge-openrouter`
 - [x] Deleted old repos: llm-msg-spec, msgbridge-{anthropic,openai,gemini,openrouter,claudecode,codex,openclaw}
 
@@ -486,9 +488,9 @@ The `msg/` package is the **single source of truth** for all shared types across
 **If a type is used in API responses, API requests, events, or SSE streams — it belongs in `msg/`.** Do not define API contract types locally in `llm-bridge-server`, `log-store`, or any other service. Instead:
 
 1. Define the Go struct in the appropriate `msg/*.go` file
-2. Run `./generate-ts.sh` to regenerate TypeScript
-3. Commit both Go and TypeScript changes together
-4. Import from `msg` in Go services, from `@kayushkin/llm-bridge-types` in TypeScript
+2. Run `./generate-ts.sh` and `./generate-py.sh` to regenerate TypeScript and Python
+3. Commit Go, TypeScript, and Python changes together
+4. Import from `msg` in Go, `@kayushkin/llm-bridge-types` in TypeScript, `llm_bridge_types` in Python
 
 **Types that do NOT belong in `msg/`:** UI-only state (React hooks, component props), internal store implementation details, transport-layer types that never leave a process.
 
@@ -520,6 +522,27 @@ The `ts/` directory contains **auto-generated TypeScript types** derived from th
 **Do not:**
 - Edit files in `ts/` directly
 - Add hand-written types to `ts/` — frontend-only types belong in the consuming package (e.g. `bridge-ui`)
+- Define API contract types locally in consuming services — add them to `msg/` instead
+
+## Python Types (`py/`)
+
+The `py/` directory contains **auto-generated Python dataclasses** derived from the Go types in `msg/`. Packaged as `llm-bridge-types` (importable as `llm_bridge_types`). These files must never be edited by hand — any manual changes will be overwritten.
+
+**Source of truth:** Go structs and constants in `msg/*.go`.
+
+**Generation:** Run `./generate-py.sh` to regenerate. This runs `cmd/genpy`, a Go program that uses `go/ast` to parse the Go source and emit Python dataclasses and constants. The output is stamped with the source commit SHA.
+
+**Drift check:** `deploy.sh` regenerates the types and diffs against the committed version. If they don't match, the deploy fails. This ensures the committed Python always reflects the current Go types.
+
+**Workflow:**
+1. Edit Go types in `msg/`
+2. Run `./generate-py.sh`
+3. Commit both Go and Python changes together
+4. Downstream consumers import from `llm_bridge_types`
+
+**Do not:**
+- Edit files in `py/llm_bridge_types/msg.py` directly
+- Add hand-written types to `py/` — consumer-specific types belong in the consuming package
 - Define API contract types locally in consuming services — add them to `msg/` instead
 
 ## Design Principles

@@ -140,7 +140,7 @@ Type definitions are auto-generated from the canonical Go types to keep all lang
 | Language | Package | Generator | Source |
 |----------|---------|-----------|--------|
 | TypeScript | `@kayushkin/llm-bridge-types` | [tygo](https://github.com/gzuidhof/tygo) | `ts/` directory in this repo |
-| Python | `llm-bridge-types` | <!-- TODO: add Python type generation (pydantic models from Go structs) --> TBD | `py/` directory in this repo |
+| Python | `llm-bridge-types` | `cmd/genpy` (Go AST → Python dataclasses) | `py/` directory in this repo |
 
 ## Ecosystem
 
@@ -173,6 +173,7 @@ Harness bridges communicate with llm-bridge-server via stdin/stdout NDJSON (JSON
 | [llm-bridge-nanoclaw](https://github.com/kayushkin/llm-bridge-nanoclaw) | NanoClaw | Scaffold | Docker container subprocess harness. |
 | [llm-bridge-commander](https://github.com/kayushkin/llm-bridge-commander) | Commander | Scaffold | Rust/Tauri desktop app bridge. |
 | [llm-bridge-cline](https://github.com/kayushkin/llm-bridge-cline) | Cline | Scaffold | CLI wrapper. |
+| [llm-bridge-gemini](https://github.com/kayushkin/llm-bridge-gemini) | Gemini CLI | Scaffold | CLI wrapper for Google's Gemini CLI agent. |
 | [llm-bridge-aider](https://github.com/kayushkin/llm-bridge-aider) | Aider | Scaffold | CLI wrapper. |
 | [llm-bridge-goose](https://github.com/kayushkin/llm-bridge-goose) | Goose | Scaffold | Agent framework bridge. |
 | [llm-bridge-roocode](https://github.com/kayushkin/llm-bridge-roocode) | Roo Code | Scaffold | CLI wrapper. |
@@ -190,7 +191,7 @@ Stateless Go libraries that convert `msg.Conversation` to/from provider wire for
 |------|----------|--------|
 | [llm-bridge-anthropic](https://github.com/kayushkin/llm-bridge-anthropic) | Anthropic Claude | Implemented |
 | [llm-bridge-openai](https://github.com/kayushkin/llm-bridge-openai) | OpenAI | Implemented |
-| [llm-bridge-gemini](https://github.com/kayushkin/llm-bridge-gemini) | Google Gemini | Scaffold |
+| [llm-bridge-google](https://github.com/kayushkin/llm-bridge-google) | Google Gemini | Implemented |
 | [llm-bridge-openrouter](https://github.com/kayushkin/llm-bridge-openrouter) | OpenRouter | Scaffold |
 
 ### Stores (optional)

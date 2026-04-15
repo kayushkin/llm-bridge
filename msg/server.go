@@ -195,9 +195,8 @@ type CreateInstanceRequest struct {
 
 // BindCredentialRequest is the request body for POST /instances/{id}/credentials.
 type BindCredentialRequest struct {
-	CredentialID  string `json:"credential_id"`
-	Priority      int    `json:"priority"`
-	MaxConcurrent int    `json:"max_concurrent"`
+	CredentialID string `json:"credential_id"`
+	Priority     int    `json:"priority"`
 }
 
 // RenameSessionRequest is the request body for POST /sessions/{id}/rename.

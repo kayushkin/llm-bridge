@@ -462,23 +462,13 @@ export interface Instance {
   updated_at: string;
 }
 /**
- * InstanceCredential binds a credential to a harness instance with priority and concurrency limits.
+ * InstanceCredential binds a credential to a harness instance with priority.
  */
 export interface InstanceCredential {
   instance_id: string;
   credential_id: string;
   priority: number /* int */; // 0 = primary, 1+ = fallbacks
-  max_concurrent: number /* int */; // how many sessions can use this cred simultaneously
   enabled: boolean;
-}
-/**
- * CredentialSlot tracks active usage of a credential by sessions.
- */
-export interface CredentialSlot {
-  instance_id: string;
-  credential_id: string;
-  session_id: string;
-  acquired_at: string;
 }
 /**
  * InstanceStatus aggregates runtime status for an instance.
@@ -486,20 +476,9 @@ export interface CredentialSlot {
 export interface InstanceStatus {
   instance: Instance;
   active_sessions: number /* int */;
-  credentials: CredentialStatus[];
+  credentials: InstanceCredential[];
   reachable: boolean; // SSH connectivity check
   last_checked: string;
-}
-/**
- * CredentialStatus shows availability of a credential on an instance.
- */
-export interface CredentialStatus {
-  credential_id: string;
-  priority: number /* int */;
-  max_concurrent: number /* int */;
-  in_use: number /* int */;
-  available: number /* int */; // max_concurrent - in_use
-  enabled: boolean;
 }
 
 //////////

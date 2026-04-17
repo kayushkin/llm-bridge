@@ -141,6 +141,45 @@ type SessionCounts struct {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Conformance
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ConformanceFeature is a capability that a harness may or may not support.
+type ConformanceFeature string
+
+// ConformanceTestResult records the outcome of a single feature test.
+type ConformanceTestResult struct {
+	Feature  ConformanceFeature `json:"feature"`
+	Passed   bool               `json:"passed"`
+	Skipped  bool               `json:"skipped,omitempty"`
+	Error    string             `json:"error,omitempty"`
+	Duration string             `json:"duration,omitempty"`
+}
+
+// ConformanceHarnessResult records all test results for a single harness.
+type ConformanceHarnessResult struct {
+	Harness   string                  `json:"harness"`
+	Binary    string                  `json:"binary"`
+	TestedAt  time.Time               `json:"tested_at"`
+	Results   []ConformanceTestResult `json:"results"`
+	Summary   ConformanceSummary      `json:"summary"`
+}
+
+// ConformanceSummary counts test outcomes.
+type ConformanceSummary struct {
+	Total   int `json:"total"`
+	Passed  int `json:"passed"`
+	Failed  int `json:"failed"`
+	Skipped int `json:"skipped"`
+}
+
+// ConformanceMatrix holds conformance results for all tested harnesses.
+type ConformanceMatrix struct {
+	GeneratedAt time.Time                  `json:"generated_at"`
+	Harnesses   []ConformanceHarnessResult `json:"harnesses"`
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Request types
 // ──────────────────────────────────────────────────────────────────────────────
 

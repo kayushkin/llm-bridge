@@ -35,6 +35,34 @@ fi
 rm -f "$BEFORE"
 echo "    TypeScript types are up to date."
 
+# ── Python type drift check ─────────────────────────────────────────────────
+# Regenerate Python types and fail if the committed version is stale.
+
+echo "==> Checking Python types are up to date..."
+
+PY_OUTFILE="py/llm_bridge_types/msg.py"
+
+if [ ! -f "$PY_OUTFILE" ]; then
+  echo "ERROR: $PY_OUTFILE does not exist. Run ./generate-py.sh first."
+  exit 1
+fi
+
+PY_BEFORE=$(mktemp)
+cp "$PY_OUTFILE" "$PY_BEFORE"
+
+./generate-py.sh
+
+if ! diff -q "$PY_BEFORE" "$PY_OUTFILE" >/dev/null 2>&1; then
+  echo "ERROR: Python types are out of date with Go source."
+  echo "       Run ./generate-py.sh, commit the result, and try again."
+  diff --unified "$PY_BEFORE" "$PY_OUTFILE" || true
+  rm -f "$PY_BEFORE"
+  exit 1
+fi
+
+rm -f "$PY_BEFORE"
+echo "    Python types are up to date."
+
 # ── Ensure changes are committed and pushed ──────────────────────────────────
 
 echo "==> Checking git state..."

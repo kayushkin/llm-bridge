@@ -29,6 +29,7 @@ type Event struct {
 	Approval   *ApprovalEvent   `json:"approval,omitempty"`
 	Error      *ErrorEvent      `json:"error,omitempty"`
 	State      *StateEvent      `json:"state,omitempty"`
+	Info       *SessionInfo     `json:"info,omitempty"`
 
 	// Raw preserves the original event JSON from the harness for pass-through.
 	Raw json.RawMessage `json:"raw,omitempty"`
@@ -136,4 +137,37 @@ type StateEvent struct {
 	State    SessionState `json:"state"`
 	Previous SessionState `json:"previous,omitempty"`
 	Reason   string       `json:"reason,omitempty"`
+}
+
+// SessionInfo describes what the harness knows about its session at start:
+// the system prompt it was configured with, the working directory, and the
+// tools / slash commands / sub-agents / MCP servers the underlying agent
+// reports as available. Emitted by the harness as an EventSessionInfo after
+// the agent's initial handshake, and persisted on ManagedSession so it can
+// be retrieved via GET /sessions/{id} without replaying events.
+type SessionInfo struct {
+	SystemPrompt       string           `json:"system_prompt,omitempty"`
+	AppendSystemPrompt string           `json:"append_system_prompt,omitempty"`
+	WorkingDir         string           `json:"working_dir,omitempty"`
+	Model              string           `json:"model,omitempty"`
+	PermissionMode     string           `json:"permission_mode,omitempty"`
+	Tools              []ToolInfo       `json:"tools,omitempty"`
+	SlashCommands      []string         `json:"slash_commands,omitempty"`
+	Agents             []string         `json:"agents,omitempty"`
+	Skills             []string         `json:"skills,omitempty"`
+	MCPServers         []MCPServerInfo  `json:"mcp_servers,omitempty"`
+}
+
+// ToolInfo names a tool the agent has available. Description is optional —
+// the harness only reports what the underlying agent exposes; the UI may
+// enrich with its own descriptions.
+type ToolInfo struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
+// MCPServerInfo describes an MCP server connection reported by the agent.
+type MCPServerInfo struct {
+	Name   string `json:"name"`
+	Status string `json:"status,omitempty"`
 }

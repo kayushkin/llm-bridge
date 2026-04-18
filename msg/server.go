@@ -33,6 +33,8 @@ type ManagedSession struct {
 	SpawnerID       string    `json:"spawner_id,omitempty"`
 	ParentID        string          `json:"parent_id,omitempty"`
 	HarnessConfig   json.RawMessage `json:"harness_config,omitempty"` // opaque harness-specific config
+	Info            *SessionInfo    `json:"info,omitempty"`           // latest session info reported by the harness
+	FolderName      string          `json:"folder_name,omitempty"`    // user-assigned sidebar folder; empty = unfiled
 	CreatedAt       time.Time       `json:"created_at"`
 	UpdatedAt       time.Time       `json:"updated_at"`
 }
@@ -92,7 +94,6 @@ type BridgePrefs struct {
 	LastSession  map[string]string          `json:"last_session,omitempty"`
 	LastInstance  map[string]string          `json:"last_instance,omitempty"`
 	Defaults     map[string]HarnessDefaults `json:"defaults,omitempty"`
-	SessionNames map[string]string          `json:"session_names,omitempty"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

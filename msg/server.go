@@ -104,14 +104,16 @@ type BridgePrefs struct {
 // Assembled from raw events by log-store: stream deltas are concatenated,
 // tool calls are collected, and the final ResultEvent becomes Meta.
 type MaterializedMessage struct {
-	Role      string             `json:"role"`
-	Content   string             `json:"content"`
-	Thinking  string             `json:"thinking,omitempty"`
-	Tools     []MaterializedTool `json:"tools,omitempty"`
-	Meta      *ResultEvent       `json:"meta,omitempty"`
-	Events    []json.RawMessage  `json:"events,omitempty"`
-	Timestamp string             `json:"timestamp"`
-	Done      bool               `json:"done"`
+	ID               string             `json:"id,omitempty"`                 // canonical bridge MessageID
+	HarnessMessageID string             `json:"harness_message_id,omitempty"` // harness-native id, if known
+	Role             string             `json:"role"`
+	Content          string             `json:"content"`
+	Thinking         string             `json:"thinking,omitempty"`
+	Tools            []MaterializedTool `json:"tools,omitempty"`
+	Meta             *ResultEvent       `json:"meta,omitempty"`
+	Events           []json.RawMessage  `json:"events,omitempty"`
+	Timestamp        string             `json:"timestamp"`
+	Done             bool               `json:"done"`
 }
 
 // MaterializedTool records a tool invocation within a materialized message.
@@ -197,8 +199,14 @@ type CreateSessionRequest struct {
 }
 
 // SendMessageRequest is the request body for POST /sessions/{id}/send.
+//
+// ClientRequestID is a caller-minted identifier for this turn. The bridge
+// stamps it on every event it emits for the turn so producers can correlate
+// server-side state with their own outbound request. Optional — callers that
+// don't need correlation can leave it empty.
 type SendMessageRequest struct {
-	Message string `json:"message"`
+	Message         string `json:"message"`
+	ClientRequestID string `json:"client_request_id,omitempty"`
 }
 
 // ForkSessionRequest is the request body for POST /sessions/{id}/fork.

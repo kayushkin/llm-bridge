@@ -77,6 +77,7 @@ const (
 	EventSessionState EventType = "session_state"
 	EventPlan         EventType = "plan"
 	EventSessionInfo  EventType = "session_info"
+	EventUserMessage  EventType = "user_message"
 )
 
 // SessionState represents the current state of a harness session.

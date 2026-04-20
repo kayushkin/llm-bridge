@@ -16,6 +16,26 @@ type Event struct {
 	ClientID     string `json:"client_id,omitempty"`
 	CompletionID string `json:"completion_id,omitempty"`
 
+	// ClientRequestID is the caller-minted per-turn identifier forwarded from
+	// SendMessageRequest. Stamped on every event the bridge emits for that
+	// turn so producers can correlate server-side state with their outbound
+	// request. Empty for events outside a turn (session_state, system, etc.)
+	// and for turns where the caller didn't supply one.
+	ClientRequestID string `json:"client_request_id,omitempty"`
+
+	// MessageID is the canonical bridge-server-assigned identifier for the
+	// chat message this event belongs to (ULID, "msg_…"). Stable across SSE
+	// reconnects and harness restarts. Empty for bookkeeping events
+	// (system, session_state, session_info, harness_id_set) that do not
+	// belong to a user-visible message bubble.
+	MessageID string `json:"message_id,omitempty"`
+
+	// HarnessMessageID is the harness-native identifier for the same logical
+	// message (e.g. Claude Code's msg_…). Used for reconciliation when a
+	// harness resumes and re-emits prior messages. Empty when the harness
+	// does not surface one.
+	HarnessMessageID string `json:"harness_message_id,omitempty"`
+
 	Timestamp time.Time `json:"timestamp"`
 
 	// Content — at most one of these will be populated based on Type.
@@ -38,6 +58,23 @@ type Event struct {
 	Extensions map[string]json.RawMessage `json:"extensions,omitempty"`
 
 	Overflow map[string]json.RawMessage `json:"_overflow,omitempty"`
+}
+
+// HarnessMessageIDOf extracts the harness-native message id from an event,
+// looking in the variant fields where harnesses typically place it.
+// Returns "" when no harness id is present (true for tool_call / tool_result /
+// thinking and for harnesses that simply don't surface one).
+func HarnessMessageIDOf(ev *Event) string {
+	if ev == nil {
+		return ""
+	}
+	if ev.Stream != nil && ev.Stream.MessageID != "" {
+		return ev.Stream.MessageID
+	}
+	if ev.Result != nil && ev.Result.Message != nil && ev.Result.Message.ID != "" {
+		return ev.Result.Message.ID
+	}
+	return ""
 }
 
 // ResultEvent is a completed harness run.

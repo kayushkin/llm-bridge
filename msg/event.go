@@ -69,14 +69,20 @@ type Event struct {
 
 // HarnessMessageIDOf extracts the harness-native message id from an event,
 // looking in the variant fields where harnesses typically place it.
-// Returns "" when no harness id is present (true for tool_call / tool_result /
-// thinking and for harnesses that simply don't surface one).
+// Returns "" when no harness id is present (true for thinking, for
+// system/state/info events, and for harnesses that simply don't surface one).
 func HarnessMessageIDOf(ev *Event) string {
 	if ev == nil {
 		return ""
 	}
 	if ev.Stream != nil && ev.Stream.MessageID != "" {
 		return ev.Stream.MessageID
+	}
+	if ev.ToolCall != nil && ev.ToolCall.MessageID != "" {
+		return ev.ToolCall.MessageID
+	}
+	if ev.ToolResult != nil && ev.ToolResult.MessageID != "" {
+		return ev.ToolResult.MessageID
 	}
 	if ev.Result != nil && ev.Result.Message != nil && ev.Result.Message.ID != "" {
 		return ev.Result.Message.ID
@@ -119,18 +125,29 @@ type HarnessStream struct {
 }
 
 // ToolCallEvent is a tool being invoked.
+//
+// MessageID is the harness-native id of the assistant bubble that contained
+// this tool_use block (e.g. Claude Code's msg_…). It's the same id the
+// surrounding text/thinking events carry on HarnessStream.MessageID — so the
+// bridge server can group tool_call events into their bubble without parsing
+// the raw harness payload.
 type ToolCallEvent struct {
-	ToolID string          `json:"tool_id"`
-	Name   string          `json:"name"`
-	Input  json.RawMessage `json:"input"`
+	ToolID    string          `json:"tool_id"`
+	Name      string          `json:"name"`
+	Input     json.RawMessage `json:"input"`
+	MessageID string          `json:"message_id,omitempty"`
 }
 
 // ToolResultEvent is the output of a tool invocation.
+//
+// MessageID mirrors ToolCallEvent.MessageID — the harness-native id of the
+// bubble that contained the tool_result block.
 type ToolResultEvent struct {
-	ToolID  string `json:"tool_id"`
-	Name    string `json:"name"`
-	Output  string `json:"output"`
-	IsError bool   `json:"is_error,omitempty"`
+	ToolID    string `json:"tool_id"`
+	Name      string `json:"name"`
+	Output    string `json:"output"`
+	IsError   bool   `json:"is_error,omitempty"`
+	MessageID string `json:"message_id,omitempty"`
 }
 
 // ThinkingEvent is a thinking/reasoning event.
@@ -145,6 +162,12 @@ type PlanEvent struct {
 }
 
 // SystemEvent is a system-level notification.
+//
+// ToolUseID / TaskID / Description / LastToolName are populated for the
+// "task_progress" subtype (Claude Code's narration of an in-flight tool
+// call). ToolUseID is the harness-native tool id (e.g. Anthropic's
+// toolu_…) — the bridge server uses it to resolve the event back to the
+// containing message bubble and stamp MessageID/HarnessMessageID.
 type SystemEvent struct {
 	Subtype      string `json:"subtype"`
 	Message      string `json:"message,omitempty"`
@@ -153,6 +176,10 @@ type SystemEvent struct {
 	RetryDelayMS int    `json:"retry_delay_ms,omitempty"`
 	ErrorStatus  int    `json:"error_status,omitempty"`
 	ErrorType    string `json:"error_type,omitempty"`
+	ToolUseID    string `json:"tool_use_id,omitempty"`
+	TaskID       string `json:"task_id,omitempty"`
+	Description  string `json:"description,omitempty"`
+	LastToolName string `json:"last_tool_name,omitempty"`
 }
 
 // ApprovalEvent represents a permission request or response.

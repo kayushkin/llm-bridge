@@ -23,6 +23,13 @@ type Event struct {
 	// and for turns where the caller didn't supply one.
 	ClientRequestID string `json:"client_request_id,omitempty"`
 
+	// TurnID is the bridge-server-minted identifier for an entire turn —
+	// from a user_message through every event it produces (init,
+	// task_progress, one or more assistant message bubbles, tool calls,
+	// etc.) until the terminating result/error. Coarser than MessageID,
+	// which scopes to a single message bubble. Empty between turns.
+	TurnID string `json:"turn_id,omitempty"`
+
 	// MessageID is the canonical bridge-server-assigned identifier for the
 	// chat message this event belongs to (ULID, "msg_…"). Stable across SSE
 	// reconnects and harness restarts. Empty for bookkeeping events

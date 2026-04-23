@@ -44,6 +44,12 @@ type ManagedSession struct {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // HarnessInfo describes a registered harness type and its capabilities.
+//
+// HookEvents lists the hook lifecycle events the bridge can register handlers
+// against for this harness (e.g. Claude Code's "PreToolUse", "PostToolUse"…).
+// Empty for harnesses with no registerable hook mechanism — harnesses that
+// only emit observation-style lifecycle notifications or run agents remotely
+// without local hook points.
 type HarnessInfo struct {
 	Name               string   `json:"name"`
 	Label              string   `json:"label"`
@@ -52,6 +58,7 @@ type HarnessInfo struct {
 	Available          bool     `json:"available"`
 	Binary             string   `json:"binary,omitempty"`
 	Capabilities       []string `json:"capabilities"`
+	HookEvents         []string `json:"hook_events,omitempty"`
 	SupportedProviders []string `json:"supported_providers,omitempty"`
 }
 

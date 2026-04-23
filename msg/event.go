@@ -57,6 +57,7 @@ type Event struct {
 	Error      *ErrorEvent      `json:"error,omitempty"`
 	State      *StateEvent      `json:"state,omitempty"`
 	Info       *SessionInfo     `json:"info,omitempty"`
+	Hook       *HookEvent       `json:"hook,omitempty"`
 
 	// Raw preserves the original event JSON from the harness for pass-through.
 	Raw json.RawMessage `json:"raw,omitempty"`
@@ -241,4 +242,72 @@ type ToolInfo struct {
 type MCPServerInfo struct {
 	Name   string `json:"name"`
 	Status string `json:"status,omitempty"`
+}
+
+// HookEvent records a harness hook lifecycle event.
+//
+// Two sources produce HookEvents, discriminated by HookID:
+//
+//  1. Harness-native observation (HookID empty) — the underlying harness
+//     emits its own hook lifecycle notifications (e.g. Claude Code with
+//     --include-hook-events) and the bridge translates them. The bridge has
+//     no control over these hooks.
+//  2. Bridge-registered invocation (HookID set) — a hook registered with the
+//     hook-store fires via the harness's native mechanism, which shells out
+//     to the bridge server's /hooks/exec/{id} endpoint.
+//
+// Input and Output are raw JSON, passed through in the underlying harness's
+// native dialect (e.g. Claude Code's stdin/stdout hook protocol). Layers are
+// transparent: no translation into a neutral schema.
+type HookEvent struct {
+	// Event names the hook lifecycle point (e.g. "PreToolUse", "PostToolUse",
+	// "UserPromptSubmit"). Values match the underlying harness's native event
+	// names — no rewriting.
+	Event string `json:"event"`
+
+	// Matcher is the harness-native matcher that selected this hook (for
+	// Claude Code: the tool-name pattern like "Bash" or "Edit|Write"). Empty
+	// when the hook applies to all events of its type or when the harness
+	// does not expose a matcher concept.
+	Matcher string `json:"matcher,omitempty"`
+
+	// ToolName is the tool the hook fired against, when applicable
+	// (PreToolUse, PostToolUse). Empty for non-tool-scoped events.
+	ToolName string `json:"tool_name,omitempty"`
+
+	// HookID is the bridge-registry id of the hook, when the event came from
+	// a hook registered with the bridge's hook-store. Empty for harness-native
+	// (observation-only) hooks that the bridge did not register.
+	HookID string `json:"hook_id,omitempty"`
+
+	// Phase is the lifecycle point: "started", "progress", or "completed".
+	// Every hook invocation produces a "started" and a "completed" event;
+	// long-running hooks may produce "progress" events in between.
+	Phase string `json:"phase"`
+
+	// Input is the raw JSON the harness passed to the hook (stdin payload for
+	// Claude Code). Populated on Phase="started". Pass-through.
+	Input json.RawMessage `json:"input,omitempty"`
+
+	// Output is the raw JSON the hook returned to the harness (stdout payload
+	// for Claude Code). Populated on Phase="completed". Pass-through.
+	Output json.RawMessage `json:"output,omitempty"`
+
+	// Decision summarizes the hook's effect on the tool call when the harness
+	// surfaces one (e.g. Claude Code's "allow", "deny", "modify", "continue").
+	// Empty when the harness does not report a decision.
+	Decision string `json:"decision,omitempty"`
+
+	// ExitCode is the exit status of the hook command when the harness
+	// reports one (Claude Code does, on Phase="completed").
+	ExitCode int `json:"exit_code,omitempty"`
+
+	// DurationMS is the wall-clock time the hook took to run. Populated on
+	// Phase="completed" when the harness reports timing.
+	DurationMS int64 `json:"duration_ms,omitempty"`
+
+	// Error is a non-empty message when the hook failed to execute or
+	// returned malformed output. An errored hook may still carry Output if
+	// the harness produced something before failing.
+	Error string `json:"error,omitempty"`
 }

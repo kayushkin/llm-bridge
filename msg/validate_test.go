@@ -393,6 +393,7 @@ func TestValidateEvent_AllTypes(t *testing.T) {
 		{EventError, Event{Error: &ErrorEvent{Code: "500", Message: "fail"}}},
 		{EventSessionState, Event{State: &StateEvent{State: SessionRunning}}},
 		{EventPlan, Event{Plan: &PlanEvent{Text: "step 1"}}},
+		{EventHook, Event{Hook: &HookEvent{Event: "PreToolUse", Phase: "started"}}},
 	}
 	for _, tt := range types {
 		t.Run(string(tt.et), func(t *testing.T) {

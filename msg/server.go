@@ -35,6 +35,7 @@ type ManagedSession struct {
 	HarnessConfig   json.RawMessage `json:"harness_config,omitempty"` // opaque harness-specific config
 	Info            *SessionInfo    `json:"info,omitempty"`           // latest session info reported by the harness
 	FolderName      string          `json:"folder_name,omitempty"`    // user-assigned sidebar folder; empty = unfiled
+	Source          string          `json:"source,omitempty"`         // origin tag carried from the creator (e.g. "scheduler", "autoworker"); empty = interactive
 	CreatedAt       time.Time       `json:"created_at"`
 	UpdatedAt       time.Time       `json:"updated_at"`
 }
@@ -194,6 +195,11 @@ type ConformanceMatrix struct {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // CreateSessionRequest is the request body for POST /sessions.
+//
+// Source is an origin tag set by the caller identifying what created this
+// session (e.g. "scheduler", "autoworker"). Interactive UI callers leave it
+// empty. The server persists it on the session and may auto-assign a folder
+// based on the value (see LLMBRIDGE_SOURCE_FOLDERS).
 type CreateSessionRequest struct {
 	Harness       Harness         `json:"harness"`
 	InstanceID    string          `json:"instance_id,omitempty"`
@@ -202,6 +208,7 @@ type CreateSessionRequest struct {
 	SpawnerID     string          `json:"spawner_id,omitempty"`
 	AutoStart     bool            `json:"auto_start,omitempty"`
 	ClientID      string          `json:"client_id,omitempty"`
+	Source        string          `json:"source,omitempty"`
 	HarnessConfig json.RawMessage `json:"harness_config,omitempty"` // opaque harness-specific config, merged into start params
 }
 

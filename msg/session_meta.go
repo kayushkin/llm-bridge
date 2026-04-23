@@ -22,3 +22,20 @@ type RenameFolderRequest struct {
 type SetSessionFolderRequest struct {
 	Folder string `json:"folder"`
 }
+
+// FoldInactiveRequest is the body for POST /admin/fold-inactive.
+//
+// Sessions whose updated_at is older than InactiveDays and which are not
+// already filed move into Folder. Folder is auto-created if it doesn't
+// exist in the registry.
+type FoldInactiveRequest struct {
+	InactiveDays int    `json:"inactive_days"`
+	Folder       string `json:"folder"`
+}
+
+// FoldInactiveResponse reports the outcome of a fold-inactive sweep.
+type FoldInactiveResponse struct {
+	Moved  int      `json:"moved"`
+	Folder string   `json:"folder"`
+	IDs    []string `json:"ids,omitempty"`
+}

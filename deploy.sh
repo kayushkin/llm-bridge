@@ -39,7 +39,9 @@ if ! diff -q <(grep -v '^// Generated from github.com/kayushkin/llm-bridge/msg @
   exit 1
 fi
 
-rm -f "$BEFORE"
+# Stamp-only change — restore the committed file so the git-state check below
+# doesn't flag it as a dirty working tree.
+mv "$BEFORE" "$OUTFILE"
 echo "    TypeScript types are up to date."
 
 # ── Python type drift check ─────────────────────────────────────────────────
@@ -70,7 +72,9 @@ if ! diff -q <(grep -v '^# Generated from github.com/kayushkin/llm-bridge/msg @'
   exit 1
 fi
 
-rm -f "$PY_BEFORE"
+# Stamp-only change — restore the committed file so the git-state check below
+# doesn't flag it as a dirty working tree.
+mv "$PY_BEFORE" "$PY_OUTFILE"
 echo "    Python types are up to date."
 
 # ── Ensure changes are committed and pushed ──────────────────────────────────

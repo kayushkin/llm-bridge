@@ -8,6 +8,11 @@ export PATH="$HOME/.local/share/mise/shims:$(go env GOBIN 2>/dev/null || echo "$
 
 # ── TypeScript type drift check ──────────────────────────────────────────────
 # Regenerate TS types and fail if the committed version is stale.
+#
+# The generated file embeds the current git HEAD SHA in its header. That SHA
+# will always differ after a fresh commit (the committed file is stamped with
+# its parent commit, regeneration stamps with the new HEAD), so the drift
+# check ignores the stamp line and only compares logical content.
 
 echo "==> Checking TypeScript types are up to date..."
 
@@ -18,16 +23,18 @@ if [ ! -f "$OUTFILE" ]; then
   exit 1
 fi
 
-# Save current generated file, regenerate, compare.
+# Save current generated file, regenerate, compare (ignoring stamp line).
 BEFORE=$(mktemp)
 cp "$OUTFILE" "$BEFORE"
 
 ./generate-ts.sh
 
-if ! diff -q "$BEFORE" "$OUTFILE" >/dev/null 2>&1; then
+if ! diff -q <(grep -v '^// Generated from github.com/kayushkin/llm-bridge/msg @' "$BEFORE") \
+             <(grep -v '^// Generated from github.com/kayushkin/llm-bridge/msg @' "$OUTFILE") >/dev/null 2>&1; then
   echo "ERROR: TypeScript types are out of date with Go source."
   echo "       Run ./generate-ts.sh, commit the result, and try again."
-  diff --unified "$BEFORE" "$OUTFILE" || true
+  diff --unified <(grep -v '^// Generated from github.com/kayushkin/llm-bridge/msg @' "$BEFORE") \
+                 <(grep -v '^// Generated from github.com/kayushkin/llm-bridge/msg @' "$OUTFILE") || true
   rm -f "$BEFORE"
   exit 1
 fi
@@ -37,6 +44,7 @@ echo "    TypeScript types are up to date."
 
 # ── Python type drift check ─────────────────────────────────────────────────
 # Regenerate Python types and fail if the committed version is stale.
+# Same stamp caveat as above — ignore the stamp line during comparison.
 
 echo "==> Checking Python types are up to date..."
 
@@ -52,10 +60,12 @@ cp "$PY_OUTFILE" "$PY_BEFORE"
 
 ./generate-py.sh
 
-if ! diff -q "$PY_BEFORE" "$PY_OUTFILE" >/dev/null 2>&1; then
+if ! diff -q <(grep -v '^# Generated from github.com/kayushkin/llm-bridge/msg @' "$PY_BEFORE") \
+             <(grep -v '^# Generated from github.com/kayushkin/llm-bridge/msg @' "$PY_OUTFILE") >/dev/null 2>&1; then
   echo "ERROR: Python types are out of date with Go source."
   echo "       Run ./generate-py.sh, commit the result, and try again."
-  diff --unified "$PY_BEFORE" "$PY_OUTFILE" || true
+  diff --unified <(grep -v '^# Generated from github.com/kayushkin/llm-bridge/msg @' "$PY_BEFORE") \
+                 <(grep -v '^# Generated from github.com/kayushkin/llm-bridge/msg @' "$PY_OUTFILE") || true
   rm -f "$PY_BEFORE"
   exit 1
 fi

@@ -52,22 +52,53 @@ continue.dev, plandex, aider, etc. **They are the agents**, not consumers of age
 
 crewAI / autogen / langchain-style frameworks could spawn coding agents via llm-bridge, but the abstraction mismatch is large and the audience is mostly Python. Revisit once the Python types package has been validated by a real consumer.
 
-## Recommended starter set
+## Live candidates (data as of 2026-04-26)
 
-Pick **two Tier A projects** for the first wave. Selection criteria:
+Source: GitHub API. Stale projects (no push in 5+ months) and PR-overwhelmed projects (>800 open issues with low merge velocity) excluded.
 
-1. Active in the last 60 days (recent commits + open PR review activity).
-2. Maintainer is reachable (visible on issues, has a contact channel, accepts external PRs — check CONTRIBUTING.md).
-3. Single-agent today, multi-agent ambition implied or stated in their README/issues.
+| Repo | License | ★ | Contribs | Commits/90d | PRs merged/90d | Last push | Open issues | What they do | Tier |
+|---|---|---:|---:|---:|---:|---|---:|---|---|
+| ryoppippi/ccusage | MIT | 13,354 | 56 | 35 | 11 | 2026-04-26 | 181 | CLI: parses local Claude Code/Codex JSONL for usage | **A** |
+| smtg-ai/claude-squad | AGPL-3.0 | 7,171 | 14 | 12 | 9 | 2026-03-28 | 51 | Manage multiple Claude Code/Codex/OpenCode terminal agents | **B** |
+| slopus/happy | (verify) | 19,195 | — | — | — | 2026-04-26 | 634 | Mobile/web client for Codex + Claude Code, voice, encrypted | **B** |
+| BloopAI/vibe-kanban | Apache-2.0 | 25,561 | 61 | 583 | 538 | 2026-04-24 | 518 | Kanban for "any coding agent" | **B** |
+| davila7/claude-code-templates | (verify) | 25,539 | 66 | 344 | 104 | 2026-04-26 | 144 | CLI: configure + monitor Claude Code | **A/B** |
+| iOfficeAI/AionUi | (verify) | 22,613 | 81 | 2,904 | 971 | 2026-04-26 | 389 | Multi-agent GUI for Gemini CLI / Claude Code / Codex | **B** |
+| farion1231/cc-switch | (verify) | 51,866 | 99 | 579 | 128 | 2026-04-26 | 619 | Desktop All-in-One for Claude Code / Codex / OpenCode | **B** |
+| charmbracelet/crush | (verify) | 23,516 | 111 | 616 | 285 | 2026-04-26 | 406 | Charm's "agentic coding for all" TUI | **C** (opinionated; defer) |
+
+Excluded (logged here for reference):
+
+- **winfunc/opcode** — 21k★ but last push 2025-10-16 (>6 months stale).
+- **Maciek-roboblog/Claude-Code-Usage-Monitor** — 7.8k★ but last push 2025-09-14.
+- **musistudio/claude-code-router** — 33k★ but 902 open issues; review backlog likely too deep.
+- **anthropics/claude-code, openai/codex, google-gemini/gemini-cli** — Tier C; they *are* the agents llm-bridge wraps.
+
+## Locked recommendations
+
+**First PR — `ryoppippi/ccusage`.**
+Tier A. They parse local JSONL today; swapping that to an SSE subscription on llm-bridge-server is the textbook demo. Modest PR throughput (~11/90d) signals careful review (good for the first integration). Risk: 56 contributors and 181 open issues means maintainer attention is divided; keep the PR small.
+
+**Second PR — `BloopAI/vibe-kanban`.**
+Tier B. Tagline is literally "any coding agent" — value-prop fits without explanation. 538 PRs merged in 90 days = high throughput, fast reviews, low ceremony. Risk: that velocity also means our PR could land underbaked; we should ship it polished.
+
+**Backup / third — `smtg-ai/claude-squad`.**
+Tier B, small team (14 contributors), careful review (9 PRs merged/90d). Exact use-case match — they already maintain Claude Code + Codex + OpenCode drivers. If either of the above drags, swap this in. Strong candidate for the highest-quality conversation but slowest cycle.
+
+## License notes
+
+llm-bridge is **Apache-2.0**. Compatibility with the three locked targets:
+
+- **ccusage (MIT)** — fully compatible. Note: GitHub's license classifier shows "Other" but the LICENSE file is standard MIT.
+- **vibe-kanban (Apache-2.0)** — same as ours. Trivial.
+- **claude-squad (AGPL-3.0)** — fine for what we're doing. Our PR contribution becomes AGPL (theirs to keep). llm-bridge stays Apache-2.0 because they're consuming it as a network service / library, not the other way around. Two cautions: (a) never paste claude-squad code into our Apache-2.0 repos; (b) check their CONTRIBUTING.md for a CLA before opening a PR.
+
+## Selection criteria (for posterity / future waves)
+
+1. Active in last 60 days (recent commits + recent merged PRs).
+2. Maintainer reachable (responds on issues; has CONTRIBUTING.md or accepts external PRs in practice).
+3. Single-agent today with multi-agent ambition, **or** already multi-agent and maintaining N drivers.
 4. Small enough that one focused PR is reviewable in one sitting (<500 LOC of integration glue).
-
-Concrete shortlist to validate (research todos below):
-
-- **A Claude Code usage tracker** — likely best first target. Smallest blast radius; clear demo of "parse JSONL → subscribe to SSE." Concrete candidate to vet: ccusage. Fallback: any active Claude Code menubar/CLI tracker.
-- **A Claude Code session/GUI tool** — second target, slightly bigger surface. Concrete candidate to vet: opcode (getAsterisk). Fallback: a smaller Tauri/Electron Claude Code wrapper.
-- **A multi-agent terminal multiplexer** as a stretch third — only if review bandwidth allows. Concrete candidate to vet: claude-squad.
-
-> **Validation required for every name above.** Maintainer activity and PR-acceptance posture change quickly; do not assume current state. See todos.
 
 ## Sample integration recipe (additive, not replacement)
 
@@ -105,15 +136,16 @@ For each target, sequence:
 
 Per-project maintainer info changes; this section is intentionally empty. Each starter-target todo includes a "verify current maintainer + preferred contact channel" step to be done at the moment of outreach, not earlier.
 
-## Open questions for review
+## Decisions locked (2026-04-26)
 
-1. **Additive vs. replacement integration** — confirm the additive pattern as default, or mark some targets for full replacement.
-2. **Which two starters** — the shortlist above is plausible but the user's market awareness is better than mine. Pick 2 by name.
-3. **Who signs the PRs / opens the issues** — personal GitHub identity, a project bot, or both?
-4. **Do we want a public "integrators guide"** in this repo before the first PR, or is the README + this doc enough?
+1. **Additive integration pattern** is the default for the first wave. Replacement PRs only on maintainer request, not from us.
+2. **First two targets:** `ryoppippi/ccusage` (#1), `BloopAI/vibe-kanban` (#2). Backup: `smtg-ai/claude-squad`.
+3. **Issues + PRs signed by user (kayushkin GitHub identity).** No bot account.
+4. **Integrators guide** lives at [`for-integrators.md`](for-integrators.md) in this repo. Linked from every discovery issue + PR.
 
 ## Status
 
 - Doc created: 2026-04-26
 - Bridge ecosystem README audits: in progress (`open-source-prep` tag in noteboard)
-- First outreach: blocked on README audits + user's pick of two starters
+- Integrators guide: drafted at `for-integrators.md`
+- First outreach: blocked on README audits + reusable integration sample

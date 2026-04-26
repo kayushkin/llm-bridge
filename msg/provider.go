@@ -85,6 +85,24 @@ var AllHarnesses = []Harness{
 	HarnessForgecode,
 }
 
+// HarnessShortName returns the suffix used in wrapper-binary filenames
+// (e.g. "claudecode" for HarnessClaudeCode). Distinct from string(h)
+// because wrapper binaries omit underscores. Used as the `name` query
+// param when the runner fetches missing wrappers from
+// <bridge>/api/runner/binary?name=claudecode&os=…&arch=…. Returns "" for
+// unknown harness types.
+func HarnessShortName(h Harness) string {
+	bin := HarnessBinaryName(h)
+	if bin == "" {
+		return ""
+	}
+	const prefix = "llm-bridge-"
+	if len(bin) <= len(prefix) || bin[:len(prefix)] != prefix {
+		return ""
+	}
+	return bin[len(prefix):]
+}
+
 // HarnessBinaryName returns the expected wrapper-binary filename for a
 // harness type. Callers (server, runner, install scripts) use this to look
 // up the binary on PATH. Returns "" for unknown harness types.

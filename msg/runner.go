@@ -59,19 +59,20 @@ type RunnerMessage struct {
 }
 
 // RunnerHello is sent by the runner immediately after the WS upgrade.
-// Token authenticates the runner against the server's accepted token list
-// (or a per-machine token issued at registration time). The server validates
-// it before sending Welcome; on failure it sends RunnerError and closes.
+// Authentication happens earlier via the Authorization: Bearer header on
+// the upgrade request, which the server validates against the per-machine
+// runner_token_hash. The Hello payload is purely informational —
+// confirming the runner's identity (must match the token's bound machine)
+// and reporting current host details (hostname, available harnesses).
 type RunnerHello struct {
-	Token              string             `json:"token"`
-	MachineName        string             `json:"machine_name"`         // user-chosen label, e.g. "wsl-claude"
-	Hostname           string             `json:"hostname"`             // os.Hostname()
-	OS                 string             `json:"os"`                   // GOOS
-	Arch               string             `json:"arch"`                 // GOARCH
-	User               string             `json:"user"`                 // os/user.Current().Username
-	WorkingDir         string             `json:"working_dir"`          // default cwd for spawned subprocesses
-	AvailableHarnesses []HarnessAvailable `json:"available_harnesses"`  // detected harness binaries on this machine
-	RunnerVersion      string             `json:"runner_version"`       // build-stamped version
+	MachineName        string             `json:"machine_name"`        // must match the token-bound machine name
+	Hostname           string             `json:"hostname"`            // os.Hostname()
+	OS                 string             `json:"os"`                  // GOOS
+	Arch               string             `json:"arch"`                // GOARCH
+	User               string             `json:"user"`                // os/user.Current().Username
+	WorkingDir         string             `json:"working_dir"`         // default cwd for spawned subprocesses
+	AvailableHarnesses []HarnessAvailable `json:"available_harnesses"` // detected harness binaries on this machine
+	RunnerVersion      string             `json:"runner_version"`      // build-stamped version
 }
 
 // HarnessAvailable reports a harness binary present on the runner machine.

@@ -36,7 +36,7 @@ Every component is a separate repo and completely optional. Use only what you ne
   ║   │  claudecode · jig · codex · hermes · aider  │     ║
   ║   │  goose · openclaw · nanoclaw · cline        │     ║
   ║   │  roocode · kilocode · commander · forgecode │     ║
-  ║   │  autohand · dexto · inber                   │     ║
+  ║   │  autohand · dexto · gemini · inber          │     ║
   ║   └─────────────────────┬───────────────────────┘     ║
   ╚═════════════════════════╪═════════════════════════════╝
                             │ native protocol (varies)
@@ -173,7 +173,7 @@ Harness bridges communicate with llm-bridge-server via stdin/stdout NDJSON (JSON
 | [llm-bridge-codex](https://github.com/kayushkin/llm-bridge-codex) | Codex | Implemented | WebSocket client to Codex app-server JSON-RPC API. |
 | [llm-bridge-hermes](https://github.com/kayushkin/llm-bridge-hermes) | Hermes | Implemented | HTTP+SSE client for OpenAI-compatible Hermes `/v1/responses` endpoint. |
 | [llm-bridge-inber](https://github.com/kayushkin/llm-bridge-inber) | Inber | Implemented | HTTP client for inber agent framework. |
-| [llm-bridge-openclaw](https://github.com/kayushkin/llm-bridge-openclaw) | OpenClaw | Implemented | WebSocket client. |
+| [llm-bridge-openclaw](https://github.com/kayushkin/llm-bridge-openclaw) | OpenClaw | Implemented | OpenAI-compatible HTTP+SSE client plus session JSONL tail for full event stream. |
 | [llm-bridge-nanoclaw](https://github.com/kayushkin/llm-bridge-nanoclaw) | NanoClaw | Implemented | Docker container subprocess harness. |
 | [llm-bridge-cline](https://github.com/kayushkin/llm-bridge-cline) | Cline | Implemented | One-shot subprocess per turn (`cline -y --json`). Resume via `-T`. |
 | [llm-bridge-aider](https://github.com/kayushkin/llm-bridge-aider) | Aider | Implemented | Spawns `aider --message` per turn with credential env injection. |

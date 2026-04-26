@@ -44,6 +44,16 @@ type ManagedSession struct {
 // Harness registry
 // ──────────────────────────────────────────────────────────────────────────────
 
+// HarnessAgent is one of the agents registered against a harness type.
+// Surfaced by /harnesses/{name}/capabilities so frontends can offer a
+// per-harness agent picker without re-querying agent-store.
+type HarnessAgent struct {
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name,omitempty"`
+	Description string `json:"description,omitempty"`
+	IsDefault   bool   `json:"is_default,omitempty"`
+}
+
 // HarnessInfo describes a registered harness type and its capabilities.
 //
 // HookEvents lists the hook lifecycle events the bridge can register handlers
@@ -52,10 +62,15 @@ type ManagedSession struct {
 // only emit observation-style lifecycle notifications or run agents remotely
 // without local hook points.
 type HarnessInfo struct {
-	Name               string   `json:"name"`
-	Label              string   `json:"label"`
-	Emoji              string   `json:"emoji"`
-	Image              string   `json:"image,omitempty"`
+	Name  string `json:"name"`
+	Label string `json:"label"`
+	Emoji string `json:"emoji"`
+	Image string `json:"image,omitempty"`
+	// Tint is a sRGB hex (e.g. "#d97757") used by UIs to key chrome to a
+	// specific harness — header washes, chips, etc. Empty when the harness
+	// has no canonical color and the UI should fall through to its own
+	// theme accent.
+	Tint               string   `json:"tint,omitempty"`
 	Available          bool     `json:"available"`
 	Binary             string   `json:"binary,omitempty"`
 	Capabilities       []string `json:"capabilities"`
@@ -243,16 +258,83 @@ type ConfigSessionRequest struct {
 }
 
 // CreateInstanceRequest is the request body for POST /instances.
+// MachineID is required — instances always belong to a machine. Use
+// CreateMachineRequest first (or have a runner enroll) to obtain one.
 type CreateInstanceRequest struct {
-	HarnessType           string    `json:"harness_type"`
-	Name                  string    `json:"name"`
-	Host                  string    `json:"host,omitempty"`
-	Transport             Transport `json:"transport,omitempty"`
-	SSHUser               string    `json:"ssh_user,omitempty"`
-	SSHKeyPath            string    `json:"ssh_key_path,omitempty"`
-	SSHPort               int       `json:"ssh_port,omitempty"`
-	WorkingDir            string    `json:"working_dir,omitempty"`
-	MaxConcurrentSessions int       `json:"max_concurrent_sessions,omitempty"`
+	HarnessType           string `json:"harness_type"`
+	Name                  string `json:"name"`
+	MachineID             string `json:"machine_id"`
+	WorkingDir            string `json:"working_dir,omitempty"`
+	MaxConcurrentSessions int    `json:"max_concurrent_sessions,omitempty"`
+}
+
+// CreateMachineRequest is the request body for POST /machines.
+type CreateMachineRequest struct {
+	Name              string    `json:"name"`
+	Emoji             string    `json:"emoji,omitempty"`
+	Hostname          string    `json:"hostname,omitempty"`
+	OS                string    `json:"os,omitempty"`
+	Arch              string    `json:"arch,omitempty"`
+	Transport         Transport `json:"transport"`
+	SSHUser           string    `json:"ssh_user,omitempty"`
+	SSHKeyPath        string    `json:"ssh_key_path,omitempty"`
+	SSHPort           int       `json:"ssh_port,omitempty"`
+	DefaultWorkingDir string    `json:"default_working_dir,omitempty"`
+	Notes             string    `json:"notes,omitempty"`
+}
+
+// UpdateMachineRequest patches a machine. Empty fields are left unchanged.
+type UpdateMachineRequest struct {
+	Name              string    `json:"name,omitempty"`
+	Emoji             string    `json:"emoji,omitempty"`
+	Hostname          string    `json:"hostname,omitempty"`
+	OS                string    `json:"os,omitempty"`
+	Arch              string    `json:"arch,omitempty"`
+	Transport         Transport `json:"transport,omitempty"`
+	SSHUser           string    `json:"ssh_user,omitempty"`
+	SSHKeyPath        string    `json:"ssh_key_path,omitempty"`
+	SSHPort           int       `json:"ssh_port,omitempty"`
+	DefaultWorkingDir string    `json:"default_working_dir,omitempty"`
+	Notes             string    `json:"notes,omitempty"`
+}
+
+// MintEnrollmentRequest creates a one-time enrollment passphrase for a runner.
+// TTLSeconds defaults to 900 (15 min) on the server when zero.
+type MintEnrollmentRequest struct {
+	TTLSeconds int `json:"ttl_seconds,omitempty"`
+}
+
+// MintEnrollmentResponse carries the freshly-minted passphrase. The server
+// stores only its hash; this is the only chance to capture the plaintext.
+type MintEnrollmentResponse struct {
+	Passphrase string    `json:"passphrase"`
+	ExpiresAt  time.Time `json:"expires_at"`
+}
+
+// EnrollRunnerRequest is the request body for POST /api/runner/enroll.
+// The passphrase is a single-use credential; the rest is the runner's
+// self-report of its environment, used to populate the auto-created
+// Machine row.
+type EnrollRunnerRequest struct {
+	Passphrase         string             `json:"passphrase"`
+	MachineName        string             `json:"machine_name,omitempty"` // defaults to hostname
+	Hostname           string             `json:"hostname"`
+	OS                 string             `json:"os"`
+	Arch               string             `json:"arch"`
+	User               string             `json:"user,omitempty"`
+	WorkingDir         string             `json:"working_dir,omitempty"`
+	AvailableHarnesses []HarnessAvailable `json:"available_harnesses,omitempty"`
+	RunnerVersion      string             `json:"runner_version,omitempty"`
+}
+
+// EnrollRunnerResponse returns the durable per-machine token the runner
+// will present on subsequent WS connections. Save it locally; the server
+// stores only its hash.
+type EnrollRunnerResponse struct {
+	MachineID   string   `json:"machine_id"`
+	MachineName string   `json:"machine_name"`
+	RunnerToken string   `json:"runner_token"`
+	InstanceIDs []string `json:"instance_ids"` // default instances auto-created for this machine
 }
 
 // BindCredentialRequest is the request body for POST /instances/{id}/credentials.

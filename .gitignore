@@ -1,2 +1,15 @@
 __pycache__/
 *.pyc
+
+# Host-local config (machine-specific systemd drop-ins, dev secrets, etc.).
+# Put anything that should never leave this machine under ./.local/
+/.local/
+
+# Defensive: never accidentally commit credentials.
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+credentials.*
+secrets.*

@@ -35,7 +35,7 @@ Every component is a separate repo and completely optional. Use only what you ne
   ║   │                                             │     ║
   ║   │  claudecode · jig · codex · hermes · aider  │     ║
   ║   │  goose · openclaw · nanoclaw · cline        │     ║
-  ║   │  roocode · kilocode · commander             │     ║
+  ║   │  roocode · kilocode · commander · forgecode │     ║
   ║   │  autohand · dexto · inber                   │     ║
   ║   └─────────────────────┬───────────────────────┘     ║
   ╚═════════════════════════╪═════════════════════════════╝
@@ -170,18 +170,19 @@ Harness bridges communicate with llm-bridge-server via stdin/stdout NDJSON (JSON
 |------|-------|--------|-------|
 | [llm-bridge-claudecode](https://github.com/kayushkin/llm-bridge-claudecode) | Claude Code | Implemented | Wraps `claude` CLI via `--input-format stream-json`. Session resume/fork, message injection, usage aggregation. |
 | [llm-bridge-jig](https://github.com/kayushkin/llm-bridge-jig) | Claude Code (profiles) | Implemented | Profile manager. Loads YAML profiles from `.jig/profiles/` with inheritance and env var substitution. |
-| [llm-bridge-codex](https://github.com/kayushkin/llm-bridge-codex) | Codex | Scaffold | WebSocket client to Codex app-server JSON-RPC API. |
-| [llm-bridge-hermes](https://github.com/kayushkin/llm-bridge-hermes) | Hermes | Scaffold | HTTP+SSE client for OpenAI-compatible Hermes API. |
-| [llm-bridge-inber](https://github.com/kayushkin/llm-bridge-inber) | Inber | Scaffold | HTTP client for inber agent framework. |
-| [llm-bridge-openclaw](https://github.com/kayushkin/llm-bridge-openclaw) | OpenClaw | Scaffold | WebSocket client. |
-| [llm-bridge-nanoclaw](https://github.com/kayushkin/llm-bridge-nanoclaw) | NanoClaw | Scaffold | Docker container subprocess harness. |
+| [llm-bridge-codex](https://github.com/kayushkin/llm-bridge-codex) | Codex | Implemented | WebSocket client to Codex app-server JSON-RPC API. |
+| [llm-bridge-hermes](https://github.com/kayushkin/llm-bridge-hermes) | Hermes | Implemented | HTTP+SSE client for OpenAI-compatible Hermes `/v1/responses` endpoint. |
+| [llm-bridge-inber](https://github.com/kayushkin/llm-bridge-inber) | Inber | Implemented | HTTP client for inber agent framework. |
+| [llm-bridge-openclaw](https://github.com/kayushkin/llm-bridge-openclaw) | OpenClaw | Implemented | WebSocket client. |
+| [llm-bridge-nanoclaw](https://github.com/kayushkin/llm-bridge-nanoclaw) | NanoClaw | Implemented | Docker container subprocess harness. |
+| [llm-bridge-cline](https://github.com/kayushkin/llm-bridge-cline) | Cline | Implemented | One-shot subprocess per turn (`cline -y --json`). Resume via `-T`. |
+| [llm-bridge-aider](https://github.com/kayushkin/llm-bridge-aider) | Aider | Implemented | Spawns `aider --message` per turn with credential env injection. |
+| [llm-bridge-kilocode](https://github.com/kayushkin/llm-bridge-kilocode) | Kilo Code | Implemented | Spawns `kilo serve` and drives it over its HTTP API (sessions, messages, fork, summarize, abort). |
+| [llm-bridge-forgecode](https://github.com/kayushkin/llm-bridge-forgecode) | ForgeCode | Implemented | Wraps ForgeCode CLI in `forge -p` one-shot mode with credential injection. |
 | [llm-bridge-commander](https://github.com/kayushkin/llm-bridge-commander) | Commander | Scaffold | Rust/Tauri desktop app bridge. |
-| [llm-bridge-cline](https://github.com/kayushkin/llm-bridge-cline) | Cline | Scaffold | CLI wrapper. |
 | [llm-bridge-gemini](https://github.com/kayushkin/llm-bridge-gemini) | Gemini CLI | Scaffold | CLI wrapper for Google's Gemini CLI agent. |
-| [llm-bridge-aider](https://github.com/kayushkin/llm-bridge-aider) | Aider | Scaffold | CLI wrapper. |
 | [llm-bridge-goose](https://github.com/kayushkin/llm-bridge-goose) | Goose | Scaffold | Agent framework bridge. |
 | [llm-bridge-roocode](https://github.com/kayushkin/llm-bridge-roocode) | Roo Code | Scaffold | CLI wrapper. |
-| [llm-bridge-kilocode](https://github.com/kayushkin/llm-bridge-kilocode) | Kilo Code | Scaffold | CLI wrapper. |
 | [llm-bridge-autohand](https://github.com/kayushkin/llm-bridge-autohand) | Autohand | Scaffold | ACP-over-stdio bridge. |
 | [llm-bridge-dexto](https://github.com/kayushkin/llm-bridge-dexto) | Dexto | Scaffold | REST+SSE client. |
 

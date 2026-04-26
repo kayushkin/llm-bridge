@@ -6,8 +6,9 @@ import "time"
 type Transport string
 
 const (
-	TransportLocal Transport = "local" // local subprocess
-	TransportSSH   Transport = "ssh"   // SSH to remote machine
+	TransportLocal  Transport = "local"  // local subprocess on the same host as llm-bridge-server
+	TransportSSH    Transport = "ssh"    // SSH from server to remote machine, server forks subprocess via sshd
+	TransportRunner Transport = "runner" // remote llm-bridge-runner daemon dialed in over WebSocket
 )
 
 // Instance represents a deployed harness on a specific machine.

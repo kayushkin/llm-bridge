@@ -63,6 +63,72 @@ const (
 	HarnessForgecode  Harness = "forgecode"
 )
 
+// AllHarnesses is the canonical list of known harness identifiers, in the
+// order callers should iterate when surfacing them in UIs or capability lists.
+var AllHarnesses = []Harness{
+	HarnessClaudeCode,
+	HarnessCodex,
+	HarnessOpenClaw,
+	HarnessInber,
+	HarnessHermes,
+	HarnessAider,
+	HarnessGoose,
+	HarnessAutohand,
+	HarnessJig,
+	HarnessDexto,
+	HarnessCommander,
+	HarnessNanoClaw,
+	HarnessCline,
+	HarnessRooCode,
+	HarnessKiloCode,
+	HarnessOpenCode,
+	HarnessForgecode,
+}
+
+// HarnessBinaryName returns the expected wrapper-binary filename for a
+// harness type. Callers (server, runner, install scripts) use this to look
+// up the binary on PATH. Returns "" for unknown harness types.
+func HarnessBinaryName(h Harness) string {
+	switch h {
+	case HarnessClaudeCode:
+		return "llm-bridge-claudecode"
+	case HarnessCodex:
+		return "llm-bridge-codex"
+	case HarnessOpenClaw:
+		return "llm-bridge-openclaw"
+	case HarnessInber:
+		return "llm-bridge-inber"
+	case HarnessHermes:
+		return "llm-bridge-hermes"
+	case HarnessAider:
+		return "llm-bridge-aider"
+	case HarnessGoose:
+		return "llm-bridge-goose"
+	case HarnessAutohand:
+		return "llm-bridge-autohand"
+	case HarnessJig:
+		return "llm-bridge-jig"
+	case HarnessDexto:
+		return "llm-bridge-dexto"
+	case HarnessCommander:
+		return "llm-bridge-commander"
+	case HarnessNanoClaw:
+		return "llm-bridge-nanoclaw"
+	case HarnessCline:
+		return "llm-bridge-cline"
+	case HarnessRooCode:
+		return "llm-bridge-roocode"
+	case HarnessKiloCode:
+		return "llm-bridge-kilocode"
+	case HarnessOpenCode:
+		return "llm-bridge-opencode"
+	case HarnessForgecode:
+		return "llm-bridge-forgecode"
+	default:
+		return ""
+	}
+}
+
 // EventType classifies a harness event.
 type EventType string
 

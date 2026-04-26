@@ -658,8 +658,9 @@ export interface Hook {
  * Transport specifies how to connect to a harness instance.
  */
 export type Transport = string;
-export const TransportLocal: Transport = "local"; // local subprocess
-export const TransportSSH: Transport = "ssh"; // SSH to remote machine
+export const TransportLocal: Transport = "local"; // local subprocess on the same host as llm-bridge-server
+export const TransportSSH: Transport = "ssh"; // SSH from server to remote machine, server forks subprocess via sshd
+export const TransportRunner: Transport = "runner"; // remote llm-bridge-runner daemon dialed in over WebSocket
 /**
  * Instance represents a deployed harness on a specific machine.
  * A harness type (claudecode, codex) is a template; an instance is a running deployment.
@@ -932,6 +933,143 @@ export interface TopLogProb {
   token: string;
   logprob: number /* float64 */;
   bytes?: number /* int */[];
+}
+
+//////////
+// source: runner.go
+
+/**
+ * RunnerMessageType discriminates the polymorphic RunnerMessage envelope.
+ */
+export type RunnerMessageType = string;
+/**
+ * Connection-level (no SessionID).
+ */
+export const RunnerMsgHello: RunnerMessageType = "hello"; // runner → server, sent immediately after connect
+export const RunnerMsgWelcome: RunnerMessageType = "welcome"; // server → runner, ack
+export const RunnerMsgError: RunnerMessageType = "error"; // either direction, fatal error before close
+export const RunnerMsgPing: RunnerMessageType = "ping"; // app-level keepalive (in addition to WS pings)
+export const RunnerMsgPong: RunnerMessageType = "pong";
+/**
+ * Per-session (SessionID required).
+ */
+export const RunnerMsgSpawn: RunnerMessageType = "spawn"; // server → runner
+export const RunnerMsgStdin: RunnerMessageType = "stdin"; // server → runner
+export const RunnerMsgSignal: RunnerMessageType = "signal"; // server → runner
+export const RunnerMsgStdout: RunnerMessageType = "stdout"; // runner → server
+export const RunnerMsgStderr: RunnerMessageType = "stderr"; // runner → server
+export const RunnerMsgExit: RunnerMessageType = "exit"; // runner → server
+/**
+ * RunnerMessage is the envelope for every frame exchanged on the runner WS.
+ * Exactly one payload field is populated, matching Type.
+ */
+export interface RunnerMessage {
+  type: RunnerMessageType;
+  session_id?: string;
+  hello?: RunnerHello;
+  welcome?: RunnerWelcome;
+  error?: RunnerError;
+  spawn?: RunnerSpawn;
+  stdin?: RunnerStdin;
+  stdout?: RunnerStdout;
+  stderr?: RunnerStderr;
+  signal?: RunnerSignal;
+  exit?: RunnerExit;
+}
+/**
+ * RunnerHello is sent by the runner immediately after the WS upgrade.
+ * Token authenticates the runner against the server's accepted token list
+ * (or a per-machine token issued at registration time). The server validates
+ * it before sending Welcome; on failure it sends RunnerError and closes.
+ */
+export interface RunnerHello {
+  token: string;
+  machine_name: string; // user-chosen label, e.g. "wsl-claude"
+  hostname: string; // os.Hostname()
+  os: string; // GOOS
+  arch: string; // GOARCH
+  user: string; // os/user.Current().Username
+  working_dir: string; // default cwd for spawned subprocesses
+  available_harnesses: HarnessAvailable[]; // detected harness binaries on this machine
+  runner_version: string; // build-stamped version
+}
+/**
+ * HarnessAvailable reports a harness binary present on the runner machine.
+ */
+export interface HarnessAvailable {
+  harness: Harness;
+  binary: string; // absolute path
+  version?: string;
+}
+/**
+ * RunnerWelcome is the server's ack of a successful Hello.
+ */
+export interface RunnerWelcome {
+  machine_id: string; // server-assigned, stable across reconnects
+  server_version: string;
+  ping_interval_secs: number /* int */; // app-level ping cadence the runner should follow
+  accepted_at: string;
+}
+/**
+ * RunnerError reports a fatal error before the connection is closed.
+ * Code is a stable machine-readable token; Message is human prose.
+ */
+export interface RunnerError {
+  code: string; // "auth_failed", "duplicate_machine", "internal", …
+  message: string;
+}
+/**
+ * RunnerSpawn asks the runner to fork a harness subprocess for a session.
+ * StartParams is the same payload the local subprocess transport sends to
+ * the harness as the "start" JSON-RPC method — the runner writes it
+ * verbatim to the subprocess's stdin as the first line.
+ */
+export interface RunnerSpawn {
+  harness: Harness;
+  binary_path?: string; // optional override; runner falls back to PATH lookup
+  working_dir?: string; // overrides Hello.WorkingDir for this session
+  start_params: Record<string, unknown>; // verbatim JSON-RPC params for "start"
+  env?: string[]; // extra env vars, "KEY=VALUE" form
+}
+/**
+ * RunnerStdin carries one line (no trailing newline) of NDJSON to be
+ * written to the subprocess stdin, with a newline appended by the runner.
+ */
+export interface RunnerStdin {
+  data: string;
+}
+/**
+ * RunnerStdout carries one line (no trailing newline) read from the
+ * subprocess stdout. The server's existing pipeline parses it as msg.Event.
+ */
+export interface RunnerStdout {
+  data: string;
+}
+/**
+ * RunnerStderr carries one line of subprocess stderr, forwarded for
+ * server-side logging. Not parsed.
+ */
+export interface RunnerStderr {
+  data: string;
+}
+/**
+ * RunnerSignalType is the kind of signal to deliver to a subprocess.
+ */
+export type RunnerSignalType = string;
+export const RunnerSignalInterrupt: RunnerSignalType = "interrupt"; // SIGINT, pause/cancel current turn
+export const RunnerSignalKill: RunnerSignalType = "kill"; // SIGKILL, terminate immediately
+/**
+ * RunnerSignal asks the runner to deliver a signal to a session's subprocess.
+ */
+export interface RunnerSignal {
+  signal: RunnerSignalType;
+}
+/**
+ * RunnerExit reports that a session's subprocess has exited.
+ */
+export interface RunnerExit {
+  exit_code: number /* int */;
+  error?: string; // non-empty if the process couldn't be reaped cleanly
 }
 
 //////////

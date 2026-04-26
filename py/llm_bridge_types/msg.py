@@ -513,6 +513,7 @@ Transport = str
 
 TransportLocal: Transport = "local"
 TransportSSH: Transport = "ssh"
+TransportRunner: Transport = "runner"
 
 
 @dataclass(kw_only=True)
@@ -742,6 +743,126 @@ class TopLogProb:
     token: str
     logprob: float
     bytes: list[int] | None = None
+
+
+# ────────────────────────────────────────
+# source: runner.go
+
+# RunnerMessageType discriminates the polymorphic RunnerMessage envelope.
+RunnerMessageType = str
+
+RunnerMsgHello: RunnerMessageType = "hello"
+RunnerMsgWelcome: RunnerMessageType = "welcome"
+RunnerMsgError: RunnerMessageType = "error"
+RunnerMsgPing: RunnerMessageType = "ping"
+RunnerMsgPong: RunnerMessageType = "pong"
+RunnerMsgSpawn: RunnerMessageType = "spawn"
+RunnerMsgStdin: RunnerMessageType = "stdin"
+RunnerMsgSignal: RunnerMessageType = "signal"
+RunnerMsgStdout: RunnerMessageType = "stdout"
+RunnerMsgStderr: RunnerMessageType = "stderr"
+RunnerMsgExit: RunnerMessageType = "exit"
+
+
+@dataclass(kw_only=True)
+class RunnerMessage:
+    """RunnerMessage is the envelope for every frame exchanged on the runner WS. Exactly one payload field is populated, matching Type."""
+    type: RunnerMessageType
+    session_id: str | None = None
+    hello: RunnerHello | None = None
+    welcome: RunnerWelcome | None = None
+    error: RunnerError | None = None
+    spawn: RunnerSpawn | None = None
+    stdin: RunnerStdin | None = None
+    stdout: RunnerStdout | None = None
+    stderr: RunnerStderr | None = None
+    signal: RunnerSignal | None = None
+    exit: RunnerExit | None = None
+
+
+@dataclass(kw_only=True)
+class RunnerHello:
+    """RunnerHello is sent by the runner immediately after the WS upgrade. Token authenticates the runner against the server's accepted token list (or a per-machine token issued at registration time). The server validates it before sending Welcome; on failure it sends RunnerError and closes."""
+    token: str
+    machine_name: str  # user-chosen label, e.g. "wsl-claude"
+    hostname: str  # os.Hostname()
+    os: str  # GOOS
+    arch: str  # GOARCH
+    user: str  # os/user.Current().Username
+    working_dir: str  # default cwd for spawned subprocesses
+    available_harnesses: list[HarnessAvailable]  # detected harness binaries on this machine
+    runner_version: str  # build-stamped version
+
+
+@dataclass(kw_only=True)
+class HarnessAvailable:
+    """HarnessAvailable reports a harness binary present on the runner machine."""
+    harness: Harness
+    binary: str  # absolute path
+    version: str | None = None
+
+
+@dataclass(kw_only=True)
+class RunnerWelcome:
+    """RunnerWelcome is the server's ack of a successful Hello."""
+    machine_id: str  # server-assigned, stable across reconnects
+    server_version: str
+    ping_interval_secs: int  # app-level ping cadence the runner should follow
+    accepted_at: str
+
+
+@dataclass(kw_only=True)
+class RunnerError:
+    """RunnerError reports a fatal error before the connection is closed. Code is a stable machine-readable token; Message is human prose."""
+    code: str  # "auth_failed", "duplicate_machine", "internal", …
+    message: str
+
+
+@dataclass(kw_only=True)
+class RunnerSpawn:
+    """RunnerSpawn asks the runner to fork a harness subprocess for a session. StartParams is the same payload the local subprocess transport sends to the harness as the "start" JSON-RPC method — the runner writes it verbatim to the subprocess's stdin as the first line."""
+    harness: Harness
+    binary_path: str | None = None  # optional override; runner falls back to PATH lookup
+    working_dir: str | None = None  # overrides Hello.WorkingDir for this session
+    start_params: dict[str, Any]  # verbatim JSON-RPC params for "start"
+    env: list[str] | None = None  # extra env vars, "KEY=VALUE" form
+
+
+@dataclass(kw_only=True)
+class RunnerStdin:
+    """RunnerStdin carries one line (no trailing newline) of NDJSON to be written to the subprocess stdin, with a newline appended by the runner."""
+    data: str
+
+
+@dataclass(kw_only=True)
+class RunnerStdout:
+    """RunnerStdout carries one line (no trailing newline) read from the subprocess stdout. The server's existing pipeline parses it as msg.Event."""
+    data: str
+
+
+@dataclass(kw_only=True)
+class RunnerStderr:
+    """RunnerStderr carries one line of subprocess stderr, forwarded for server-side logging. Not parsed."""
+    data: str
+
+# RunnerSignalType is the kind of signal to deliver to a subprocess.
+RunnerSignalType = str
+
+RunnerSignalInterrupt: RunnerSignalType = "interrupt"
+RunnerSignalKill: RunnerSignalType = "kill"
+
+
+@dataclass(kw_only=True)
+class RunnerSignal:
+    """RunnerSignal asks the runner to deliver a signal to a session's subprocess."""
+    signal: RunnerSignalType
+
+
+@dataclass(kw_only=True)
+class RunnerExit:
+    """RunnerExit reports that a session's subprocess has exited."""
+    exit_code: int
+    error: str | None = None  # non-empty if the process couldn't be reaped cleanly
 
 
 # ────────────────────────────────────────

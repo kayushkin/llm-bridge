@@ -156,6 +156,10 @@ Optionally composes store libraries (see below) for agent identity, model regist
 
 NATS bus adapter. Bridges llm-bridge-server with the [inber](https://github.com/kayushkin/inber) messaging ecosystem, translating between NATS pub/sub and HTTP/SSE.
 
+### [llm-bridge-runner](https://github.com/kayushkin/llm-bridge-runner)
+
+Long-lived remote-machine daemon. Registers a machine with llm-bridge-server over a single outbound WebSocket and accepts harness-spawn requests, letting the server drive harness subprocesses on machines behind NAT without inbound SSH or a VPN.
+
 ### Harness Bridges
 
 Each harness bridge wraps a single agent CLI or API as a black box. It knows how to spawn the agent, speak its native protocol, and translate everything into canonical `msg.Event` streams. The agent's internals are completely opaque — the harness is the translation layer, and the server (or any consumer) only sees uniform events.

@@ -265,3 +265,33 @@ type BindCredentialRequest struct {
 type RenameSessionRequest struct {
 	DisplayName string `json:"display_name"`
 }
+
+// SourceFolderMapping is one row of the runtime source→folder map.
+// Default=true means the value comes from the env-var defaults
+// (LLMBRIDGE_SOURCE_FOLDERS) with no runtime override; Default=false means
+// the row originates from the source_folders table. UpdatedAt is zero for
+// env defaults.
+type SourceFolderMapping struct {
+	Source     string    `json:"source"`
+	FolderName string    `json:"folder_name"`
+	Default    bool      `json:"default"`
+	UpdatedAt  time.Time `json:"updated_at,omitempty"`
+}
+
+// PutSourceFolderRequest is the request body for PUT /source-folders/{source}.
+// FolderName must reference an existing folder (validated server-side).
+// ApplyToExisting=true rebuckets prior sessions whose folder is empty or
+// matches the previous effective folder for this source; manual moves are
+// preserved.
+type PutSourceFolderRequest struct {
+	FolderName      string `json:"folder_name"`
+	ApplyToExisting bool   `json:"apply_to_existing,omitempty"`
+}
+
+// SourceFolderApplyResult is the response payload for PUT/DELETE when
+// ApplyToExisting was requested. Updated is the row count from the rebucket
+// UPDATE.
+type SourceFolderApplyResult struct {
+	Mapping SourceFolderMapping `json:"mapping"`
+	Updated int64               `json:"updated"`
+}

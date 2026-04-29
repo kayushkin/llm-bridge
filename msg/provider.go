@@ -153,6 +153,7 @@ type EventType string
 const (
 	EventResult       EventType = "result"
 	EventStream       EventType = "stream"
+	EventBlock        EventType = "block"
 	EventToolCall     EventType = "tool_call"
 	EventToolResult   EventType = "tool_result"
 	EventThinking     EventType = "thinking"
@@ -164,6 +165,13 @@ const (
 	EventSessionInfo  EventType = "session_info"
 	EventUserMessage  EventType = "user_message"
 	EventHook         EventType = "hook"
+	// Convenience events — derived centrally by llm-bridge-server from
+	// the raw event stream. Distinct from EventSessionState (the harness
+	// lifecycle) because agent_state is the coarser UI projection. See
+	// msg/CONVENIENCE-EVENTS.md.
+	EventAgentState   EventType = "agent_state"
+	EventUsageTotal   EventType = "usage_total"
+	EventTurnComplete EventType = "turn_complete"
 )
 
 // SessionState represents the current state of a harness session.

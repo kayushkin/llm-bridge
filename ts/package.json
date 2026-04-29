@@ -1,6 +1,7 @@
 {
   "name": "@kayushkin/llm-bridge-types",
   "version": "0.1.0",
+  "description": "TypeScript types for llm-bridge — a unified interface for AI coding agents. Auto-generated from the canonical Go types.",
   "type": "module",
   "types": "./msg.ts",
   "exports": {
@@ -8,5 +9,30 @@
       "types": "./msg.ts",
       "default": "./msg.ts"
     }
+  },
+  "files": [
+    "msg.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "llm-bridge",
+    "types",
+    "typescript",
+    "ai",
+    "agents",
+    "claude",
+    "codex"
+  ],
+  "license": "Apache-2.0",
+  "author": "kayushkin",
+  "homepage": "https://github.com/kayushkin/llm-bridge#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kayushkin/llm-bridge.git",
+    "directory": "ts"
+  },
+  "bugs": {
+    "url": "https://github.com/kayushkin/llm-bridge/issues"
   }
 }

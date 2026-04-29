@@ -461,6 +461,154 @@ GET  /instances/{id}/sessions       # list active sessions on instance
 POST /sessions                      # now accepts instance_id param
 ```
 
+## Session Identity & Resumption
+
+A logical conversation in llm-bridge has **one** stable identifier from end to end: `bridge_session_id`. The harness underneath may use entirely different identifiers that rotate over the conversation's lifetime (Codex mints a new `thread_id` on every `thread/resume`; Claude Code keeps a session_id but starts a new file on `--fork`). Bridge-server never sees those rotations — the harness bridge absorbs them.
+
+### Identifiers
+
+| Field | Meaning | Lifecycle |
+|---|---|---|
+| `harness` | Harness type — `"codex"`, `"claudecode"`, etc. | Static |
+| `instance_id` | A specific running harness instance (host + creds) | Per-deployment |
+| `bridge_session_id` | Bridge-server's stable session id | Created once, never changes |
+| `harness_session_id` | Harness-internal id (Codex thread_id, Claude session_id, ...) | Mutable; bridge owns rotation |
+
+**Every event a bridge emits to bridge-server carries both `bridge_session_id` and `harness_session_id`.** `bridge_session_id` is the routing/storage key. `harness_session_id` is informational — diagnostic, used to look at the harness's native rollout/log file. Bridge-server stores the latest reported `harness_session_id` on the session row but never makes routing decisions on it.
+
+### Bridge responsibilities
+
+Each harness bridge owns:
+
+1. **A local persistent store** (default `~/.local/share/llm-bridge-<harness>/state.db`) tracking the chain of `harness_session_id`s for every `bridge_session_id` it has touched.
+2. **A WAL** for atomic chain mutations. Before calling any harness operation that mints a new `harness_session_id` (start, resume, fork), write a `pending` WAL row. After the harness returns, write the `committed` row with the new id. Crash between the two = orphan recoverable on next discover.
+3. **Translation discipline.** The bridge demuxes harness-side events by `harness_session_id`, looks up `bridge_session_id`, and forwards tagged with the latter. The bridge's translation layer is the *only* place that knows about both ids.
+
+### State schema (per-bridge)
+
+```
+sessions:
+  bridge_session_id    PK
+  current_harness_id   TEXT       -- latest harness_session_id; rotates
+  created_at, updated_at
+
+rollouts:
+  harness_session_id   PK         -- UNIQUE; demux key for live events
+  bridge_session_id    FK
+  rollout_path         TEXT       -- harness-native log/rollout file
+  sequence             INT        -- 0 = original, 1..N = resumes/forks
+  parent_harness_id    TEXT NULL  -- predecessor in the chain
+  kind                 TEXT       -- 'start' | 'resume' | 'fork'
+  created_at
+
+wal:
+  id                   PK
+  bridge_session_id    TEXT
+  intent               TEXT       -- 'start' | 'resume' | 'fork'
+  parent_harness_id    TEXT NULL
+  new_harness_id       TEXT NULL  -- filled on commit
+  rollout_path         TEXT NULL
+  status               TEXT       -- 'pending' | 'committed' | 'orphaned'
+  created_at, committed_at
+```
+
+### Resume flow
+
+```
+bridge-server:  "attach to bridge_session_id X"
+bridge:         load X from local store → parent = sessions.current_harness_id
+                WAL: insert {intent:'resume', parent, status:'pending'}    fsync
+                harness call: ThreadResume(parent) → returns new id Z
+                WAL: update {new_harness_id:Z, status:'committed'}         fsync
+                rollouts: insert (Z, X, sequence+1, parent, 'resume', path)
+                sessions: update current_harness_id = Z
+                trans: SetSessionID(X)   ← always X, never Z
+                proceed with turn — events arrive tagged Z, forwarded as X
+```
+
+If the bridge crashes between `pending` and `committed`, on restart it scans the WAL: any `pending` row is reconciled against rollouts written since `wal.created_at` matching `(originator, cwd)`. One match → claim it. Zero or many → mark `orphaned` and surface to the operator.
+
+### Discover
+
+`<harness-bridge> -discover` reads the bridge's `state.db` and emits one `StoredSession` per `bridge_session_id`, with the rollout chain attached. Cold rollouts on disk that aren't in `state.db` (created before this contract was adopted, or by direct CLI use outside the bridge) are imported as single-rollout sessions on first run. Going forward, every rollout the bridge produces is in the chain.
+
+### Process model
+
+**One bridge process per `(harness, instance_id)`, sessions multiplexed.** Bridge-server warm-pools one bridge subprocess per harness instance and routes every session for that instance through it. The bridge demuxes by `bridge_session_id` on requests, by `harness_session_id` (looked up via `rollouts` table) on harness-side events.
+
+- `manager.processes` is keyed by `instance_id`, not `bridge_session_id`.
+- `manager.routing` (`bridge_session_id → instance_id`) tells the server which process to write to for a given session.
+- Lazy spawn on first session, kept warm indefinitely. Process termination is a separate concern from session termination.
+- A misrouted message (unknown `bridge_session_id` arriving at a bridge) must be rejected loudly, not silently dispatched. A misrouted event (unknown `bridge_session_id` arriving at the server) must be logged and dropped, not auto-create a session.
+
+### Wire protocol
+
+The bridge ↔ bridge-server pipe carries two ids and only two ids. Conflating them silently is the bug class this section exists to prevent.
+
+**Requests (server → bridge stdin)** carry `bridge_session_id` and nothing else id-shaped. The bridge looks up its own `harness_session_id` chain locally; the server never tells the bridge which harness id to use:
+
+```go
+type StartParams struct {
+    BridgeSessionID string  // routing key — server-side identifier, stable
+    Resume          bool    // bridge consults state.db chain for the latest harness id
+    Fork            string  // parent BRIDGE_SESSION_ID (not a harness id)
+    DisplayName, AgentID, CredentialID, Prompt, WorkDir string
+}
+
+type MessageParams struct {
+    BridgeSessionID string  // required — multiplexing demands explicit routing
+    Content         string
+}
+
+type InterruptParams struct{ BridgeSessionID string }
+// ... and so on for compact, set_model, set_permission_mode, etc.
+```
+
+**Events (bridge → server stdout)** carry both ids. The first is the routing/storage key; the second is informational and stored on the session row for diagnostics:
+
+```go
+type Event struct {
+    BridgeSessionID  string  // required, the routing/storage key
+    HarnessSessionID string  // informational, the harness-native id at emission time
+    // ...
+}
+```
+
+**Id generation responsibilities:**
+
+| Id | Generated by | First appears | Stable across resumes |
+|---|---|---|---|
+| `bridge_session_id` | bridge-server, in `handleCreateSession` | `sess.BridgeID` | **Yes** |
+| `instance_id` | bridge-server, picked from `harness_instances` | `manager.Start()` | Yes |
+| `harness_session_id` | the harness itself (e.g. Codex `ThreadStart`/`Resume` returns it) | bridge subprocess | **No** — rotates |
+
+**Invariants the bridge must hold:**
+
+1. The bridge never substitutes `bridge_session_id` on its way out. What bridge-server passed in on a request is what comes back on every event.
+2. The bridge never receives a `harness_session_id` from bridge-server. Server-to-bridge requests are pure `bridge_session_id` plus action params.
+3. The bridge writes `harness_session_id` on every event, sourced from its own state.db. Bridge-server reads it as an opaque last-known value.
+4. A request without a `bridge_session_id` (or with one the bridge doesn't recognize) is an error. No silent defaulting.
+
+These rules collapse the historical `SessionID` ambiguity (where the same field meant `bridge_id` on `start` and `harness_id` on resume, depending on context) into two distinct, named fields that never trade places.
+
+### What this guarantees
+
+- Resumes don't fragment a conversation across multiple bridge-server sessions.
+- Forks produce new `bridge_session_id`s with `parent_id` pointing at the parent's `bridge_session_id` (not a harness-internal id).
+- Concurrent threads in one bridge process disambiguate by `rollouts.harness_session_id` lookup.
+- After a bridge crash, the chain is recoverable from `state.db` + WAL — no in-memory-only state.
+- Bridge-server has no awareness of harness id rotations; it stores `harness_session_id` as an opaque last-known value.
+
+### Contract for new harness bridges
+
+Any bridge added to the ecosystem must:
+
+1. Accept `bridge_session_id` from bridge-server at spawn and treat it as the single routing key.
+2. Maintain a local `state.db` + WAL per the schema above.
+3. Tag every outgoing event with both `bridge_session_id` and `harness_session_id`.
+4. Implement `-discover` against `state.db`, not against the harness's native filesystem.
+5. Never mutate `bridge_session_id` after creation. If the harness mints a new internal id, append to the chain — don't tell bridge-server it's a new session.
+
 ## Canonical Types (`msg/`)
 
 The `msg/` package is the **single source of truth** for all shared types across the llm-bridge ecosystem. Every type that crosses a service boundary — API requests, API responses, events, sessions, instances, credentials, preferences — is defined here.

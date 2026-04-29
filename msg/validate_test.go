@@ -302,7 +302,7 @@ func TestValidateEvent_Valid(t *testing.T) {
 	e := &Event{
 		Type:      EventResult,
 		Harness:   HarnessClaudeCode,
-		SessionID: "sess_1",
+		BridgeSessionID: "sess_1",
 		Timestamp: time.Now(),
 		Result:    &ResultEvent{Text: "done"},
 	}
@@ -312,7 +312,7 @@ func TestValidateEvent_Valid(t *testing.T) {
 }
 
 func TestValidateEvent_MissingHarness(t *testing.T) {
-	e := &Event{Type: EventResult, SessionID: "s1", Timestamp: time.Now(), Result: &ResultEvent{}}
+	e := &Event{Type: EventResult, BridgeSessionID: "s1", Timestamp: time.Now(), Result: &ResultEvent{}}
 	err := ValidateEvent(e)
 	if err == nil {
 		t.Fatal("expected error")
@@ -320,17 +320,17 @@ func TestValidateEvent_MissingHarness(t *testing.T) {
 	assertHasCode(t, err, ErrMissingHarness)
 }
 
-func TestValidateEvent_MissingSessionID(t *testing.T) {
+func TestValidateEvent_MissingBridgeSessionID(t *testing.T) {
 	e := &Event{Type: EventResult, Harness: HarnessCodex, Timestamp: time.Now(), Result: &ResultEvent{}}
 	err := ValidateEvent(e)
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	assertHasCode(t, err, ErrMissingSessionID)
+	assertHasCode(t, err, ErrMissingBridgeSessionID)
 }
 
 func TestValidateEvent_MissingTimestamp(t *testing.T) {
-	e := &Event{Type: EventResult, Harness: HarnessCodex, SessionID: "s1", Result: &ResultEvent{}}
+	e := &Event{Type: EventResult, Harness: HarnessCodex, BridgeSessionID: "s1", Result: &ResultEvent{}}
 	err := ValidateEvent(e)
 	if err == nil {
 		t.Fatal("expected error")
@@ -339,7 +339,7 @@ func TestValidateEvent_MissingTimestamp(t *testing.T) {
 }
 
 func TestValidateEvent_InvalidType(t *testing.T) {
-	e := &Event{Type: EventType("explosion"), Harness: HarnessCodex, SessionID: "s1", Timestamp: time.Now()}
+	e := &Event{Type: EventType("explosion"), Harness: HarnessCodex, BridgeSessionID: "s1", Timestamp: time.Now()}
 	err := ValidateEvent(e)
 	if err == nil {
 		t.Fatal("expected error")
@@ -348,7 +348,7 @@ func TestValidateEvent_InvalidType(t *testing.T) {
 }
 
 func TestValidateEvent_EmptyType(t *testing.T) {
-	e := &Event{Harness: HarnessCodex, SessionID: "s1", Timestamp: time.Now()}
+	e := &Event{Harness: HarnessCodex, BridgeSessionID: "s1", Timestamp: time.Now()}
 	err := ValidateEvent(e)
 	if err == nil {
 		t.Fatal("expected error")
@@ -357,7 +357,7 @@ func TestValidateEvent_EmptyType(t *testing.T) {
 }
 
 func TestValidateEvent_NoPayload(t *testing.T) {
-	e := &Event{Type: EventResult, Harness: HarnessCodex, SessionID: "s1", Timestamp: time.Now()}
+	e := &Event{Type: EventResult, Harness: HarnessCodex, BridgeSessionID: "s1", Timestamp: time.Now()}
 	err := ValidateEvent(e)
 	if err == nil {
 		t.Fatal("expected error for event with no payload")
@@ -367,7 +367,7 @@ func TestValidateEvent_NoPayload(t *testing.T) {
 
 func TestValidateEvent_MultiplePayloads(t *testing.T) {
 	e := &Event{
-		Type: EventResult, Harness: HarnessCodex, SessionID: "s1", Timestamp: time.Now(),
+		Type: EventResult, Harness: HarnessCodex, BridgeSessionID: "s1", Timestamp: time.Now(),
 		Result: &ResultEvent{Text: "a"},
 		Error:  &ErrorEvent{Message: "b"},
 	}
@@ -385,6 +385,7 @@ func TestValidateEvent_AllTypes(t *testing.T) {
 	}{
 		{EventResult, Event{Result: &ResultEvent{Text: "done"}}},
 		{EventStream, Event{Stream: &HarnessStream{}}},
+		{EventBlock, Event{Block: &BlockEvent{Block: &ContentBlock{Type: BlockText, Text: &TextBlock{Text: "hi"}}}}},
 		{EventToolCall, Event{ToolCall: &ToolCallEvent{ToolID: "t1", Name: "bash", Input: json.RawMessage(`{}`)}}},
 		{EventToolResult, Event{ToolResult: &ToolResultEvent{ToolID: "t1", Name: "bash"}}},
 		{EventThinking, Event{Thinking: &ThinkingEvent{Text: "hmm"}}},
@@ -400,7 +401,7 @@ func TestValidateEvent_AllTypes(t *testing.T) {
 			e := tt.event
 			e.Type = tt.et
 			e.Harness = HarnessClaudeCode
-			e.SessionID = "s1"
+			e.BridgeSessionID = "s1"
 			e.Timestamp = time.Now()
 			if err := ValidateEvent(&e); err != nil {
 				t.Errorf("event type %s should be valid, got: %v", tt.et, err)

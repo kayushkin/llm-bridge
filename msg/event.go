@@ -11,8 +11,17 @@ type Event struct {
 	Type    EventType `json:"type"`
 	Harness Harness   `json:"harness"`
 
-	SessionID    string `json:"session_id"`
-	BridgeID     string `json:"bridge_id,omitempty"`
+	// BridgeSessionID is bridge-server's stable session id — the routing and
+	// storage key. Bridges stamp every event with the same id bridge-server
+	// passed in at session start. Required.
+	BridgeSessionID string `json:"bridge_session_id"`
+
+	// HarnessSessionID is the harness-internal id at the time of emission
+	// (Codex thread_id, Claude session_id, ...). Rotates when the harness mints
+	// a new internal id (resume, fork). Informational — bridge-server stores
+	// the latest reported value on the session row but never routes on it.
+	HarnessSessionID string `json:"harness_session_id,omitempty"`
+
 	ClientID     string `json:"client_id,omitempty"`
 	CompletionID string `json:"completion_id,omitempty"`
 
@@ -46,18 +55,29 @@ type Event struct {
 	Timestamp time.Time `json:"timestamp"`
 
 	// Content — at most one of these will be populated based on Type.
-	Result     *ResultEvent     `json:"result,omitempty"`
-	Stream     *HarnessStream   `json:"stream,omitempty"`
-	ToolCall   *ToolCallEvent   `json:"tool_call,omitempty"`
-	ToolResult *ToolResultEvent `json:"tool_result,omitempty"`
-	Thinking   *ThinkingEvent   `json:"thinking,omitempty"`
-	Plan       *PlanEvent       `json:"plan,omitempty"`
-	System     *SystemEvent     `json:"system,omitempty"`
-	Approval   *ApprovalEvent   `json:"approval,omitempty"`
-	Error      *ErrorEvent      `json:"error,omitempty"`
-	State      *StateEvent      `json:"state,omitempty"`
-	Info       *SessionInfo     `json:"info,omitempty"`
-	Hook       *HookEvent       `json:"hook,omitempty"`
+	Result       *ResultEvent       `json:"result,omitempty"`
+	Stream       *HarnessStream     `json:"stream,omitempty"`
+	Block        *BlockEvent        `json:"block,omitempty"`
+	ToolCall     *ToolCallEvent     `json:"tool_call,omitempty"`
+	ToolResult   *ToolResultEvent   `json:"tool_result,omitempty"`
+	Thinking     *ThinkingEvent     `json:"thinking,omitempty"`
+	Plan         *PlanEvent         `json:"plan,omitempty"`
+	System       *SystemEvent       `json:"system,omitempty"`
+	Approval     *ApprovalEvent     `json:"approval,omitempty"`
+	Error        *ErrorEvent        `json:"error,omitempty"`
+	State        *StateEvent        `json:"state,omitempty"`
+	Info         *SessionInfo       `json:"info,omitempty"`
+	Hook         *HookEvent         `json:"hook,omitempty"`
+	AgentState   *AgentStateEvent   `json:"agent_state,omitempty"`
+	UsageTotal   *UsageTotalEvent   `json:"usage_total,omitempty"`
+	TurnComplete *TurnCompleteEvent `json:"turn_complete,omitempty"`
+
+	// DerivedFrom lists the upstream event ids this event was synthesized
+	// from, when llm-bridge-server (or a harness) emits a convenience event
+	// derived from one or more raw events. Empty when the event is a
+	// first-class observation rather than a derivation. Used by consumers
+	// that want to retract or dedupe derived events.
+	DerivedFrom []string `json:"derived_from,omitempty"`
 
 	// Raw preserves the original event JSON from the harness for pass-through.
 	Raw json.RawMessage `json:"raw,omitempty"`
@@ -78,6 +98,9 @@ func HarnessMessageIDOf(ev *Event) string {
 	}
 	if ev.Stream != nil && ev.Stream.MessageID != "" {
 		return ev.Stream.MessageID
+	}
+	if ev.Block != nil && ev.Block.MessageID != "" {
+		return ev.Block.MessageID
 	}
 	if ev.ToolCall != nil && ev.ToolCall.MessageID != "" {
 		return ev.ToolCall.MessageID
@@ -119,10 +142,33 @@ type ToolSummary struct {
 
 // HarnessStream is a streaming text/content event from the harness.
 // Named HarnessStream to avoid collision with StreamEvent (API-level streaming).
+//
+// EventStream carries true incremental deltas (token chunks, partial JSON,
+// thinking summary chunks). Whole finished content blocks ride EventBlock
+// instead — see BlockEvent. A harness emits EventStream only when it has
+// granular streaming enabled (e.g. Claude Code with --include-partial-messages).
 type HarnessStream struct {
 	Delta     *BlockDelta `json:"delta,omitempty"`
 	MessageID string      `json:"message_id,omitempty"`
 	Hidden    bool        `json:"hidden,omitempty"`
+}
+
+// BlockEvent carries one finished content block from a harness assistant
+// message. Distinct from EventStream: EventBlock is one-shot per completed
+// block (the block has stopped accumulating); EventStream is incremental.
+//
+// Block is the discriminated-union content carrier from msg/content.go,
+// covering text, thinking, tool_use, tool_result, images, etc. — every
+// content variant a harness might surface.
+//
+// MessageID is the harness-native id of the assistant message containing
+// this block (e.g. Claude Code's msg_…), used for grouping multiple blocks
+// from the same model turn into one chat bubble. Index matches the block's
+// position in the original message's content array.
+type BlockEvent struct {
+	Index     int           `json:"index"`
+	MessageID string        `json:"message_id,omitempty"`
+	Block     *ContentBlock `json:"block"`
 }
 
 // ToolCallEvent is a tool being invoked.
@@ -209,6 +255,55 @@ type StateEvent struct {
 	State    SessionState `json:"state"`
 	Previous SessionState `json:"previous,omitempty"`
 	Reason   string       `json:"reason,omitempty"`
+}
+
+// AgentState is the UI-friendly projection of session lifecycle. Coarser
+// than SessionState (which has 6 values mirroring the harness lifecycle);
+// AgentState collapses to the four states a status pill typically renders.
+//
+// Derived centrally by llm-bridge-server from the raw event stream — see
+// msg/CONVENIENCE-EVENTS.md. Always-on emission; consumers ignore on
+// types they don't recognize via the Overflow forward-compat mechanism.
+type AgentState string
+
+const (
+	AgentStateIdle          AgentState = "idle"           // no active turn; ready for next user message
+	AgentStateAwaitingInput AgentState = "awaiting_input" // turn paused; needs user (approval, mid-turn question)
+	AgentStateToolRunning   AgentState = "tool_running"   // turn active; tool currently executing or model generating
+	AgentStateError         AgentState = "error"          // last activity ended in error
+)
+
+// AgentStateEvent is the body for EventAgentState. Emitted on every
+// transition; no event when state doesn't change.
+type AgentStateEvent struct {
+	State    AgentState `json:"state"`
+	Previous AgentState `json:"previous,omitempty"`
+	Reason   string     `json:"reason,omitempty"` // free-form, e.g. "tool=Bash", "approval_required"
+}
+
+// UsageTotalEvent is the body for EventUsageTotal. Carries the running
+// session totals, not a delta — emitted once after every ResultEvent
+// fan-out. ContextTokens / ContextLimit on Usage are last-value-wins
+// (state, not consumption); all other TokenUsage fields are summed.
+type UsageTotalEvent struct {
+	Usage TokenUsage `json:"usage"`          // cumulative across every result event in this session
+	Cost  *Cost      `json:"cost,omitempty"` // sum where reported; nil until any priced turn lands
+	Turns int        `json:"turns"`          // how many completed turns contributed
+}
+
+// TurnCompleteEvent is the body for EventTurnComplete. Emitted once per
+// turn, immediately after the terminating ResultEvent (or ErrorEvent for
+// error-terminated turns) is fanned out. TurnID matches the originating
+// user_message's turn_id.
+type TurnCompleteEvent struct {
+	TurnID       string        `json:"turn_id"`                 // matches the originating user_message's turn_id
+	FinalMessage string        `json:"final_message,omitempty"` // last assistant text in the turn (from ResultEvent.Text)
+	ToolCalls    []ToolSummary `json:"tool_calls,omitempty"`    // every tool_call/tool_result pair seen in this turn
+	UsageDelta   TokenUsage    `json:"usage_delta"`             // this turn's contribution
+	Cost         *Cost         `json:"cost,omitempty"`
+	DurationMS   int64         `json:"duration_ms"` // wall-clock from user_message → result
+	IsError      bool          `json:"is_error,omitempty"`
+	ErrorMessage string        `json:"error_message,omitempty"`
 }
 
 // SessionInfo describes what the harness knows about its session at start:

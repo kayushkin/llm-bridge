@@ -90,7 +90,7 @@ from llm_bridge_types import Message, Event, Conversation
 - `Message` — Single message with role, content blocks, and metadata
 - `ContentBlock` — Polymorphic content: `TextBlock`, `ImageBlock`, `AudioBlock`, `VideoBlock`, `DocumentBlock`, `ToolUseBlock`, `ToolResultBlock`, `ThinkingBlock`, `CodeExecBlock`, and more
 - `CompletionResponse` — Parsed LLM response with choices, usage, and raw provider JSON
-- `Event` — Canonical harness event (`result`, `stream`, `tool_call`, `tool_result`, `thinking`, `error`, `session_state`, `approval`, `plan`)
+- `Event` — Canonical harness event (`result`, `stream`, `tool_call`, `tool_result`, `thinking`, `system`, `approval`, `error`, `session_state`, `plan`, `session_info`, `user_message`, `hook`, plus the server-derived convenience events `agent_state`, `usage_total`, `turn_complete` — see [`msg/CONVENIENCE-EVENTS.md`](msg/CONVENIENCE-EVENTS.md))
 - `StreamEvent` — Granular streaming deltas (block start/delta/stop, message delta)
 - `ToolDef` / `ToolChoice` — Tool definitions and selection modes
 - `GenerationConfig` — Temperature, top-p, max tokens, stop sequences
@@ -208,7 +208,9 @@ Go libraries with SQLite backends. Each is independently usable — import one w
 | [agent-store](https://github.com/kayushkin/agent-store) | Agent identity and config. Stores identity, runtime configs, tools, limits, and memories. |
 | [model-store](https://github.com/kayushkin/model-store) | Model registry, auth, and usage tracking. Manages API keys, OAuth tokens, and model credentials across providers. |
 | [harness-store](https://github.com/kayushkin/harness-store) | Registry of harness instances deployed across machines (local or SSH). Credential bindings with priority and concurrency limits. |
+| [hook-store](https://github.com/kayushkin/hook-store) | Bridge-managed harness hooks (event/matcher → shell command) bound to global, instance, or session scope. |
 | [memory-store](https://github.com/kayushkin/memory-store) | Persistent vector memory with semantic search, importance decay, compaction, and context building. Pluggable backend via `MemoryStore` interface. |
+| [snapshot-store](https://github.com/kayushkin/snapshot-store) | Point-in-time file snapshots before/after tool calls (Edit/Write) so consumers can render diffs. SQLite metadata + content-addressed git blob backend. |
 | [log-store](https://github.com/kayushkin/log-store) | Durable event log. Stores events as JSONL by date/source, materializes message history on read. Includes an HTTP client library. |
 
 ### Example consumers
@@ -222,18 +224,47 @@ These projects consume the llm-bridge ecosystem and serve as reference implement
 
 ## Quick start
 
+The server exposes one SSE endpoint per session: `GET /sessions/{id}/events`. Every event on the wire is a canonical `msg.Event` — same shape regardless of which agent is running behind the harness. The samples below all consume that endpoint.
+
+Alongside the raw harness events, llm-bridge-server pre-derives three convenience events so consumers don't have to re-implement the same state machine:
+
+- `agent_state` — `idle` / `awaiting_input` / `tool_running` / `error`, on every transition.
+- `usage_total` — running session totals (tokens, cost, turns) after every `result`.
+- `turn_complete` — coalesced per-turn summary (final message, tool calls, usage delta, duration) on the terminating `result` or `error`.
+
+They are always-on to emit and opt-in to consume — see [`msg/CONVENIENCE-EVENTS.md`](msg/CONVENIENCE-EVENTS.md) for the state machine and emission rules.
+
+> The TypeScript (`@kayushkin/llm-bridge-types`) and Python (`llm-bridge-types`) packages are currently source-only — generated from the Go types in `ts/` and `py/`. They are not yet published to npm or PyPI. Until then, install from this repo (e.g. `file:../llm-bridge/ts` for TS, `pip install -e py/` for Python).
+
 ### Consume events from a harness (Go)
 
 ```go
-import "github.com/kayushkin/llm-bridge/msg"
+import (
+    "bufio"
+    "encoding/json"
+    "fmt"
+    "net/http"
+    "strings"
 
-// Connect to llm-bridge-server SSE endpoint
-// GET /sessions/{id}/events
-// Each event is a msg.Event — same type regardless of which agent is running
-for event := range events {
+    "github.com/kayushkin/llm-bridge/msg"
+)
+
+resp, _ := http.Get(serverURL + "/sessions/" + sessionID + "/events")
+defer resp.Body.Close()
+
+scanner := bufio.NewScanner(resp.Body)
+for scanner.Scan() {
+    data, ok := strings.CutPrefix(scanner.Text(), "data: ")
+    if !ok {
+        continue
+    }
+    var event msg.Event
+    if err := json.Unmarshal([]byte(data), &event); err != nil {
+        continue
+    }
     switch event.Type {
     case msg.EventResult:
-        fmt.Println(event.Result.Message.Content)
+        fmt.Println(event.Result.Text)
     case msg.EventToolCall:
         fmt.Println("Tool:", event.ToolCall.Name)
     case msg.EventError:
@@ -242,24 +273,12 @@ for event := range events {
 }
 ```
 
-### Use a harness bridge directly (Go)
-
-```go
-import claudecode "github.com/kayushkin/llm-bridge-claudecode"
-
-harness := claudecode.New(claudecode.Config{})
-session, _ := harness.Start(ctx, "Fix the tests", nil)
-for event := range session.Events() {
-    // Canonical msg.Event — same shape for every agent
-}
-```
-
 ### Consume events from a harness (TypeScript)
 
 ```typescript
 import type { Event } from '@kayushkin/llm-bridge-types'
 
-const events = new EventSource(`${serverURL}/sessions/${id}/events`)
+const events = new EventSource(`${serverURL}/sessions/${sessionID}/events`)
 events.onmessage = (e) => {
     const event: Event = JSON.parse(e.data)
     // Same canonical shape regardless of agent
@@ -269,10 +288,12 @@ events.onmessage = (e) => {
 ### Consume events from a harness (Python)
 
 ```python
+import json
+import requests
+import sseclient  # pip install sseclient-py
 from llm_bridge_types import Event
-import json, sseclient
 
-response = requests.get(f"{server_url}/sessions/{id}/events", stream=True)
+response = requests.get(f"{server_url}/sessions/{session_id}/events", stream=True)
 for event in sseclient.SSEClient(response).events():
     e: Event = json.loads(event.data)
     # Same canonical shape regardless of agent

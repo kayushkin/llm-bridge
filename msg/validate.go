@@ -55,8 +55,9 @@ const (
 
 // Validation error codes — event/session.
 const (
-	ErrMissingSessionID    = "missing_session_id"
-	ErrMissingHarness      = "missing_harness"
+	ErrMissingSessionID       = "missing_session_id"
+	ErrMissingBridgeSessionID = "missing_bridge_session_id"
+	ErrMissingHarness         = "missing_harness"
 	ErrInvalidEventType    = "invalid_event_type"
 	ErrNoEventPayload      = "no_event_payload"
 	ErrMultiplePayloads    = "multiple_payloads"
@@ -153,9 +154,9 @@ func ValidateEvent(e *Event) *ValidationError {
 			Path: "harness", Code: ErrMissingHarness, Message: "harness is required",
 		})
 	}
-	if e.SessionID == "" {
+	if e.BridgeSessionID == "" {
 		failures = append(failures, ValidationFailure{
-			Path: "session_id", Code: ErrMissingSessionID, Message: "session_id is required",
+			Path: "bridge_session_id", Code: ErrMissingBridgeSessionID, Message: "bridge_session_id is required",
 		})
 	}
 	if e.Timestamp.IsZero() {
@@ -165,8 +166,9 @@ func ValidateEvent(e *Event) *ValidationError {
 	}
 
 	switch e.Type {
-	case EventResult, EventStream, EventToolCall, EventToolResult,
-		EventThinking, EventSystem, EventApproval, EventError, EventSessionState, EventPlan, EventHook:
+	case EventResult, EventStream, EventBlock, EventToolCall, EventToolResult,
+		EventThinking, EventSystem, EventApproval, EventError, EventSessionState, EventPlan, EventHook,
+		EventAgentState, EventUsageTotal, EventTurnComplete:
 		// Valid.
 	case "":
 		failures = append(failures, ValidationFailure{
@@ -184,6 +186,9 @@ func ValidateEvent(e *Event) *ValidationError {
 		payloads++
 	}
 	if e.Stream != nil {
+		payloads++
+	}
+	if e.Block != nil {
 		payloads++
 	}
 	if e.ToolCall != nil {
@@ -211,6 +216,15 @@ func ValidateEvent(e *Event) *ValidationError {
 		payloads++
 	}
 	if e.Hook != nil {
+		payloads++
+	}
+	if e.AgentState != nil {
+		payloads++
+	}
+	if e.UsageTotal != nil {
+		payloads++
+	}
+	if e.TurnComplete != nil {
 		payloads++
 	}
 

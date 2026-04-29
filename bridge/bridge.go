@@ -61,6 +61,21 @@ type HarnessSession interface {
 	Stop() error
 }
 
+// PTYCapableHarness is an optional sub-interface a HarnessBridge implementation
+// can declare to advertise that it can run inside a pseudoterminal (pty mode).
+//
+// CLI-based harnesses (claudecode, codex when shelling out to its CLI) return
+// true. HTTP-based harnesses (hermes, dexto, inber) and any harness without a
+// local subprocess return false — pty mode requires a real fd to attach to.
+//
+// llm-bridge-server discovers this capability via type assertion, so existing
+// harnesses that do not implement SupportsPTY keep compiling unchanged. The
+// capability is surfaced over HTTP at GET /harnesses/{name}/capabilities.
+type PTYCapableHarness interface {
+	HarnessBridge
+	SupportsPTY() bool
+}
+
 // StreamReader is a convenience interface for reading provider SSE/NDJSON streams.
 // API bridges can optionally implement this for streaming support.
 type StreamReader interface {

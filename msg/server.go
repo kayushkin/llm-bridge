@@ -9,6 +9,23 @@ import (
 // Server-managed session
 // ──────────────────────────────────────────────────────────────────────────────
 
+// SessionMode selects the I/O contract for a session at spawn time.
+//
+// SessionModeEvents (default) runs the harness in its current structured-
+// events posture: stdin/stdout NDJSON between server and harness, normalized
+// msg.Event stream over GET /sessions/{id}/events.
+//
+// SessionModePTY runs the harness's upstream CLI inside a pseudoterminal
+// the caller attaches to over a WebSocket at GET /sessions/{id}/attach.
+// Bytes pass through verbatim — no msg.Event derivation. Per-harness
+// opt-in via bridge.PTYCapableHarness.
+type SessionMode string
+
+const (
+	SessionModeEvents SessionMode = "events"
+	SessionModePTY    SessionMode = "pty"
+)
+
 // ManagedSession is a session as tracked by llm-bridge-server.
 // This is the server's lightweight session management entity, distinct from
 // [Session] which models rich agent-level state (usage, tasks, context).
@@ -36,6 +53,7 @@ type ManagedSession struct {
 	Info            *SessionInfo    `json:"info,omitempty"`           // latest session info reported by the harness
 	FolderName      string          `json:"folder_name,omitempty"`    // user-assigned sidebar folder; empty = unfiled
 	Source          string          `json:"source,omitempty"`         // origin tag carried from the creator (e.g. "scheduler", "autoworker"); empty = interactive
+	Mode            SessionMode     `json:"mode,omitempty"`           // I/O mode picked at creation; empty = events (legacy default)
 	CreatedAt       time.Time       `json:"created_at"`
 	UpdatedAt       time.Time       `json:"updated_at"`
 }
@@ -76,6 +94,10 @@ type HarnessInfo struct {
 	Capabilities       []string `json:"capabilities"`
 	HookEvents         []string `json:"hook_events,omitempty"`
 	SupportedProviders []string `json:"supported_providers,omitempty"`
+	// PTY reports whether this harness can run inside a pseudoterminal
+	// (pty session mode). CLI harnesses with a real subprocess set this
+	// true; HTTP-backed harnesses set it false. See bridge.PTYCapableHarness.
+	PTY bool `json:"pty"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -225,6 +247,10 @@ type CreateSessionRequest struct {
 	ClientID      string          `json:"client_id,omitempty"`
 	Source        string          `json:"source,omitempty"`
 	HarnessConfig json.RawMessage `json:"harness_config,omitempty"` // opaque harness-specific config, merged into start params
+	// Mode selects events (default) or pty I/O. Pty requires the harness
+	// to advertise SupportsPTY()==true; otherwise the server returns
+	// 400 with error code "pty_unsupported".
+	Mode SessionMode `json:"mode,omitempty"`
 }
 
 // SendMessageRequest is the request body for POST /sessions/{id}/send.

@@ -29,6 +29,46 @@ Why additive first:
 
 For most projects, this is one new file (the SSE client + event mapping) plus one or two call-site changes wrapped behind a feature check.
 
+## Choosing a session mode (events vs pty)
+
+`POST /sessions` accepts a `mode` field that picks the I/O contract for the lifetime of that session:
+
+- **`events` (default)** — harness emits structured `msg.Event` records over SSE at `GET /sessions/{id}/events`. Use this when you're building your own UI: chat panes, log viewers, dashboards. Normalized across agents, forward-compatible, what most integrations want.
+- **`pty`** — the upstream CLI runs inside a pseudoterminal you attach to over WebSocket at `GET /sessions/{id}/attach`. Bytes pass through verbatim, no event derivation. Use this when you want the user to see exactly what running `claude` (or `codex`, etc.) by hand looks like — terminal multiplexers, ssh-like attach UIs, anything that already speaks xterm.
+
+The two modes are independent: a session is either-or, picked at spawn time. If you're not sure, default to events — it's the strictly more abstracted surface and easier to fall back from.
+
+### Per-harness support
+
+Pty mode is opt-in per harness because not every harness has a subprocess to wire into a pty. CLI-based harnesses (claudecode today; codex on the roadmap) advertise `pty: true`. HTTP-backed harnesses (hermes, dexto, inber) advertise `pty: false`. Discover at runtime:
+
+```bash
+curl -s "${serverURL}/harnesses/claude_code/capabilities" | jq .pty
+# true
+```
+
+`POST /sessions` with `mode: "pty"` against a harness that does not support it returns `400 Bad Request` with `error.code = "pty_unsupported"`.
+
+### Tiny end-to-end example
+
+```bash
+# 1. Spawn a pty-mode session.
+curl -s -X POST "${serverURL}/sessions" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "harness": "claude_code",
+    "instance": "<your-instance-id>",
+    "mode": "pty"
+  }'
+# {"id":"<sess>", ... "mode":"pty"}
+
+# 2. Attach via WebSocket. Binary frames carry pty bytes both directions;
+#    text frames carry JSON control messages.
+wscat -c "${serverURL/http/ws}/sessions/<sess>/attach"
+```
+
+For the full wire format (binary vs text frames, control message schema, single-writer / multi-reader policy, auth posture) and the spec's open questions, see [`PTY-MODE.md`](https://github.com/kayushkin/llm-bridge-server/blob/main/PTY-MODE.md) in `llm-bridge-server`.
+
 ## Minimum integration (Go)
 
 ```go
@@ -73,12 +113,38 @@ for sse in sseclient.SSEClient(resp).events():
     # Same canonical shape regardless of agent.
 ```
 
+## Convenience events: less wiring, same data
+
+In `events` mode, llm-bridge-server pre-derives three high-level events alongside the raw stream so you don't have to re-implement the same state machine in every consumer:
+
+- **`agent_state`** — `idle` / `awaiting_input` / `tool_running` / `error`. Emitted on every transition, body carries the new state, the previous state, and a free-form `reason` (e.g. `tool=Bash`, `approval_required`). Drop-in for a status pill.
+- **`usage_total`** — running session totals (tokens, cost, turn count) after every `result`. `Usage` field-by-field cumulative; `Cost` summed where reported; `ContextTokens` / `ContextLimit` are last-value-wins (current-context state, not consumption).
+- **`turn_complete`** — coalesced "this user turn finished" with `final_message`, `tool_calls` (every tool_call/tool_result pair seen this turn), `usage_delta`, per-turn `cost`, `duration_ms`, and an `is_error` flag. Emitted once per turn, immediately after the terminating `result` (or `error` for error-terminated turns).
+
+Two properties make these safe to wire directly into your UI:
+
+1. **Always-on emission, opt-in consumption.** The server always emits them, but consumers that don't switch on the new types just see them land in `Overflow` via the existing forward-compat mechanism. You enable them by adding cases; you can't break by ignoring them.
+2. **Ordering is deterministic.** The raw event always reaches subscribers first, then the derived events for that same input land in the order `agent_state` → `usage_total` → `turn_complete`. UIs that show both a chat bubble and a status pill can update them in causal order on a single replay.
+
+The four-line consumer pattern that replaces the old re-derivation glue:
+
+```go
+switch ev.Type {
+case msg.EventAgentState:   updateStatusPill(ev.AgentState.State)         // idle / tool_running / awaiting_input / error
+case msg.EventUsageTotal:   updateMeter(ev.UsageTotal.Usage, ev.UsageTotal.Cost)
+case msg.EventTurnComplete: appendTurnSummary(ev.TurnComplete)            // tool_calls + usage_delta + duration
+}
+```
+
+For the full state machine, emission ordering rules, and design rationale, see [`msg/CONVENIENCE-EVENTS.md`](https://github.com/kayushkin/llm-bridge/blob/main/msg/CONVENIENCE-EVENTS.md).
+
 ## What you don't have to do
 
 - You don't have to embed llm-bridge as a library — the SSE feed is enough.
 - You don't have to import any harness bridge.
 - You don't have to rewrite your UI.
 - You don't have to remove your existing direct-CLI code path. They coexist.
+- You don't have to re-derive `agent_state` / `usage_total` / `turn_complete` from raw events — the server emits them for you (see above).
 
 ## Compatibility promise
 

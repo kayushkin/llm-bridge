@@ -32,15 +32,15 @@ const (
 //
 // Three IDs track a session through its lifecycle:
 //   - BridgeID: server-generated primary key, stable from creation.
-//   - HarnessID: the canonical harness session ID (e.g. CC UUID). Empty until
-//     the harness reports it on first event.
+//   - HarnessSessionID: the canonical harness session ID (e.g. CC UUID).
+//     Rotates on resume/fork. Empty until the harness reports it on first event.
 //   - ClientID: the frontend's correlation key (fe_*). Set at creation,
 //     never changes. Used by the frontend to relate the response back to its
 //     optimistic UI entry.
 type ManagedSession struct {
-	BridgeID  string `json:"bridge_id"`
-	HarnessID string `json:"harness_id,omitempty"`
-	ClientID  string `json:"client_id,omitempty"`
+	BridgeID         string `json:"bridge_id"`
+	HarnessSessionID string `json:"harness_session_id,omitempty"`
+	ClientID         string `json:"client_id,omitempty"`
 	DisplayName     string    `json:"display_name"`
 	Harness         Harness   `json:"harness"`
 	InstanceID      string    `json:"instance_id,omitempty"`

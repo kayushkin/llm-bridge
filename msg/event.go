@@ -230,6 +230,11 @@ type SystemEvent struct {
 }
 
 // ApprovalEvent represents a permission request or response.
+//
+// Deprecated: emit HookEvent with Source="permission_prompt" and the
+// awaiting_resolution / completed phase pair instead. Kept this cycle so
+// existing harnesses can transition; consumers should treat both as the same
+// signal. Will be removed in a future release.
 type ApprovalEvent struct {
 	Action      string   `json:"action"`
 	Status      string   `json:"status"`
@@ -341,15 +346,21 @@ type MCPServerInfo struct {
 
 // HookEvent records a harness hook lifecycle event.
 //
-// Two sources produce HookEvents, discriminated by HookID:
+// Three sources produce HookEvents, discriminated by Source / HookID:
 //
-//  1. Harness-native observation (HookID empty) — the underlying harness
-//     emits its own hook lifecycle notifications (e.g. Claude Code with
-//     --include-hook-events) and the bridge translates them. The bridge has
-//     no control over these hooks.
-//  2. Bridge-registered invocation (HookID set) — a hook registered with the
-//     hook-store fires via the harness's native mechanism, which shells out
-//     to the bridge server's /hooks/exec/{id} endpoint.
+//  1. Harness-native observation (Source empty or "hook", HookID empty) — the
+//     underlying harness emits its own hook lifecycle notifications (e.g.
+//     Claude Code with --include-hook-events) and the bridge translates them.
+//     The bridge has no control over these hooks.
+//  2. Bridge-registered invocation (Source empty or "hook", HookID set) — a
+//     hook registered with the hook-store fires via the harness's native
+//     mechanism, which shells out to the bridge server's /hooks/exec/{id}
+//     endpoint.
+//  3. Permission-prompt invocation (Source="permission_prompt") — the harness
+//     wired a permission-prompt callback (e.g. Claude Code's
+//     --permission-prompt-tool MCP server) and is consulting the bridge for a
+//     tool-use decision. Functionally a synthetic PreToolUse hook whose
+//     resolver is human (or shell or auto) per the bridge's settings.
 //
 // Input and Output are raw JSON, passed through in the underlying harness's
 // native dialect (e.g. Claude Code's stdin/stdout hook protocol). Layers are
@@ -375,13 +386,29 @@ type HookEvent struct {
 	// (observation-only) hooks that the bridge did not register.
 	HookID string `json:"hook_id,omitempty"`
 
-	// Phase is the lifecycle point: "started", "progress", or "completed".
-	// Every hook invocation produces a "started" and a "completed" event;
-	// long-running hooks may produce "progress" events in between.
+	// Source discriminates the emission origin: "hook" (harness-native or
+	// bridge-registered hook; default when empty) or "permission_prompt"
+	// (harness's permission-prompt callback). Determines which decision
+	// protocol applies on resolution.
+	Source string `json:"source,omitempty"`
+
+	// Phase is the lifecycle point: "started", "progress", "completed", or
+	// "awaiting_resolution". Most hook invocations produce a "started" and a
+	// "completed" event; long-running hooks may emit "progress" between.
+	// Hooks that defer to a human resolver (or any out-of-band resolver)
+	// emit "awaiting_resolution" between "started" and "completed" — the
+	// matching "completed" event carries Resolution and shares RequestID.
 	Phase string `json:"phase"`
 
+	// RequestID correlates an awaiting_resolution event with its eventual
+	// completed event. Set on phase="awaiting_resolution" and on the matching
+	// phase="completed" emitted once the resolver decides. Empty for hooks
+	// that complete synchronously without an external resolver.
+	RequestID string `json:"request_id,omitempty"`
+
 	// Input is the raw JSON the harness passed to the hook (stdin payload for
-	// Claude Code). Populated on Phase="started". Pass-through.
+	// Claude Code; tool input JSON for permission-prompt). Populated on
+	// Phase="started" and Phase="awaiting_resolution". Pass-through.
 	Input json.RawMessage `json:"input,omitempty"`
 
 	// Output is the raw JSON the hook returned to the harness (stdout payload
@@ -392,6 +419,12 @@ type HookEvent struct {
 	// surfaces one (e.g. Claude Code's "allow", "deny", "modify", "continue").
 	// Empty when the harness does not report a decision.
 	Decision string `json:"decision,omitempty"`
+
+	// Resolution captures how an awaiting_resolution hook was resolved.
+	// Populated on Phase="completed" when a prior awaiting_resolution event
+	// existed for the same RequestID. Nil for hooks that completed without
+	// going through awaiting_resolution.
+	Resolution *HookResolution `json:"resolution,omitempty"`
 
 	// ExitCode is the exit status of the hook command when the harness
 	// reports one (Claude Code does, on Phase="completed").
@@ -405,4 +438,25 @@ type HookEvent struct {
 	// returned malformed output. An errored hook may still carry Output if
 	// the harness produced something before failing.
 	Error string `json:"error,omitempty"`
+}
+
+// HookResolution captures the decision that closed an awaiting_resolution hook.
+type HookResolution struct {
+	// Behavior is "allow" or "deny". Required.
+	Behavior string `json:"behavior"`
+
+	// UpdatedInput, if non-nil, is the input the harness should run instead
+	// of the original Input. Only meaningful for permission-prompt-style
+	// hooks where the underlying harness supports input substitution
+	// (e.g. Claude Code's permission-prompt-tool returning updatedInput).
+	UpdatedInput json.RawMessage `json:"updated_input,omitempty"`
+
+	// Message is an optional explanation forwarded to the harness (and shown
+	// alongside denied calls in the UI).
+	Message string `json:"message,omitempty"`
+
+	// ResolvedBy identifies the resolver that decided: "user", "shell:<cmd>",
+	// "auto", "allow_always". Informational; consumers should not branch on
+	// it for correctness.
+	ResolvedBy string `json:"resolved_by,omitempty"`
 }

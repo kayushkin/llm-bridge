@@ -151,7 +151,8 @@ type derivationState struct {
     turns          int
     activeTools    map[string]string // tool_use_id → tool name (for tool_running)
     turnAccum      map[string]*turnAccumulator // turn_id → in-progress turn data
-    awaitingApproval bool
+    pendingHookRequests map[string]struct{} // RequestIDs of awaiting_resolution hooks
+    awaitingApproval bool                    // derived: len(pendingHookRequests) > 0
 }
 ```
 
@@ -170,8 +171,10 @@ Transitions, in order of precedence within a single inbound event:
 | `EventUserMessage` | `tool_running` (provisional) | Turn started; idle → tool_running. (Or `awaiting_input` if no model call yet — see `[OPEN]`.) |
 | `EventToolCall` | `tool_running` | Add tool to `activeTools`. |
 | `EventToolResult` | `tool_running` if any active remain, else previous | Remove from `activeTools`. |
-| `EventApproval` (status=requested) | `awaiting_input` | Mark `awaitingApproval=true`. |
-| `EventApproval` (status=resolved) | previous (typically `tool_running`) | Clear `awaitingApproval`. |
+| `EventHook` (phase=awaiting_resolution) | `awaiting_input` | Mark `awaitingApproval=true`, key by RequestID. |
+| `EventHook` (phase=completed, has Resolution) | previous (typically `tool_running`) | Clear pending RequestID; `awaitingApproval` clears when none remain. |
+| `EventApproval` (status=requested) | `awaiting_input` | **Deprecated** — emitted by harnesses on the legacy approval path. Same effect as `EventHook` awaiting_resolution. |
+| `EventApproval` (status=resolved) | previous (typically `tool_running`) | **Deprecated** — paired with the legacy requested event. |
 | `EventResult` | `idle` | Turn complete (success). |
 | `EventError` | `error` | |
 | `EventSessionState{State: SessionAborted}` | `idle` | User killed the turn; back to ready. |
@@ -180,7 +183,8 @@ Edge cases:
 
 - **Streaming text (`EventStream`) is not a state transition.** State stays whatever it was. The model-generation phase between user message and tool call/result lives under `tool_running` per the table above (see `[OPEN]`).
 - **Multiple concurrent tool calls.** `tool_running` until ALL active tools finish.
-- **`awaiting_approval` overrides `tool_running`.** While a permission prompt is pending, agent_state is `awaiting_input` even though a tool is technically mid-flight.
+- **`awaiting_approval` overrides `tool_running`.** While any hook is in `awaiting_resolution` (permission-prompt or human-resolved hook), agent_state is `awaiting_input` even though a tool is technically mid-flight.
+- **Multiple concurrent pending hooks.** Track pending RequestIDs as a set; `awaitingApproval` is true while the set is non-empty, false when it drains.
 
 ### Per-turn accumulator (for `turn_complete`)
 

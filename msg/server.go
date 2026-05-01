@@ -126,10 +126,11 @@ type Credential struct {
 
 // HarnessDefaults stores per-harness configuration defaults.
 type HarnessDefaults struct {
-	Model         string   `json:"model,omitempty"`
-	Effort        string   `json:"effort,omitempty"`
-	MaxBudget     *float64 `json:"max_budget,omitempty"`
-	DisabledTools []string `json:"disabled_tools,omitempty"`
+	Model          string   `json:"model,omitempty"`
+	Effort         string   `json:"effort,omitempty"`
+	MaxBudget      *float64 `json:"max_budget,omitempty"`
+	DisabledTools  []string `json:"disabled_tools,omitempty"`
+	PermissionMode string   `json:"permission_mode,omitempty"`
 }
 
 // BridgePrefs stores user preferences for the bridge dashboard.

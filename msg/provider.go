@@ -61,6 +61,7 @@ const (
 	HarnessKiloCode   Harness = "kilo_code"
 	HarnessOpenCode   Harness = "opencode"
 	HarnessForgecode  Harness = "forgecode"
+	HarnessGemini     Harness = "gemini"
 )
 
 // AllHarnesses is the canonical list of known harness identifiers, in the
@@ -83,6 +84,7 @@ var AllHarnesses = []Harness{
 	HarnessKiloCode,
 	HarnessOpenCode,
 	HarnessForgecode,
+	HarnessGemini,
 }
 
 // HarnessShortName returns the suffix used in wrapper-binary filenames
@@ -142,6 +144,8 @@ func HarnessBinaryName(h Harness) string {
 		return "llm-bridge-opencode"
 	case HarnessForgecode:
 		return "llm-bridge-forgecode"
+	case HarnessGemini:
+		return "llm-bridge-gemini"
 	default:
 		return ""
 	}

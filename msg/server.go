@@ -140,6 +140,14 @@ type BridgePrefs struct {
 	LastSession  map[string]string          `json:"last_session,omitempty"`
 	LastInstance  map[string]string          `json:"last_instance,omitempty"`
 	Defaults     map[string]HarnessDefaults `json:"defaults,omitempty"`
+
+	// BypassPermissions, when true, makes new sessions launch with
+	// --permission-mode bypassPermissions (CC never calls our MCP) AND
+	// flips every live MCP into always-allow via /bridge/bypass-permissions.
+	// The toggle is on dash /settings; written exclusively through that
+	// endpoint (not through PUT /bridge-prefs partial updates) so the
+	// bool merge ambiguity doesn't apply.
+	BypassPermissions bool `json:"bypass_permissions,omitempty"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

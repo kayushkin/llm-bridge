@@ -46,12 +46,25 @@ type SessionTask struct {
 // native storage (e.g. ~/.claude/projects/ or ~/.codex/sessions/).
 // These are sessions that exist outside the llm-bridge-server's own store.
 type StoredSession struct {
-	ID        string    `json:"id"`
+	// HarnessSessionID is the harness-native session id (Claude session UUID,
+	// Codex thread_id, Hermes dashboard id, ...). Required. Bridge-server
+	// dedupes discovery results on this field, so it MUST be the harness's
+	// own id — never a bridge-server-minted bridge_id.
+	HarnessSessionID string `json:"harness_session_id"`
+
+	// BridgeSessionID is bridge-server's stable session id, set when the
+	// harness has already been adopted by bridge-server (i.e. state.db
+	// recorded a `bridge_session_id` for this harness session). Empty for
+	// cold-imported sessions that have never been bound to bridge-server.
+	// When non-empty, bridge-server treats the session as already known and
+	// skips it during discovery.
+	BridgeSessionID string `json:"bridge_session_id,omitempty"`
+
 	Harness   Harness   `json:"harness"`
-	Project   string    `json:"project,omitempty"`   // project directory or context
-	Prompt    string    `json:"prompt,omitempty"`    // initial prompt snippet
+	Project   string    `json:"project,omitempty"`    // project directory or context
+	Prompt    string    `json:"prompt,omitempty"`     // initial prompt snippet
 	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`          // file modification time
-	Path      string    `json:"path"`                // on-disk path to session file
+	UpdatedAt time.Time `json:"updated_at"`           // file modification time
+	Path      string    `json:"path"`                 // on-disk path to session file
 	TurnCount int       `json:"turn_count,omitempty"` // approximate number of turns
 }

@@ -264,13 +264,19 @@ type CreateSessionRequest struct {
 
 // SendMessageRequest is the request body for POST /sessions/{id}/send.
 //
+// Either Message (plain text) or Blocks (canonical content-block array for
+// multimodal input — text, images, documents) carries the user's turn.
+// The two are mutually exclusive: setting both is rejected at the server
+// boundary so harnesses never have to disambiguate downstream.
+//
 // ClientRequestID is a caller-minted identifier for this turn. The bridge
 // stamps it on every event it emits for the turn so producers can correlate
 // server-side state with their own outbound request. Optional — callers that
 // don't need correlation can leave it empty.
 type SendMessageRequest struct {
-	Message         string `json:"message"`
-	ClientRequestID string `json:"client_request_id,omitempty"`
+	Message         string         `json:"message"`
+	Blocks          []ContentBlock `json:"blocks,omitempty"`
+	ClientRequestID string         `json:"client_request_id,omitempty"`
 }
 
 // ForkSessionRequest is the request body for POST /sessions/{id}/fork.

@@ -114,9 +114,13 @@ func HarnessMessageIDOf(ev *Event) string {
 	return ""
 }
 
-// ResultEvent is a completed harness run.
+// ResultEvent is a completed harness run. Also reused as the payload for
+// EventUserMessage events to record what the user sent: Text holds plain-text
+// input; Blocks holds multimodal input (text/image/document/audio/video).
+// The two are mutually exclusive at the request boundary.
 type ResultEvent struct {
 	Text             string          `json:"text"`
+	Blocks           []ContentBlock  `json:"blocks,omitempty"`
 	Message          *Message        `json:"message,omitempty"`
 	IsError          bool            `json:"is_error,omitempty"`
 	StructuredOutput json.RawMessage `json:"structured_output,omitempty"`

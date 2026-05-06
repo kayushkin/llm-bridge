@@ -223,3 +223,37 @@ const (
 	// the migration window for the same reason as SessionRunning above.
 	SessionWaitingApproval SessionState = "waiting_on_approval"
 )
+
+// IsActive reports whether the state implies a live (or expected-to-be-live)
+// harness subprocess. Used by llm-bridge-server's startup reconcile and
+// watchdog to identify sessions whose in-memory process is missing and that
+// should be reset to idle / auto-resumed.
+//
+// Excludes states that are intentionally waiting (awaiting_user,
+// awaiting_permission, paused) — those don't represent abandoned work,
+// just blocked-on-human work — and terminal/quiet states.
+func (s SessionState) IsActive() bool {
+	switch s {
+	case SessionStarting,
+		SessionModelGenerating,
+		SessionToolRunning,
+		SessionCompacting,
+		SessionRateLimited,
+		SessionRunning:
+		return true
+	}
+	return false
+}
+
+// ActiveSessionStates returns every SessionState for which IsActive is true.
+// Convenient for SQL `IN (...)` filters in stores that key on state strings.
+func ActiveSessionStates() []SessionState {
+	return []SessionState{
+		SessionStarting,
+		SessionModelGenerating,
+		SessionToolRunning,
+		SessionCompacting,
+		SessionRateLimited,
+		SessionRunning,
+	}
+}

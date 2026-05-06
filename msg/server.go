@@ -179,6 +179,20 @@ type MaterializedTool struct {
 	Error  bool            `json:"error,omitempty"`
 }
 
+// SessionAggregate is the per-session token/cost summary returned by
+// GET /api/v1/sessions/aggregates. Computed by SUMming the result events
+// stored for each session — no separate aggregate table. Model is the
+// most recent value reported across the session's result events.
+type SessionAggregate struct {
+	SessionID    string  `json:"session_id"`
+	Turns        int     `json:"turns"`
+	InputTokens  int64   `json:"input_tokens"`
+	OutputTokens int64   `json:"output_tokens"`
+	CostUSD      float64 `json:"cost_usd"`
+	DurationMS   int64   `json:"duration_ms"`
+	Model        string  `json:"model,omitempty"`
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Health
 // ──────────────────────────────────────────────────────────────────────────────

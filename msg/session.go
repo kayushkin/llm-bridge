@@ -67,4 +67,13 @@ type StoredSession struct {
 	UpdatedAt time.Time `json:"updated_at"`           // file modification time
 	Path      string    `json:"path"`                 // on-disk path to session file
 	TurnCount int       `json:"turn_count,omitempty"` // approximate number of turns
+
+	// Source is a structural origin tag the harness adapter sets when the
+	// on-disk layout classifies a session (e.g. CC stores Task()-spawned
+	// subagents under <session>/subagents/agent-*.jsonl, so the claudecode
+	// adapter tags those Source="subagent"). Empty when the adapter has no
+	// structural signal — bridge-server then falls back to prompt-prefix
+	// inference. Mirrors ManagedSession.Source so it flows straight into
+	// LLMBRIDGE_SOURCE_FOLDERS bucketing.
+	Source string `json:"source,omitempty"`
 }

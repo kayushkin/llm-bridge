@@ -55,3 +55,17 @@ type ArchiveOldResponse struct {
 	Moved int      `json:"moved"`
 	IDs   []string `json:"ids,omitempty"`
 }
+
+// MarkSessionDoneRequest is the body for POST /sessions/{id}/mark-done.
+//
+// Done=true atomically (a) emits an EventSessionState{State: completed}
+// through the central derivation pipeline so the row state and SSE feed
+// agree, and (b) moves the session into the canonical Archive folder.
+// Done=false reverses both: state goes to idle, folder is cleared.
+//
+// If new events flow in after the manual mark, derivation overwrites the
+// state (e.g. a new tool_call flips back to tool_running). That's
+// intentional — the session re-engaging visibly says "no longer done".
+type MarkSessionDoneRequest struct {
+	Done bool `json:"done"`
+}

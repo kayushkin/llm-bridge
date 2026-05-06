@@ -1,5 +1,56 @@
 # Convenience Events — Design Spec
 
+Status: **partially superseded (2026-05-06)** — the `agent_state` projection
+described below has been folded into `SessionState`; the rest of the spec
+(usage_total, turn_complete) still applies.
+
+## Migration note (2026-05-06)
+
+The original spec proposed `AgentState` as a coarser 4-value UI projection
+of `SessionState` (which had 6 values mirroring the harness lifecycle).
+With the agent-manager work in bridge-ui requiring finer granularity than
+either enum carried, `SessionState` has been extended to 13 values that
+encompass the full UI vocabulary. `AgentState` is no longer a coarsening —
+it would be a strict subset of the new `SessionState` — so it has been
+deprecated.
+
+**Single SessionState (13 values), grouped by operator action:**
+
+- Pre-flight: `starting`
+- Active: `model_generating`, `tool_running`, `compacting`
+- Blocked on user: `awaiting_permission`, `awaiting_user`
+- Self-healing wait: `rate_limited`, `paused`
+- Quiet: `idle`
+- Terminal: `completed`, `error`, `aborted`, `disconnected`
+
+**Authoritative source:** llm-bridge-server derives `SessionState` from
+the raw event stream plus server-only context (pause/abort calls,
+permission-store hook state, subprocess lifecycle, provider rate-limit
+signals). Harness packages no longer emit `EventSessionState` — that's a
+follow-up cleanup. Until they do, the server drops harness-emitted
+`EventSessionState` on intake (defensive); only the central derivation
+emits the authoritative state.
+
+**Deprecation surface (kept valid during migration):**
+
+- `msg.AgentState` type + 4 constants
+- `msg.AgentStateEvent` struct
+- `msg.EventAgentState` event type
+- `Event.AgentState` field
+- `SessionRunning`, `SessionWaitingApproval` constants (replaced by the
+  split `model_generating`/`tool_running` and renamed `awaiting_permission`)
+
+These will be removed in a follow-up PR once consumers stop reading them.
+
+**Presentation note:** pill colors / icons / row groupings are derived in
+a separate presentation map at the rendering edge. The enum stays granular
+regardless of how many distinct colors a UI ends up using. Two states with
+the same color are still distinct states.
+
+---
+
+## Original spec (2026-04-27, AgentState section is historic)
+
 Status: **draft (2026-04-27)** — pre-implementation. Open questions tagged `[OPEN]`.
 
 ## Why

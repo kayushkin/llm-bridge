@@ -68,6 +68,10 @@ type Event struct {
 	State        *StateEvent        `json:"state,omitempty"`
 	Info         *SessionInfo       `json:"info,omitempty"`
 	Hook         *HookEvent         `json:"hook,omitempty"`
+	// Deprecated: AgentState was a coarser projection of SessionState. With
+	// SessionState extended to 13 values, the projection is no longer needed.
+	// Consumers should switch on State (StateEvent) directly. Field kept
+	// during the migration window so existing emitters compile.
 	AgentState   *AgentStateEvent   `json:"agent_state,omitempty"`
 	UsageTotal   *UsageTotalEvent   `json:"usage_total,omitempty"`
 	TurnComplete *TurnCompleteEvent `json:"turn_complete,omitempty"`
@@ -266,24 +270,25 @@ type StateEvent struct {
 	Reason   string       `json:"reason,omitempty"`
 }
 
-// AgentState is the UI-friendly projection of session lifecycle. Coarser
-// than SessionState (which has 6 values mirroring the harness lifecycle);
-// AgentState collapses to the four states a status pill typically renders.
+// AgentState was a coarser UI-projection of session lifecycle (4 values).
 //
-// Derived centrally by llm-bridge-server from the raw event stream — see
-// msg/CONVENIENCE-EVENTS.md. Always-on emission; consumers ignore on
-// types they don't recognize via the Overflow forward-compat mechanism.
+// Deprecated: SessionState now carries the full UI vocabulary (13 values)
+// that AgentState was projecting toward. Consumers should switch on
+// SessionState directly via StateEvent. Type kept during the migration
+// window so existing references compile; will be removed once
+// llm-bridge-server stops emitting EventAgentState and consumers migrate.
 type AgentState string
 
 const (
-	AgentStateIdle          AgentState = "idle"           // no active turn; ready for next user message
-	AgentStateAwaitingInput AgentState = "awaiting_input" // turn paused; needs user (approval, mid-turn question)
-	AgentStateToolRunning   AgentState = "tool_running"   // turn active; tool currently executing or model generating
-	AgentStateError         AgentState = "error"          // last activity ended in error
+	AgentStateIdle          AgentState = "idle"           // Deprecated: use SessionIdle
+	AgentStateAwaitingInput AgentState = "awaiting_input" // Deprecated: use SessionAwaitingUser or SessionAwaitingPermission
+	AgentStateToolRunning   AgentState = "tool_running"   // Deprecated: use SessionToolRunning or SessionModelGenerating
+	AgentStateError         AgentState = "error"          // Deprecated: use SessionError
 )
 
-// AgentStateEvent is the body for EventAgentState. Emitted on every
-// transition; no event when state doesn't change.
+// AgentStateEvent is the body for EventAgentState.
+//
+// Deprecated: see AgentState above.
 type AgentStateEvent struct {
 	State    AgentState `json:"state"`
 	Previous AgentState `json:"previous,omitempty"`

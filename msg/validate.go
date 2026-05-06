@@ -263,7 +263,13 @@ func ValidateSession(s *Session) *ValidationError {
 	}
 
 	switch s.State {
-	case SessionIdle, SessionRunning, SessionCompleted, SessionError, SessionAborted, SessionWaitingApproval:
+	case SessionStarting,
+		SessionModelGenerating, SessionToolRunning, SessionCompacting,
+		SessionAwaitingPermission, SessionAwaitingUser,
+		SessionRateLimited, SessionPaused,
+		SessionIdle,
+		SessionCompleted, SessionError, SessionAborted, SessionDisconnected,
+		SessionRunning, SessionWaitingApproval: // deprecated; valid during migration
 		// Valid.
 	case "":
 		failures = append(failures, ValidationFailure{

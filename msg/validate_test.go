@@ -456,7 +456,15 @@ func TestValidateSession_EmptyState(t *testing.T) {
 }
 
 func TestValidateSession_AllStates(t *testing.T) {
-	states := []SessionState{SessionIdle, SessionRunning, SessionCompleted, SessionError, SessionAborted, SessionWaitingApproval}
+	states := []SessionState{
+		SessionStarting,
+		SessionModelGenerating, SessionToolRunning, SessionCompacting,
+		SessionAwaitingPermission, SessionAwaitingUser,
+		SessionRateLimited, SessionPaused,
+		SessionIdle,
+		SessionCompleted, SessionError, SessionAborted, SessionDisconnected,
+		SessionRunning, SessionWaitingApproval, // deprecated; valid during migration
+	}
 	for _, st := range states {
 		t.Run(string(st), func(t *testing.T) {
 			s := &Session{ID: "s1", Harness: HarnessOpenClaw, State: st}

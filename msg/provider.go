@@ -178,14 +178,48 @@ const (
 	EventTurnComplete EventType = "turn_complete"
 )
 
-// SessionState represents the current state of a harness session.
+// SessionState represents the current state of an llm-bridge-managed
+// session. Authoritative values are derived centrally by llm-bridge-server
+// from the raw event stream plus server-only context (pause/abort calls,
+// permission-store hook state, subprocess lifecycle, provider rate-limit
+// signals). Harnesses no longer emit SessionState directly — they emit
+// raw actions (tool_call, tool_result, block, hook, error) and the server
+// computes the state.
 type SessionState string
 
 const (
-	SessionIdle            SessionState = "idle"
-	SessionRunning         SessionState = "running"
-	SessionCompleted       SessionState = "completed"
-	SessionError           SessionState = "error"
-	SessionAborted         SessionState = "aborted"
+	// Pre-flight.
+	SessionStarting SessionState = "starting" // subprocess spawned, no first event yet
+
+	// Active (agent is working).
+	SessionModelGenerating SessionState = "model_generating" // assistant streaming tokens
+	SessionToolRunning     SessionState = "tool_running"     // tool call in flight
+	SessionCompacting      SessionState = "compacting"       // context compaction in progress
+
+	// Blocked on user (action required).
+	SessionAwaitingPermission SessionState = "awaiting_permission" // hook prompt open, blocking on approve/deny
+	SessionAwaitingUser       SessionState = "awaiting_user"       // turn ended, expects user reply (best-effort heuristic)
+
+	// Self-healing wait (no action; will resume).
+	SessionRateLimited SessionState = "rate_limited" // provider backoff
+	SessionPaused      SessionState = "paused"       // user-interrupted, can be resumed
+
+	// Quiet but alive.
+	SessionIdle SessionState = "idle" // between turns, no terminal signal
+
+	// Terminal.
+	SessionCompleted    SessionState = "completed"    // agent signaled work done
+	SessionError        SessionState = "error"        // last activity ended in error
+	SessionAborted      SessionState = "aborted"      // killed by user/system (intentional)
+	SessionDisconnected SessionState = "disconnected" // process gone unexpectedly (no clean exit)
+
+	// Deprecated: replaced by SessionModelGenerating / SessionToolRunning.
+	// Kept valid during the migration window so harness packages that still
+	// emit EventSessionState continue to compile. Will be removed once all
+	// llm-bridge-* harnesses stop emitting SessionState.
+	SessionRunning SessionState = "running"
+
+	// Deprecated: renamed to SessionAwaitingPermission. Kept valid during
+	// the migration window for the same reason as SessionRunning above.
 	SessionWaitingApproval SessionState = "waiting_on_approval"
 )

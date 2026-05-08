@@ -108,10 +108,10 @@ Convert between canonical `msg` types and provider-specific wire formats. Statel
 
 | Repo | Type | Status |
 |------|------|--------|
-| **llm-bridge-anthropic** | Go library | Has implementation (from msgbridge-anthropic) |
-| **llm-bridge-openai** | Go library | Has implementation (from msgbridge-openai) |
-| **llm-bridge-google** | Go library | Implemented |
-| **llm-bridge-openrouter** | Go library | Scaffold |
+| **llm-bridge-anthropic** | Go library | Implemented (~988 LOC) |
+| **llm-bridge-openai** | Go library | Implemented (~807 LOC) |
+| **llm-bridge-google** | Go library | Implemented (~901 LOC) |
+| **llm-bridge-openrouter** | Go library | Scaffold (~39 LOC) |
 
 ### Harness Bridges
 
@@ -119,23 +119,24 @@ Manage agent harness subprocesses. Spawned by llm-bridge-server, communicate via
 
 | Repo | Type | Status |
 |------|------|--------|
-| **llm-bridge-claudecode** | Go binary | Implemented -- wraps Claude Code CLI (`--input-format stream-json`). Session discovery, history import, auto-approve, work dir support. |
-| **llm-bridge-jig** | Go binary | Implemented -- profile manager harness for Claude Code. Loads YAML profiles with inheritance and env var substitution. |
-| **llm-bridge-codex** | Go binary | Scaffold -- wraps Codex CLI |
-| **llm-bridge-openclaw** | Go binary | Scaffold -- WebSocket client |
-| **llm-bridge-inber** | Go binary | Scaffold |
-| **llm-bridge-hermes** | Go binary | Scaffold |
-| **llm-bridge-gemini** | Go binary | Scaffold -- wraps Gemini CLI |
-| **llm-bridge-aider** | Go binary | Scaffold -- wraps Aider CLI |
-| **llm-bridge-goose** | Go binary | Scaffold -- wraps Goose CLI/API |
-| **llm-bridge-autohand** | Go binary | Scaffold -- wraps Autohand Code CLI (ACP stdio) |
-| **llm-bridge-dexto** | Go binary | Scaffold -- REST+SSE client |
-| **llm-bridge-commander** | Go binary | Scaffold -- subprocess orchestrator |
-| **llm-bridge-nanoclaw** | Go binary | Scaffold -- container subprocess |
-| **llm-bridge-cline** | Go binary | Scaffold -- wraps Cline CLI |
-| **llm-bridge-roocode** | Go binary | Scaffold -- wraps Roo Code CLI |
-| **llm-bridge-opencode** | Go binary | Scaffold -- wraps OpenCode CLI |
-| **llm-bridge-kilocode** | Go binary | Scaffold -- wraps Kilo Code CLI |
+| **llm-bridge-claudecode** | Go binary | Implemented -- wraps Claude Code CLI (`--input-format stream-json`). Session discovery, history import, auto-approve, work dir support. Session-chain ported. |
+| **llm-bridge-jig** | Go binary | Implemented -- profile manager harness for Claude Code. Loads YAML profiles with inheritance and env var substitution. Session-chain ported. |
+| **llm-bridge-codex** | Go binary | Implemented -- wraps Codex CLI. Reference impl for session-chain contract. |
+| **llm-bridge-openclaw** | Go binary | Implemented -- HTTP+SSE+JSONL-tail (CLAUDE.md's "WebSocket" label is stale). Session-chain ported. |
+| **llm-bridge-inber** | Go binary | Implemented -- HTTP API to inber server. Session-chain ported. |
+| **llm-bridge-hermes** | Go binary | Implemented -- OpenAI-compatible HTTP+SSE. Session-chain ported (no state.db; server-side state). |
+| **llm-bridge-aider** | Go binary | Implemented -- pty subprocess wrapping Aider CLI. Session-chain ported. |
+| **llm-bridge-nanoclaw** | Go binary | Implemented -- container subprocess (Docker). Session-chain ported. |
+| **llm-bridge-cline** | Go binary | Implemented -- one-shot subprocess wrapping Cline CLI. Session-chain ported (with native taskID rotation). |
+| **llm-bridge-kilocode** | Go binary | Implemented -- `kilo serve` subprocess + REST/SSE. Session-chain ported. |
+| **llm-bridge-forgecode** | Go binary | Implemented -- wraps `forge -p` one-shot subprocess. Session-chain ported. |
+| **llm-bridge-gemini** | Go binary | Scaffold (~24 LOC) -- wraps Gemini CLI |
+| **llm-bridge-goose** | Go binary | Scaffold (~24 LOC) -- wraps Goose CLI/API |
+| **llm-bridge-autohand** | Go binary | Scaffold (~24 LOC) -- wraps Autohand Code CLI (ACP stdio) |
+| **llm-bridge-dexto** | Go binary | Scaffold (~24 LOC) -- REST+SSE client |
+| **llm-bridge-commander** | Go binary | Scaffold (~24 LOC) -- subprocess orchestrator |
+| **llm-bridge-roocode** | Go binary | Scaffold (~24 LOC) -- wraps Roo Code CLI |
+| **llm-bridge-opencode** | Go binary | Not present in this tree; scaffold targeted but never created. Onboarding research in noteboard note `f0e71652`. |
 
 ### Service
 
@@ -358,16 +359,42 @@ agent-store becomes a library only. Its HTTP+NATS server surface moves to llm-br
 
 ```
 Phase 5 (wire provider bridges into harnesses)
-     Ongoing as harnesses mature.
+     Not yet started — verified 2026-05-08: no harness imports any
+     llm-bridge-{anthropic,openai,google,openrouter} package yet
+     (claudecode, jig, codex, hermes go.mod checked).
 Phase 6 (fold auth-store, usage-store into llm-bridge-server)
-     model-store is already wired. auth-store and usage-store remain.
+     Status reversed by host ecosystem decisions: auth-store became a
+     standalone service on :8303 (canonical credential vault, replaces
+     apiauth) and usage-store-server is running on :8185. The "fold in"
+     plan no longer matches the deployed shape — see "Service status
+     reality check" below for editorial decisions still pending.
 ```
+
+### Service status reality check (2026-05-08, doc audit)
+
+The following claims in this document are stale relative to the running host:
+
+1. **agent-store cmd/server still exists and runs.** `~/repos/agent-store/cmd/server/` is present and the binary listens on `:8300`. Phase 2 mounted agent-store's handlers in llm-bridge-server (`agentstore.RegisterHandlersWithHooks` + `memorystore.RegisterHandlers`) but did not retire the standalone server, contrary to the "Removed standalone `cmd/server/` from agent-store" line above.
+2. **auth-store is a service, not a library.** ARCHITECTURE.md describes auth-store as a Go library to be folded into llm-bridge-server. Reality: auth-store is the canonical credential vault on `:8303` with audit log, OAuth refresh, and lease enforcement. llm-bridge-server's `go.mod` has no `auth-store` import — credential routes (`/credentials`, `/instances/{id}/credentials`) are handled directly by llm-bridge-server against its internal `credential_slots` store (not auth-store).
+3. **usage-store is a service.** Standalone `usage-store-server` runs on `:8185`. llm-bridge-server's go.mod has no `usage-store` import. Token usage tracking is not currently wired through llm-bridge-server.
+4. **Harness "Scaffold" labels above were stale (2026-04-12-era).** Updated 2026-05-08: 11 harnesses are now Implemented (codex, claudecode, jig, openclaw, inber, hermes, aider, nanoclaw, cline, kilocode, forgecode); 6 remain at 24-LOC scaffolds (gemini, goose, autohand, dexto, commander, roocode). See the parent session-chain port todo `3722e9d6` in the noteboard for the per-harness ship log.
+5. **`llm-bridge-runner` is missing from the diagram.** A separate remote-machine daemon (`~/repos/llm-bridge-runner`, ~2108 LOC) provides outbound-WS-based harness spawning for machines behind NAT, complementary to the SSH transport described under "Harness Instance Model". Not currently in the Repository Map or import graph.
+
+These items need an editorial call before doc-rewrite: are auth-store/agent-store/usage-store still on a fold-in path (in which case the migration is in progress, not phase-2/phase-1-COMPLETE) or has the host architecture deliberately diverged toward standalone services (in which case the Phase 1 / Phase 2 sections need rewriting, not just status-flipping).
+
+
 
 ## Ports (post-migration)
 
+The "single port 8160" target was the original migration goal but the host ecosystem grew separate canonical services for credentials and usage. Current reality:
+
 | Port | Service | Notes |
 |------|---------|-------|
-| 8160 | llm-bridge-server | The only server. Replaces model-store :8150 and agent-store :8300 |
+| 8160 | llm-bridge-server | HTTP gateway — sessions, harness lifecycle, mounts model-store/agent-store/memory-store handlers as libraries |
+| 8300 | agent-store | Standalone service still running (`cmd/server/`); the "Phase 2 fold-in" mounted handlers in llm-bridge-server but did not retire the standalone server |
+| 8303 | auth-store | Standalone service — credential vault, OAuth refresh, lease enforcement (replaced `apiauth` + the auth-as-store half of `aiauth`). **Not** library-folded into llm-bridge-server |
+| 8185 | usage-store | Standalone service (`usage-store-server` cmd). **Not** library-folded into llm-bridge-server |
+| log-store | Service | Durable event log; pushed to by llm-bridge-server, proxied for `/messages` + `/history` |
 
 ## Harness Instance Model
 

@@ -283,6 +283,14 @@ type ConformanceMatrix struct {
 
 // CreateSessionRequest is the request body for POST /sessions.
 //
+// SessionID is the caller-minted session identifier. When set, the bridge
+// uses it as the session's primary key and rejects collisions with 409.
+// When empty, the bridge mints one (br_<nanos>). Caller-mints lets workers
+// (autoworker, scheduler, etc.) hold a synchronous handle for kanban links
+// before the create round-trip returns; interactive callers may leave it
+// empty and consume the server-minted value. Recommended caller format:
+// ULID. See MIGRATION-session-identity.md.
+//
 // Source is an origin tag set by the caller identifying what created this
 // session (e.g. "scheduler", "autoworker"). Interactive UI callers leave it
 // empty. The server persists it on the session and may auto-assign a folder
@@ -293,6 +301,7 @@ type ConformanceMatrix struct {
 // callers are updated. See MIGRATION-session-identity.md.
 type CreateSessionRequest struct {
 	Harness       Harness         `json:"harness"`
+	SessionID     string          `json:"session_id,omitempty"`
 	InstanceID    string          `json:"instance_id,omitempty"`
 	DisplayName   string          `json:"display_name,omitempty"`
 	AgentID       string          `json:"agent_id,omitempty"`

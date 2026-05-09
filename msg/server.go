@@ -54,8 +54,11 @@ const (
 // [Session] which models rich agent-level state (usage, tasks, context).
 //
 // Identifier fields:
-//   - BridgeID: server-generated primary key, stable from creation. Will be
-//     renamed to SessionID; see MIGRATION-session-identity.md.
+//   - SessionID: canonical session id. Caller-minted on Create or
+//     server-minted (br_<nanos>) when omitted. Stable from creation.
+//   - BridgeID: legacy alias for SessionID. Always equal to SessionID
+//     during the dual-name window; will be removed once consumers migrate.
+//     See MIGRATION-session-identity.md.
 //   - HarnessSessionID: the canonical harness session ID (e.g. CC UUID).
 //     Rotates on resume/fork. Empty until the harness reports it on first
 //     event. Will move to adapter-private storage in Phase II.C.
@@ -64,6 +67,7 @@ const (
 //     Will be removed; replaced by Source (service identity) + SessionType
 //     (category). See MIGRATION-session-identity.md.
 type ManagedSession struct {
+	SessionID        string `json:"session_id"`
 	BridgeID         string `json:"bridge_id"`
 	HarnessSessionID string `json:"harness_session_id,omitempty"`
 	ClientID         string `json:"client_id,omitempty"`

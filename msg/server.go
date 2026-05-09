@@ -26,14 +26,25 @@ const (
 	SessionModePTY    SessionMode = "pty"
 )
 
-// SessionType categorizes a session by how it is being used. Bridge-side
-// behavior that depends on category (e.g. completion notifications, SSE
-// keepalive policy) reads SessionType. Behavior that depends on which
-// specific service originated the session reads Source.
+// SessionType categorizes a session by how it runs (interactive vs
+// autonomous vs system infrastructure). Drives bridge-side behavior:
+// completion notifications, SSE keepalive policy, default visibility in
+// session lists. Required on Create.
 //
-// Will be required on Create — the field is currently optional in the wire
-// format for backward compatibility while callers are updated. Enforcement
-// flips on once all callers populate it. See MIGRATION-session-identity.md.
+// SessionType is the COARSE classification. The fine-grained "what is this
+// session for" lives on Purpose; the "who created it" identity lives on
+// Origin. The three are orthogonal:
+//
+//   - Type: interactive | autonomous | system  (how it runs)
+//   - Purpose: chat, autoworker, conformance, subagent, ...  (what it does)
+//   - Origin: frontend-dash, autoworker, claudecode-adapter, ...  (who spawned it)
+//
+// Most autonomous services have Purpose == Origin (autoworker spawns its
+// own kind of work); the values diverge for indirect spawns like subagents
+// (Purpose=subagent, Origin=claudecode-adapter) and shared frontends
+// (Purpose=chat, Origin=frontend-dash vs frontend-llmux).
+//
+// See MIGRATION-session-identity.md.
 type SessionType string
 
 const (
@@ -59,6 +70,11 @@ const (
 //   - HarnessSessionID: the canonical harness session ID (e.g. CC UUID).
 //     Rotates on resume/fork. Empty until the harness reports it on first
 //     event. Will move to adapter-private storage in Phase II.C.
+//
+// Classification fields (orthogonal — see SessionType doc for the model):
+//   - Type: interactive | autonomous | system  (how it runs)
+//   - Purpose: chat, autoworker, conformance, subagent, ...  (what it does)
+//   - Origin: frontend-dash, autoworker, claudecode-adapter, ...  (who spawned it)
 type ManagedSession struct {
 	SessionID        string `json:"session_id"`
 	HarnessSessionID string `json:"harness_session_id,omitempty"`
@@ -73,8 +89,9 @@ type ManagedSession struct {
 	HarnessConfig   json.RawMessage `json:"harness_config,omitempty"` // opaque harness-specific config
 	Info            *SessionInfo    `json:"info,omitempty"`           // latest session info reported by the harness
 	FolderName      string          `json:"folder_name,omitempty"`    // user-assigned sidebar folder; empty = unfiled
-	Source          string          `json:"source,omitempty"`         // origin tag carried from the creator (e.g. "scheduler", "autoworker"); empty = interactive
-	SessionType     SessionType     `json:"session_type,omitempty"`   // category of session; required on Create once enforcement flips on
+	Type            SessionType     `json:"type"`                     // how this session runs (interactive | autonomous | system); required
+	Purpose         string          `json:"purpose"`                  // what this session is for (chat, autoworker, conformance, subagent, ...); required
+	Origin          string          `json:"origin"`                   // which service/script created this session (frontend-dash, autoworker, claudecode-adapter, ...); required
 	Mode            SessionMode     `json:"mode,omitempty"`           // I/O mode picked at creation; empty = events (legacy default)
 	CreatedAt       time.Time       `json:"created_at"`
 	UpdatedAt       time.Time       `json:"updated_at"`
@@ -286,14 +303,15 @@ type ConformanceMatrix struct {
 // empty and consume the server-minted value. Recommended caller format:
 // ULID. See MIGRATION-session-identity.md.
 //
-// Source is an origin tag set by the caller identifying what created this
-// session (e.g. "scheduler", "autoworker"). Interactive UI callers leave it
-// empty. The server persists it on the session and may auto-assign a folder
-// based on the value (see LLMBRIDGE_SOURCE_FOLDERS).
+// Type, Purpose, Origin classify the session along three orthogonal axes.
+// All three are required:
 //
-// SessionType categorizes the session (interactive / autonomous / system).
-// Currently optional for backward compatibility; will be required once all
-// callers are updated. See MIGRATION-session-identity.md.
+//   - Type:    interactive | autonomous | system  (how it runs)
+//   - Purpose: chat, autoworker, conformance, subagent, ...  (what it does)
+//   - Origin:  frontend-dash, autoworker, claudecode-adapter, ...  (who spawned it)
+//
+// The server persists Purpose on the session and may auto-assign a folder
+// based on the value (see LLMBRIDGE_PURPOSE_FOLDERS).
 type CreateSessionRequest struct {
 	Harness       Harness         `json:"harness"`
 	SessionID     string          `json:"session_id,omitempty"`
@@ -302,8 +320,9 @@ type CreateSessionRequest struct {
 	AgentID       string          `json:"agent_id,omitempty"`
 	SpawnerID     string          `json:"spawner_id,omitempty"`
 	AutoStart     bool            `json:"auto_start,omitempty"`
-	Source        string          `json:"source,omitempty"`
-	SessionType   SessionType     `json:"session_type,omitempty"`
+	Type          SessionType     `json:"type"`
+	Purpose       string          `json:"purpose"`
+	Origin        string          `json:"origin"`
 	HarnessConfig json.RawMessage `json:"harness_config,omitempty"` // opaque harness-specific config, merged into start params
 	// Mode selects events (default) or pty I/O. Pty requires the harness
 	// to advertise SupportsPTY()==true; otherwise the server returns
@@ -329,9 +348,15 @@ type SendMessageRequest struct {
 }
 
 // ForkSessionRequest is the request body for POST /sessions/{id}/fork.
+//
+// Type / Purpose / Origin default to the parent session's values when omitted;
+// callers may override (e.g. forking an interactive chat as an autonomous
+// background investigation).
 type ForkSessionRequest struct {
 	DisplayName string      `json:"display_name,omitempty"`
-	SessionType SessionType `json:"session_type,omitempty"`
+	Type        SessionType `json:"type,omitempty"`
+	Purpose     string      `json:"purpose,omitempty"`
+	Origin      string      `json:"origin,omitempty"`
 }
 
 // CompactSessionRequest is the request body for POST /sessions/{id}/compact.

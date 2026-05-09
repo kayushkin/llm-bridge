@@ -22,7 +22,6 @@ type Event struct {
 	// the latest reported value on the session row but never routes on it.
 	HarnessSessionID string `json:"harness_session_id,omitempty"`
 
-	ClientID     string `json:"client_id,omitempty"`
 	CompletionID string `json:"completion_id,omitempty"`
 
 	// ClientRequestID is the caller-minted per-turn identifier forwarded from

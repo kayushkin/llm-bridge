@@ -26,17 +26,43 @@ const (
 	SessionModePTY    SessionMode = "pty"
 )
 
+// SessionType categorizes a session by how it is being used. Bridge-side
+// behavior that depends on category (e.g. completion notifications, SSE
+// keepalive policy) reads SessionType. Behavior that depends on which
+// specific service originated the session reads Source.
+//
+// Will be required on Create — the field is currently optional in the wire
+// format for backward compatibility while callers are updated. Enforcement
+// flips on once all callers populate it. See MIGRATION-session-identity.md.
+type SessionType string
+
+const (
+	// SessionTypeInteractive: human-in-the-loop. Frontend chat, CLI, mobile.
+	SessionTypeInteractive SessionType = "interactive"
+
+	// SessionTypeAutonomous: fire-and-forget agent runs, no human watching
+	// live. Autoworker, scheduler-fired tasks, kanban dispatcher.
+	SessionTypeAutonomous SessionType = "autonomous"
+
+	// SessionTypeSystem: bridge-internal subsystems and meta-agents.
+	// Renamer, subagents, kanban classifier, permission_prompt.
+	SessionTypeSystem SessionType = "system"
+)
+
 // ManagedSession is a session as tracked by llm-bridge-server.
 // This is the server's lightweight session management entity, distinct from
 // [Session] which models rich agent-level state (usage, tasks, context).
 //
-// Three IDs track a session through its lifecycle:
-//   - BridgeID: server-generated primary key, stable from creation.
+// Identifier fields:
+//   - BridgeID: server-generated primary key, stable from creation. Will be
+//     renamed to SessionID; see MIGRATION-session-identity.md.
 //   - HarnessSessionID: the canonical harness session ID (e.g. CC UUID).
-//     Rotates on resume/fork. Empty until the harness reports it on first event.
-//   - ClientID: the frontend's correlation key (fe_*). Set at creation,
-//     never changes. Used by the frontend to relate the response back to its
-//     optimistic UI entry.
+//     Rotates on resume/fork. Empty until the harness reports it on first
+//     event. Will move to adapter-private storage in Phase II.C.
+//   - ClientID: caller-supplied identifier. Currently overloaded — frontend
+//     uses fe_* per-session handle, workers pass service-name literal.
+//     Will be removed; replaced by Source (service identity) + SessionType
+//     (category). See MIGRATION-session-identity.md.
 type ManagedSession struct {
 	BridgeID         string `json:"bridge_id"`
 	HarnessSessionID string `json:"harness_session_id,omitempty"`
@@ -53,6 +79,7 @@ type ManagedSession struct {
 	Info            *SessionInfo    `json:"info,omitempty"`           // latest session info reported by the harness
 	FolderName      string          `json:"folder_name,omitempty"`    // user-assigned sidebar folder; empty = unfiled
 	Source          string          `json:"source,omitempty"`         // origin tag carried from the creator (e.g. "scheduler", "autoworker"); empty = interactive
+	SessionType     SessionType     `json:"session_type,omitempty"`   // category of session; required on Create once enforcement flips on
 	Mode            SessionMode     `json:"mode,omitempty"`           // I/O mode picked at creation; empty = events (legacy default)
 	CreatedAt       time.Time       `json:"created_at"`
 	UpdatedAt       time.Time       `json:"updated_at"`
@@ -260,6 +287,10 @@ type ConformanceMatrix struct {
 // session (e.g. "scheduler", "autoworker"). Interactive UI callers leave it
 // empty. The server persists it on the session and may auto-assign a folder
 // based on the value (see LLMBRIDGE_SOURCE_FOLDERS).
+//
+// SessionType categorizes the session (interactive / autonomous / system).
+// Currently optional for backward compatibility; will be required once all
+// callers are updated. See MIGRATION-session-identity.md.
 type CreateSessionRequest struct {
 	Harness       Harness         `json:"harness"`
 	InstanceID    string          `json:"instance_id,omitempty"`
@@ -269,6 +300,7 @@ type CreateSessionRequest struct {
 	AutoStart     bool            `json:"auto_start,omitempty"`
 	ClientID      string          `json:"client_id,omitempty"`
 	Source        string          `json:"source,omitempty"`
+	SessionType   SessionType     `json:"session_type,omitempty"`
 	HarnessConfig json.RawMessage `json:"harness_config,omitempty"` // opaque harness-specific config, merged into start params
 	// Mode selects events (default) or pty I/O. Pty requires the harness
 	// to advertise SupportsPTY()==true; otherwise the server returns
@@ -295,8 +327,9 @@ type SendMessageRequest struct {
 
 // ForkSessionRequest is the request body for POST /sessions/{id}/fork.
 type ForkSessionRequest struct {
-	DisplayName string `json:"display_name,omitempty"`
-	ClientID    string `json:"client_id,omitempty"`
+	DisplayName string      `json:"display_name,omitempty"`
+	ClientID    string      `json:"client_id,omitempty"`
+	SessionType SessionType `json:"session_type,omitempty"`
 }
 
 // CompactSessionRequest is the request body for POST /sessions/{id}/compact.

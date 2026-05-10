@@ -113,11 +113,11 @@ Bridge-server already pushes every event to log-store at `manager.go:503` with t
 
 **Log-store API extensions needed (after III.B):**
 
-1. `GET /api/v1/sessions/{id}/turn-state` — returns `{last_user_message_event_id, last_terminator_event_id, in_flight: bool}`. Covers `RecoverInFlightTurn` (lines 945, 959), `PendingTurnMessage` (lines 439, 450), and the "find last user_message" half of `ListCurrentTurnEventsWithIDs` (line 758).
-2. `?types=user_message,result,...` filter on `/events` and `/history`. Covers `RecentTurnTexts` (line 673, renamer transcript), `ListToolCallInputs` (line 824, git path discovery), and the events-after-last-user-message half of `ListCurrentTurnEventsWithIDs` (line 763).
+1. `GET /api/v1/sessions/{id}/turn-state` — returns `{last_user_message_event_id, last_terminator_event_id, in_flight: bool}`. Covers `RecoverInFlightTurn` (lines 945, 959), `PendingTurnMessage` (lines 439, 450), and the "find last user_message" half of `ListCurrentTurnEventsWithIDs` (line 758). **Shipped 2026-05-10 (log-store 43e7b7a).**
+2. `?types=user_message,result,...` filter on `/events` and `/history`. Covers `RecentTurnTexts` (line 673, renamer transcript), `ListToolCallInputs` (line 824, git path discovery), and the events-after-last-user-message half of `ListCurrentTurnEventsWithIDs` (line 763). **Shipped 2026-05-10 (log-store 43e7b7a).**
 3. Turn count + last activity — already in II.B's sessions projection table (`turn_count`, `last_active`). No separate endpoint needed; bridge-server reads from the projection. Covers `CountUserMessages` (line 587) and `LastActivityAt` (line 530).
 
-That's one new endpoint, one filter add to two existing endpoints, and zero new endpoints if II.B ships alongside or before II.A.
+That's one new endpoint, one filter add to two existing endpoints, and zero new endpoints if II.B ships alongside or before II.A. The client (`log-store/client/client.go`) gained `GetTurnState` and `ListEvents(after, types)` so bridge-server can call them once the cutover begins.
 
 **Cutover plan (safety-first; no event loss permitted):**
 

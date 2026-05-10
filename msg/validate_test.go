@@ -410,70 +410,9 @@ func TestValidateEvent_AllTypes(t *testing.T) {
 	}
 }
 
-// --- ValidateSession ---
-
-func TestValidateSession_Valid(t *testing.T) {
-	s := &Session{ID: "s1", Harness: HarnessClaudeCode, State: SessionIdle}
-	if err := ValidateSession(s); err != nil {
-		t.Errorf("expected valid, got: %v", err)
-	}
-}
-
-func TestValidateSession_MissingID(t *testing.T) {
-	s := &Session{Harness: HarnessCodex, State: SessionRunning}
-	err := ValidateSession(s)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	assertHasCode(t, err, ErrMissingSessionID)
-}
-
-func TestValidateSession_MissingHarness(t *testing.T) {
-	s := &Session{ID: "s1", State: SessionRunning}
-	err := ValidateSession(s)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	assertHasCode(t, err, ErrMissingHarness)
-}
-
-func TestValidateSession_InvalidState(t *testing.T) {
-	s := &Session{ID: "s1", Harness: HarnessCodex, State: SessionState("exploding")}
-	err := ValidateSession(s)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	assertHasCode(t, err, ErrInvalidSessionState)
-}
-
-func TestValidateSession_EmptyState(t *testing.T) {
-	s := &Session{ID: "s1", Harness: HarnessCodex}
-	err := ValidateSession(s)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	assertHasCode(t, err, ErrInvalidSessionState)
-}
-
-func TestValidateSession_AllStates(t *testing.T) {
-	states := []SessionState{
-		SessionStarting,
-		SessionModelGenerating, SessionToolRunning, SessionCompacting,
-		SessionAwaitingPermission, SessionAwaitingUser,
-		SessionRateLimited, SessionPaused,
-		SessionIdle,
-		SessionCompleted, SessionError, SessionAborted, SessionDisconnected,
-		SessionRunning, SessionWaitingApproval, // deprecated; valid during migration
-	}
-	for _, st := range states {
-		t.Run(string(st), func(t *testing.T) {
-			s := &Session{ID: "s1", Harness: HarnessOpenClaw, State: st}
-			if err := ValidateSession(s); err != nil {
-				t.Errorf("state %s should be valid, got: %v", st, err)
-			}
-		})
-	}
-}
+// ValidateSession tests removed in Phase II.B along with the legacy
+// Session type. ManagedSession validation lives in bridge-server's
+// handleCreateSession.
 
 // --- ContentBlock.Validate ---
 

@@ -247,46 +247,10 @@ func ValidateEvent(e *Event) *ValidationError {
 	return &ValidationError{Failures: failures}
 }
 
-// ValidateSession checks a Session for structural correctness.
-func ValidateSession(s *Session) *ValidationError {
-	var failures []ValidationFailure
-
-	if s.ID == "" {
-		failures = append(failures, ValidationFailure{
-			Path: "id", Code: ErrMissingSessionID, Message: "session ID is required",
-		})
-	}
-	if s.Harness == "" {
-		failures = append(failures, ValidationFailure{
-			Path: "harness", Code: ErrMissingHarness, Message: "harness is required",
-		})
-	}
-
-	switch s.State {
-	case SessionStarting,
-		SessionModelGenerating, SessionToolRunning, SessionCompacting,
-		SessionAwaitingPermission, SessionAwaitingUser,
-		SessionRateLimited, SessionPaused,
-		SessionIdle,
-		SessionCompleted, SessionError, SessionAborted, SessionDisconnected,
-		SessionRunning, SessionWaitingApproval: // deprecated; valid during migration
-		// Valid.
-	case "":
-		failures = append(failures, ValidationFailure{
-			Path: "state", Code: ErrInvalidSessionState, Message: "session state is required",
-		})
-	default:
-		failures = append(failures, ValidationFailure{
-			Path: "state", Code: ErrInvalidSessionState,
-			Message: fmt.Sprintf("unknown session state %q", s.State),
-		})
-	}
-
-	if len(failures) == 0 {
-		return nil
-	}
-	return &ValidationError{Failures: failures}
-}
+// ValidateSession was removed in Phase II.B along with the legacy Session
+// type. ManagedSession (msg/server.go) is validated at the bridge-server
+// boundary in handleCreateSession; per-state-machine validation lives in
+// bridge-server's harness manager. See MIGRATION-session-identity.md.
 
 // --- Internal helpers ---
 

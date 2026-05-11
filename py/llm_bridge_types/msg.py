@@ -735,6 +735,7 @@ HarnessKiloCode: Harness = "kilo_code"
 HarnessOpenCode: Harness = "opencode"
 HarnessForgecode: Harness = "forgecode"
 HarnessGemini: Harness = "gemini"
+HarnessCopilotCLI: Harness = "copilot_cli"
 
 # EventType classifies a harness event.
 EventType = str

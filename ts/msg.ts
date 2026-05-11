@@ -1017,6 +1017,7 @@ export const HarnessKiloCode: Harness = "kilo_code";
 export const HarnessOpenCode: Harness = "opencode";
 export const HarnessForgecode: Harness = "forgecode";
 export const HarnessGemini: Harness = "gemini";
+export const HarnessCopilotCLI: Harness = "copilot_cli";
 /**
  * EventType classifies a harness event.
  */

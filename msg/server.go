@@ -463,22 +463,25 @@ type RenameSessionRequest struct {
 	DisplayName string `json:"display_name"`
 }
 
-// SourceFolderMapping is one row of the runtime source→folder map.
-// Default=true means the value comes from the env-var defaults
+// SourceFolderMapping is one row of the runtime purpose→folder map. Purpose
+// is the session.purpose tag (autoworker, scheduler, conformance, ...); the
+// mapping decides which sidebar folder a new session with that purpose lands
+// in. Default=true means the value comes from the env-var defaults
 // (LLMBRIDGE_SOURCE_FOLDERS) with no runtime override; Default=false means
 // the row originates from the source_folders table. UpdatedAt is zero for
-// env defaults.
+// env defaults. The env var and override table keep the legacy "source"
+// naming for storage internals — see llm-bridge-server commit f03b058.
 type SourceFolderMapping struct {
-	Source     string    `json:"source"`
+	Purpose    string    `json:"purpose"`
 	FolderName string    `json:"folder_name"`
 	Default    bool      `json:"default"`
 	UpdatedAt  time.Time `json:"updated_at,omitempty"`
 }
 
-// PutSourceFolderRequest is the request body for PUT /source-folders/{source}.
+// PutSourceFolderRequest is the request body for PUT /source-folders/{purpose}.
 // FolderName must reference an existing folder (validated server-side).
 // ApplyToExisting=true rebuckets prior sessions whose folder is empty or
-// matches the previous effective folder for this source; manual moves are
+// matches the previous effective folder for this purpose; manual moves are
 // preserved.
 type PutSourceFolderRequest struct {
 	FolderName      string `json:"folder_name"`

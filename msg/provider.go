@@ -63,6 +63,11 @@ const (
 	HarnessForgecode  Harness = "forgecode"
 	HarnessGemini     Harness = "gemini"
 	HarnessCopilotCLI Harness = "copilot_cli"
+	// HarnessMock is a test/deploy-verification harness. Its wrapper binary
+	// (`llm-bridge-mock`, ships from llm-bridge-server/cmd/mock-harness)
+	// speaks the full NDJSON protocol but makes no LLM calls, so it can drive
+	// end-to-end deploy smoke tests without any provider credentials.
+	HarnessMock Harness = "mock"
 )
 
 // AllHarnesses is the canonical list of known harness identifiers, in the
@@ -87,6 +92,7 @@ var AllHarnesses = []Harness{
 	HarnessForgecode,
 	HarnessGemini,
 	HarnessCopilotCLI,
+	HarnessMock,
 }
 
 // HarnessShortName returns the suffix used in wrapper-binary filenames
@@ -150,6 +156,8 @@ func HarnessBinaryName(h Harness) string {
 		return "llm-bridge-gemini"
 	case HarnessCopilotCLI:
 		return "llm-bridge-copilotcli"
+	case HarnessMock:
+		return "llm-bridge-mock"
 	default:
 		return ""
 	}

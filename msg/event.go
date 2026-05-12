@@ -352,9 +352,29 @@ type MCPServerInfo struct {
 	Status string `json:"status,omitempty"`
 }
 
+// HookEvent.Source discriminates the emission origin. The value determines
+// which resolution protocol applies and which UI surface renders the event.
+const (
+	// HookSourceHook is the default — harness-native or bridge-registered
+	// hook observations. Empty Source is treated as this value.
+	HookSourceHook = "hook"
+
+	// HookSourcePermission is a permission-gate consultation: the harness
+	// is asking whether a tool call may proceed. Bypass toggles and
+	// permission-store rules apply. UI renders an allow/deny card.
+	HookSourcePermission = "permission_prompt"
+
+	// HookSourceUserInput is a structured user-input solicitation (e.g.
+	// Claude Code's AskUserQuestion tool, ACP request_user_input). The
+	// model is asking the human a question — the "allow" path carries the
+	// answers in UpdatedInput, so bypass/auto-allow does not apply and
+	// the request always parks for human resolution. UI renders a form.
+	HookSourceUserInput = "user_input"
+)
+
 // HookEvent records a harness hook lifecycle event.
 //
-// Three sources produce HookEvents, discriminated by Source / HookID:
+// Four sources produce HookEvents, discriminated by Source / HookID:
 //
 //  1. Harness-native observation (Source empty or "hook", HookID empty) — the
 //     underlying harness emits its own hook lifecycle notifications (e.g.
@@ -369,6 +389,11 @@ type MCPServerInfo struct {
 //     --permission-prompt-tool MCP server) and is consulting the bridge for a
 //     tool-use decision. Functionally a synthetic PreToolUse hook whose
 //     resolver is human (or shell or auto) per the bridge's settings.
+//  4. User-input solicitation (Source="user_input") — the model is asking the
+//     human a structured question (Claude Code's AskUserQuestion tool,
+//     ACP's request_user_input). The "allow" verdict carries the answers in
+//     UpdatedInput; deny surfaces the model-visible "user declined" branch.
+//     Bypass/auto-allow does not apply — these always park for a human.
 //
 // Input and Output are raw JSON, passed through in the underlying harness's
 // native dialect (e.g. Claude Code's stdin/stdout hook protocol). Layers are
@@ -395,9 +420,10 @@ type HookEvent struct {
 	HookID string `json:"hook_id,omitempty"`
 
 	// Source discriminates the emission origin: "hook" (harness-native or
-	// bridge-registered hook; default when empty) or "permission_prompt"
-	// (harness's permission-prompt callback). Determines which decision
-	// protocol applies on resolution.
+	// bridge-registered hook; default when empty), "permission_prompt"
+	// (harness's permission-prompt callback), or "user_input" (structured
+	// user-input solicitation; see HookSourceUserInput). Determines which
+	// decision protocol applies on resolution and which UI surface renders.
 	Source string `json:"source,omitempty"`
 
 	// Phase is the lifecycle point: "started", "progress", "completed", or

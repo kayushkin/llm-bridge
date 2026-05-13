@@ -133,6 +133,13 @@ type HarnessInfo struct {
 	Capabilities       []string `json:"capabilities"`
 	HookEvents         []string `json:"hook_events,omitempty"`
 	SupportedProviders []string `json:"supported_providers,omitempty"`
+
+	// SupportedPermissionModes lists the PermissionMode* values valid for
+	// this harness. Always includes at least "ask" and "bypass" (every
+	// harness can fall back to the prehook's universal gate). "auto" is
+	// included only for harnesses whose start-param translation knows how
+	// to express the auto-mode tool subset to the underlying agent.
+	SupportedPermissionModes []string `json:"supported_permission_modes,omitempty"`
 	// PTY reports whether this harness can run inside a pseudoterminal
 	// (pty session mode). CLI harnesses with a real subprocess set this
 	// true; HTTP-backed harnesses set it false. See bridge.PTYCapableHarness.
@@ -163,6 +170,28 @@ type Credential struct {
 // Bridge preferences
 // ──────────────────────────────────────────────────────────────────────────────
 
+// PermissionMode is the canonical three-state for how the prehook gates
+// tool calls. Set globally on BridgePrefs and overridable per session via
+// HarnessConfig.permission_mode. Empty string means "use the global value
+// for this session" (which itself defaults to PermissionModeAsk).
+const (
+	// PermissionModeAsk routes every novel tool call through permission-store
+	// (and the human resolver on "ask" outcomes). The default.
+	PermissionModeAsk = "ask"
+
+	// PermissionModeAuto auto-allows a hardcoded set of low-impact tools
+	// (reads + edits + planning) and gates everything else through the
+	// permission-store ask flow. Bridge-defined — independent of any
+	// harness's native "auto" semantics. Harnesses opt in by listing it in
+	// HarnessInfo.SupportedPermissionModes.
+	PermissionModeAuto = "auto"
+
+	// PermissionModeBypass auto-allows every tool call. Tools tagged
+	// HookSourceUserInput (AskUserQuestion etc.) still park for the human —
+	// bypass is a permission grant, not an answer.
+	PermissionModeBypass = "bypass"
+)
+
 // HarnessDefaults stores per-harness configuration defaults.
 type HarnessDefaults struct {
 	Model          string   `json:"model,omitempty"`
@@ -180,12 +209,20 @@ type BridgePrefs struct {
 	LastInstance  map[string]string          `json:"last_instance,omitempty"`
 	Defaults     map[string]HarnessDefaults `json:"defaults,omitempty"`
 
-	// BypassPermissions, when true, makes new sessions launch with
-	// --permission-mode bypassPermissions (CC never calls our MCP) AND
-	// flips every live MCP into always-allow via /bridge/bypass-permissions.
-	// The toggle is on dash /settings; written exclusively through that
-	// endpoint (not through PUT /bridge-prefs partial updates) so the
-	// bool merge ambiguity doesn't apply.
+	// PermissionMode is the global default mode applied to new sessions and
+	// to legacy sessions that haven't been migrated to a per-session value.
+	// One of PermissionModeAsk / PermissionModeAuto / PermissionModeBypass;
+	// empty string is treated as PermissionModeAsk. Written exclusively via
+	// /bridge/permission-mode so the partial-update merge in PUT
+	// /bridge-prefs doesn't accidentally clobber it.
+	PermissionMode string `json:"permission_mode,omitempty"`
+
+	// BypassPermissions is the legacy boolean form of PermissionMode.
+	//
+	// Deprecated: read for back-compat (true → bypass, false/absent → ask),
+	// never written. New code should read/write PermissionMode. Will be
+	// removed once all live bridge-prefs.json files have a non-empty
+	// PermissionMode value.
 	BypassPermissions bool `json:"bypass_permissions,omitempty"`
 }
 

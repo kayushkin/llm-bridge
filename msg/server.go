@@ -144,6 +144,15 @@ type HarnessInfo struct {
 	// (pty session mode). CLI harnesses with a real subprocess set this
 	// true; HTTP-backed harnesses set it false. See bridge.PTYCapableHarness.
 	PTY bool `json:"pty"`
+
+	// SupportsDisableNetwork reports whether the harness can enforce a
+	// "no outbound network" gate at the sandbox layer. Surfaced as a
+	// checkbox alongside the permission-mode dropdown; the bridge writes
+	// the boolean to HarnessConfig.disable_network and the harness reads
+	// it at spawn time (codex maps to sandbox_workspace_write.network_access).
+	// Harnesses without sandbox-level network gating set this false; the
+	// bridge can still implement an equivalent via hook-store rules later.
+	SupportsDisableNetwork bool `json:"supports_disable_network,omitempty"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

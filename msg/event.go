@@ -71,9 +71,11 @@ type Event struct {
 	// SessionState extended to 13 values, the projection is no longer needed.
 	// Consumers should switch on State (StateEvent) directly. Field kept
 	// during the migration window so existing emitters compile.
-	AgentState   *AgentStateEvent   `json:"agent_state,omitempty"`
-	UsageTotal   *UsageTotalEvent   `json:"usage_total,omitempty"`
-	TurnComplete *TurnCompleteEvent `json:"turn_complete,omitempty"`
+	AgentState     *AgentStateEvent     `json:"agent_state,omitempty"`
+	UsageTotal     *UsageTotalEvent     `json:"usage_total,omitempty"`
+	TurnComplete   *TurnCompleteEvent   `json:"turn_complete,omitempty"`
+	APICall        *APICallEvent        `json:"api_call,omitempty"`
+	APISpendTotal  *APISpendTotalEvent  `json:"api_spend_total,omitempty"`
 
 	// DerivedFrom lists the upstream event ids this event was synthesized
 	// from, when llm-bridge-server (or a harness) emits a convenience event
@@ -302,6 +304,51 @@ type UsageTotalEvent struct {
 	Usage TokenUsage `json:"usage"`          // cumulative across every result event in this session
 	Cost  *Cost      `json:"cost,omitempty"` // sum where reported; nil until any priced turn lands
 	Turns int        `json:"turns"`          // how many completed turns contributed
+}
+
+// APICallEvent is the body for EventAPICall — one upstream model API call
+// observed by the harness. Per call, not per turn. Surfaces auxiliary
+// calls (session-title generation, prompt suggestions) that are otherwise
+// invisible to consumers reading turn-result aggregations only.
+//
+// QuerySource is harness-specific vocabulary discriminating user-driven
+// vs auxiliary calls. For Claude Code (via OTel `api_request` events):
+//
+//	main, sdk                — main user-facing turn (-p / SDK mode)
+//	repl_main_thread         — main user-facing turn (TUI mode)
+//	generate_session_title   — Haiku side-call to mint a session title
+//	prompt_suggestion        — TUI-only side-call generating suggested next prompts
+//	auxiliary                — other side-calls
+type APICallEvent struct {
+	Model               string  `json:"model"`
+	InputTokens         int     `json:"input_tokens"`
+	OutputTokens        int     `json:"output_tokens"`
+	CacheReadTokens     int     `json:"cache_read_tokens,omitempty"`
+	CacheCreationTokens int     `json:"cache_creation_tokens,omitempty"`
+	CostUSD             float64 `json:"cost_usd,omitempty"`
+	DurationMS          int64   `json:"duration_ms,omitempty"`
+	RequestID           string  `json:"request_id,omitempty"`
+	QuerySource         string  `json:"query_source,omitempty"`
+	Effort              string  `json:"effort,omitempty"`
+}
+
+// APISpendTotalEvent is the body for EventAPISpendTotal — running
+// session-cumulative spend across every EventAPICall observed. Derived
+// by llm-bridge-server from the raw stream. Distinct from
+// UsageTotalEvent (which sums per-turn EventResult.Usage); the delta
+// between the two is the ambient overhead (auxiliary API calls that
+// don't show up in turn results).
+//
+// ByModel and ByQuerySource are pre-aggregated breakdowns so the UI
+// can render a single drill-down ("Opus $0.07 / Haiku $0.0004" and
+// "main $0.07 / generate_session_title $0.0004 / prompt_suggestion
+// $0.018") without re-walking the raw api_call event stream.
+type APISpendTotalEvent struct {
+	TotalUSD      float64            `json:"total_usd"`         // cumulative USD across every api_call event
+	Usage         TokenUsage         `json:"usage"`             // cumulative token counts (summed field-by-field)
+	Calls         int                `json:"calls"`             // how many api_call events contributed
+	ByModel       map[string]float64 `json:"by_model,omitempty"`        // USD per model (key = APICallEvent.Model)
+	ByQuerySource map[string]float64 `json:"by_query_source,omitempty"` // USD per query_source (e.g. main, generate_session_title, prompt_suggestion)
 }
 
 // TurnCompleteEvent is the body for EventTurnComplete. Emitted once per

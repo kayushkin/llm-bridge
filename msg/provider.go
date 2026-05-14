@@ -181,13 +181,28 @@ const (
 	EventSessionInfo  EventType = "session_info"
 	EventUserMessage  EventType = "user_message"
 	EventHook         EventType = "hook"
+	// EventAPICall is one upstream model API call observed by the harness —
+	// per call, not per turn. Surfaces auxiliary calls (e.g. Claude Code's
+	// session-title generation, prompt-suggestion calls in TUI mode) that
+	// don't appear in turn-result aggregations. Harnesses that have access
+	// to per-call telemetry (currently Claude Code via OpenTelemetry)
+	// populate this; others may not.
+	EventAPICall      EventType = "api_call"
 	// Convenience events — derived centrally by llm-bridge-server from
 	// the raw event stream. Distinct from EventSessionState (the harness
 	// lifecycle) because agent_state is the coarser UI projection. See
 	// msg/CONVENIENCE-EVENTS.md.
-	EventAgentState   EventType = "agent_state"
-	EventUsageTotal   EventType = "usage_total"
-	EventTurnComplete EventType = "turn_complete"
+	EventAgentState     EventType = "agent_state"
+	EventUsageTotal     EventType = "usage_total"
+	EventTurnComplete   EventType = "turn_complete"
+	// EventAPISpendTotal is the running per-API-call spend total, derived
+	// by llm-bridge-server from the EventAPICall stream. Distinct from
+	// EventUsageTotal: that one sums per-turn EventResult.Usage (the
+	// harness's "this is what the user spent" figure), while this one
+	// sums every upstream API call including auxiliary calls
+	// (session-title generation, prompt-suggestion). The delta between
+	// the two is the ambient overhead.
+	EventAPISpendTotal EventType = "api_spend_total"
 )
 
 // SessionState represents the current state of an llm-bridge-managed

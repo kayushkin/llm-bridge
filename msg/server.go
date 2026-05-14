@@ -170,11 +170,45 @@ type Credential struct {
 // Bridge preferences
 // ──────────────────────────────────────────────────────────────────────────────
 
-// PermissionMode is the canonical three-state for how the prehook gates
-// tool calls. Set globally on BridgePrefs and overridable per session via
+// PermissionMode is the canonical enum for how the prehook gates tool
+// calls. Set globally on BridgePrefs and overridable per session via
 // HarnessConfig.permission_mode. Empty string means "use the global value
 // for this session" (which itself defaults to PermissionModeAsk).
+//
+// Modes split into three families:
+//   - Restrictive (Block All / Plan / Read): deny most tools without
+//     consulting permission-store rules. Useful for review, planning,
+//     or pausing.
+//   - Rule-driven (Ask All / Ask / Auto): consult permission-store
+//     (or always park) per the mode's policy. Ask is the default.
+//   - Permissive (Bypass / Custom): allow everything (bypass), or
+//     let the user define raw harness-specific knobs (custom).
+//
+// Each harness declares which modes it supports in HarnessInfo.
+// SupportedPermissionModes. The prehook short-circuits on mode before
+// any rule evaluation, so adding a new mode requires extending both
+// the prehook table and any harness-side translation.
 const (
+	// PermissionModeBlockAll denies every tool call with a "blocked by
+	// user" reason. The agent sees the deny in its tool result and can
+	// keep reasoning — useful for pausing autonomy without ending the
+	// session. Bypasses permission-store entirely.
+	PermissionModeBlockAll = "block_all"
+
+	// PermissionModePlan allows only planning tools (Read/Glob/Grep/
+	// TodoWrite/LS/NotebookRead/ExitPlanMode); everything else is denied.
+	// Maps to CC's native "plan" mode. Bypasses permission-store.
+	PermissionModePlan = "plan"
+
+	// PermissionModeRead allows read-only inspection (Read/Glob/Grep/LS/
+	// NotebookRead); denies all writes and shell. Bypasses permission-store.
+	PermissionModeRead = "read"
+
+	// PermissionModeAskAll parks every tool call for human approval,
+	// regardless of permission-store rules. Paranoia mode for high-stakes
+	// sessions and demos. Skips the rule engine deliberately.
+	PermissionModeAskAll = "ask_all"
+
 	// PermissionModeAsk routes every novel tool call through permission-store
 	// (and the human resolver on "ask" outcomes). The default.
 	PermissionModeAsk = "ask"
@@ -190,6 +224,12 @@ const (
 	// HookSourceUserInput (AskUserQuestion etc.) still park for the human —
 	// bypass is a permission grant, not an answer.
 	PermissionModeBypass = "bypass"
+
+	// PermissionModeCustom is the power-user escape hatch: the user
+	// sets raw harness-specific knobs (e.g. codex approval_policy +
+	// sandbox_mode) via HarnessConfig.permission_mode_custom. The prehook
+	// still applies permission-store rules.
+	PermissionModeCustom = "custom"
 )
 
 // HarnessDefaults stores per-harness configuration defaults.

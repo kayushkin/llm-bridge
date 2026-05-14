@@ -83,3 +83,20 @@ type StreamReader interface {
 	// The reader contains the raw SSE or NDJSON stream body.
 	ReadStream(r io.Reader) <-chan msg.StreamEvent
 }
+
+// OneShotCapable is an optional sub-interface a HarnessBridge implementation
+// can declare to advertise that it supports stateless single-turn calls with
+// optional schema-forced structured output.
+//
+// llm-bridge-server discovers this via type assertion; harnesses that don't
+// implement it keep compiling unchanged, and a OneShot request against them
+// returns a "not supported" error at the server edge.
+//
+// When OneShotRequest.Schema is set, implementations MUST hard-force the model
+// to return JSON matching the schema (e.g. via Anthropic tool_choice). They
+// must NOT degrade to soft validation silently — if the underlying transport
+// cannot force the call, return an error.
+type OneShotCapable interface {
+	HarnessBridge
+	OneShot(ctx context.Context, req msg.OneShotRequest) (*msg.OneShotResponse, error)
+}

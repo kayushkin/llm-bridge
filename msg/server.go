@@ -35,7 +35,7 @@ const (
 // session for" lives on Purpose; the "who created it" identity lives on
 // Origin. The three are orthogonal:
 //
-//   - Type: interactive | autonomous | system  (how it runs)
+//   - Type: interactive | autonomous | system | herald  (how it runs)
 //   - Purpose: chat, autoworker, conformance, subagent, ...  (what it does)
 //   - Origin: frontend-dash, autoworker, claudecode-adapter, ...  (who spawned it)
 //
@@ -58,6 +58,15 @@ const (
 	// SessionTypeSystem: bridge-internal subsystems and meta-agents.
 	// Renamer, subagents, kanban classifier, permission_prompt.
 	SessionTypeSystem SessionType = "system"
+
+	// SessionTypeHerald: an agent-initiated question/alert relayed to the user
+	// in a session they didn't open (see the `ask` CLI). It runs unattended for
+	// the relay turn — no human is watching to resolve a tool prehook — so it is
+	// treated like autonomous for permission gating (isUnattendedSession), yet it
+	// deliberately solicits the human, ending its turn in awaiting_user. Kept
+	// distinct from autonomous so frontends can surface these as a "needs you"
+	// inbox rather than mixing them with fire-and-forget worker runs.
+	SessionTypeHerald SessionType = "herald"
 )
 
 // ManagedSession is a session as tracked by llm-bridge-server.
@@ -72,7 +81,7 @@ const (
 //     event. Will move to adapter-private storage in Phase II.C.
 //
 // Classification fields (orthogonal — see SessionType doc for the model):
-//   - Type: interactive | autonomous | system  (how it runs)
+//   - Type: interactive | autonomous | system | herald  (how it runs)
 //   - Purpose: chat, autoworker, conformance, subagent, ...  (what it does)
 //   - Origin: frontend-dash, autoworker, claudecode-adapter, ...  (who spawned it)
 type ManagedSession struct {

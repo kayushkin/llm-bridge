@@ -272,6 +272,27 @@ func (s SessionState) IsActive() bool {
 	return false
 }
 
+// IsBlockedOnUser reports whether the state is one where the harness is
+// legitimately parked waiting on a human action rather than doing (or about
+// to do) work: an open permission/question prompt (awaiting_permission, plus
+// its deprecated alias waiting_on_approval) or a turn that ended soliciting a
+// reply (awaiting_user).
+//
+// These are NOT abandoned work, so the idle reaper must not kill them even
+// after a long quiet stretch — a human deliberating over a prompt emits no
+// events. Reaping awaiting_permission would cancel the parked hook and
+// auto-deny a live question/permission the user never got to answer; reaping
+// awaiting_user would discard the warm process the expected reply lands in.
+func (s SessionState) IsBlockedOnUser() bool {
+	switch s {
+	case SessionAwaitingPermission,
+		SessionAwaitingUser,
+		SessionWaitingApproval:
+		return true
+	}
+	return false
+}
+
 // ActiveSessionStates returns every SessionState for which IsActive is true.
 // Convenient for SQL `IN (...)` filters in stores that key on state strings.
 func ActiveSessionStates() []SessionState {

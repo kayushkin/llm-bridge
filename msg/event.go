@@ -51,31 +51,39 @@ type Event struct {
 	// does not surface one.
 	HarnessMessageID string `json:"harness_message_id,omitempty"`
 
+	// HarnessParentID is the harness-native id of the parent invocation this
+	// event descends from — for Claude Code, the spawning Task/Agent tool's
+	// tool_use_id (raw stream-json field: parent_tool_use_id). Non-empty only on
+	// harness-internal subagent events; the adapter uses it to demux subagents
+	// into their own bridge sessions (TEAM-ORCHESTRATION.md §21.4). Empty for an
+	// agent's own (non-subagent) events.
+	HarnessParentID string `json:"harness_parent_id,omitempty"`
+
 	Timestamp time.Time `json:"timestamp"`
 
 	// Content — at most one of these will be populated based on Type.
-	Result       *ResultEvent       `json:"result,omitempty"`
-	Stream       *HarnessStream     `json:"stream,omitempty"`
-	Block        *BlockEvent        `json:"block,omitempty"`
-	ToolCall     *ToolCallEvent     `json:"tool_call,omitempty"`
-	ToolResult   *ToolResultEvent   `json:"tool_result,omitempty"`
-	Thinking     *ThinkingEvent     `json:"thinking,omitempty"`
-	Plan         *PlanEvent         `json:"plan,omitempty"`
-	System       *SystemEvent       `json:"system,omitempty"`
-	Approval     *ApprovalEvent     `json:"approval,omitempty"`
-	Error        *ErrorEvent        `json:"error,omitempty"`
-	State        *StateEvent        `json:"state,omitempty"`
-	Info         *SessionInfo       `json:"info,omitempty"`
-	Hook         *HookEvent         `json:"hook,omitempty"`
+	Result     *ResultEvent     `json:"result,omitempty"`
+	Stream     *HarnessStream   `json:"stream,omitempty"`
+	Block      *BlockEvent      `json:"block,omitempty"`
+	ToolCall   *ToolCallEvent   `json:"tool_call,omitempty"`
+	ToolResult *ToolResultEvent `json:"tool_result,omitempty"`
+	Thinking   *ThinkingEvent   `json:"thinking,omitempty"`
+	Plan       *PlanEvent       `json:"plan,omitempty"`
+	System     *SystemEvent     `json:"system,omitempty"`
+	Approval   *ApprovalEvent   `json:"approval,omitempty"`
+	Error      *ErrorEvent      `json:"error,omitempty"`
+	State      *StateEvent      `json:"state,omitempty"`
+	Info       *SessionInfo     `json:"info,omitempty"`
+	Hook       *HookEvent       `json:"hook,omitempty"`
 	// Deprecated: AgentState was a coarser projection of SessionState. With
 	// SessionState extended to 13 values, the projection is no longer needed.
 	// Consumers should switch on State (StateEvent) directly. Field kept
 	// during the migration window so existing emitters compile.
-	AgentState     *AgentStateEvent     `json:"agent_state,omitempty"`
-	UsageTotal     *UsageTotalEvent     `json:"usage_total,omitempty"`
-	TurnComplete   *TurnCompleteEvent   `json:"turn_complete,omitempty"`
-	APICall        *APICallEvent        `json:"api_call,omitempty"`
-	APISpendTotal  *APISpendTotalEvent  `json:"api_spend_total,omitempty"`
+	AgentState    *AgentStateEvent    `json:"agent_state,omitempty"`
+	UsageTotal    *UsageTotalEvent    `json:"usage_total,omitempty"`
+	TurnComplete  *TurnCompleteEvent  `json:"turn_complete,omitempty"`
+	APICall       *APICallEvent       `json:"api_call,omitempty"`
+	APISpendTotal *APISpendTotalEvent `json:"api_spend_total,omitempty"`
 
 	// DerivedFrom lists the upstream event ids this event was synthesized
 	// from, when llm-bridge-server (or a harness) emits a convenience event
@@ -130,14 +138,14 @@ type ResultEvent struct {
 	IsError          bool            `json:"is_error,omitempty"`
 	StructuredOutput json.RawMessage `json:"structured_output,omitempty"`
 
-	Usage         TokenUsage   `json:"usage"`
-	Cost          *Cost        `json:"cost,omitempty"`
-	DurationMS    int64        `json:"duration_ms,omitempty"`
-	DurationAPIMS int64        `json:"duration_api_ms,omitempty"`
-	NumTurns      int          `json:"num_turns,omitempty"`
-	APICalls      int          `json:"api_calls,omitempty"`
-	Model         string       `json:"model,omitempty"`
-	APICallUsages []TokenUsage `json:"api_call_usages,omitempty"`
+	Usage         TokenUsage    `json:"usage"`
+	Cost          *Cost         `json:"cost,omitempty"`
+	DurationMS    int64         `json:"duration_ms,omitempty"`
+	DurationAPIMS int64         `json:"duration_api_ms,omitempty"`
+	NumTurns      int           `json:"num_turns,omitempty"`
+	APICalls      int           `json:"api_calls,omitempty"`
+	Model         string        `json:"model,omitempty"`
+	APICallUsages []TokenUsage  `json:"api_call_usages,omitempty"`
 	ToolEvents    []ToolSummary `json:"tool_events,omitempty"`
 }
 
@@ -344,9 +352,9 @@ type APICallEvent struct {
 // "main $0.07 / generate_session_title $0.0004 / prompt_suggestion
 // $0.018") without re-walking the raw api_call event stream.
 type APISpendTotalEvent struct {
-	TotalUSD      float64            `json:"total_usd"`         // cumulative USD across every api_call event
-	Usage         TokenUsage         `json:"usage"`             // cumulative token counts (summed field-by-field)
-	Calls         int                `json:"calls"`             // how many api_call events contributed
+	TotalUSD      float64            `json:"total_usd"`                 // cumulative USD across every api_call event
+	Usage         TokenUsage         `json:"usage"`                     // cumulative token counts (summed field-by-field)
+	Calls         int                `json:"calls"`                     // how many api_call events contributed
 	ByModel       map[string]float64 `json:"by_model,omitempty"`        // USD per model (key = APICallEvent.Model)
 	ByQuerySource map[string]float64 `json:"by_query_source,omitempty"` // USD per query_source (e.g. main, generate_session_title, prompt_suggestion)
 }
@@ -373,16 +381,16 @@ type TurnCompleteEvent struct {
 // the agent's initial handshake, and persisted on ManagedSession so it can
 // be retrieved via GET /sessions/{id} without replaying events.
 type SessionInfo struct {
-	SystemPrompt       string           `json:"system_prompt,omitempty"`
-	AppendSystemPrompt string           `json:"append_system_prompt,omitempty"`
-	WorkingDir         string           `json:"working_dir,omitempty"`
-	Model              string           `json:"model,omitempty"`
-	PermissionMode     string           `json:"permission_mode,omitempty"`
-	Tools              []ToolInfo       `json:"tools,omitempty"`
-	SlashCommands      []string         `json:"slash_commands,omitempty"`
-	Agents             []string         `json:"agents,omitempty"`
-	Skills             []string         `json:"skills,omitempty"`
-	MCPServers         []MCPServerInfo  `json:"mcp_servers,omitempty"`
+	SystemPrompt       string          `json:"system_prompt,omitempty"`
+	AppendSystemPrompt string          `json:"append_system_prompt,omitempty"`
+	WorkingDir         string          `json:"working_dir,omitempty"`
+	Model              string          `json:"model,omitempty"`
+	PermissionMode     string          `json:"permission_mode,omitempty"`
+	Tools              []ToolInfo      `json:"tools,omitempty"`
+	SlashCommands      []string        `json:"slash_commands,omitempty"`
+	Agents             []string        `json:"agents,omitempty"`
+	Skills             []string        `json:"skills,omitempty"`
+	MCPServers         []MCPServerInfo `json:"mcp_servers,omitempty"`
 }
 
 // ToolInfo names a tool the agent has available. Description is optional —

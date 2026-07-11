@@ -85,25 +85,32 @@ const (
 //   - Purpose: chat, autoworker, conformance, subagent, ...  (what it does)
 //   - Origin: frontend-dash, autoworker, claudecode-adapter, ...  (who spawned it)
 type ManagedSession struct {
-	SessionID        string `json:"session_id"`
-	HarnessSessionID string `json:"harness_session_id,omitempty"`
-	DisplayName     string    `json:"display_name"`
-	Harness         Harness   `json:"harness"`
-	InstanceID      string    `json:"instance_id,omitempty"`
-	State           string    `json:"state"`
-	PID             int       `json:"pid,omitempty"`
-	AgentID         string    `json:"agent_id,omitempty"`
-	SpawnerID       string    `json:"spawner_id,omitempty"`
-	ParentID        string          `json:"parent_id,omitempty"`
-	HarnessConfig   json.RawMessage `json:"harness_config,omitempty"` // opaque harness-specific config
-	Info            *SessionInfo    `json:"info,omitempty"`           // latest session info reported by the harness
-	FolderName      string          `json:"folder_name,omitempty"`    // user-assigned sidebar folder; empty = unfiled
-	Type            SessionType     `json:"type"`                     // how this session runs (interactive | autonomous | system); required
-	Purpose         string          `json:"purpose"`                  // what this session is for (chat, autoworker, conformance, subagent, ...); required
-	Origin          string          `json:"origin"`                   // which service/script created this session (frontend-dash, autoworker, claudecode-adapter, ...); required
-	Mode            SessionMode     `json:"mode,omitempty"`           // I/O mode picked at creation; empty = events (legacy default)
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
+	SessionID        string  `json:"session_id"`
+	HarnessSessionID string  `json:"harness_session_id,omitempty"`
+	DisplayName      string  `json:"display_name"`
+	Harness          Harness `json:"harness"`
+	InstanceID       string  `json:"instance_id,omitempty"`
+	State            string  `json:"state"`
+	PID              int     `json:"pid,omitempty"`
+	AgentID          string  `json:"agent_id,omitempty"`
+	SpawnerID        string  `json:"spawner_id,omitempty"`
+	ParentID         string  `json:"parent_id,omitempty"`
+	// Orchestration lineage (TEAM-ORCHESTRATION.md §21; additive — set by the
+	// team-orchestration layer, empty for ordinary sessions).
+	ManagerSessionID       string          `json:"manager_session_id,omitempty"`        // managing/parent session in the team tree (bridge_session_id); empty = top-level
+	RootSessionID          string          `json:"root_session_id,omitempty"`           // top of this session's tree (bridge_session_id)
+	Depth                  int             `json:"depth,omitempty"`                     // depth in the team tree (0 = root)
+	ControlledBy           string          `json:"controlled_by,omitempty"`             // who controls this session's execution (message / steer / kill): "bridge" (bridge-server can act on it directly) | "harness" (coupled to a parent harness process — frontends disable direct actions)
+	RefreshedFromSessionID string          `json:"refreshed_from_session_id,omitempty"` // the session this one continues after a context refresh (bridge_session_id; fresh reseed, no history)
+	HarnessConfig          json.RawMessage `json:"harness_config,omitempty"`            // opaque harness-specific config
+	Info                   *SessionInfo    `json:"info,omitempty"`                      // latest session info reported by the harness
+	FolderName             string          `json:"folder_name,omitempty"`               // user-assigned sidebar folder; empty = unfiled
+	Type                   SessionType     `json:"type"`                                // how this session runs (interactive | autonomous | system); required
+	Purpose                string          `json:"purpose"`                             // what this session is for (chat, autoworker, conformance, subagent, ...); required
+	Origin                 string          `json:"origin"`                              // which service/script created this session (frontend-dash, autoworker, claudecode-adapter, ...); required
+	Mode                   SessionMode     `json:"mode,omitempty"`                      // I/O mode picked at creation; empty = events (legacy default)
+	CreatedAt              time.Time       `json:"created_at"`
+	UpdatedAt              time.Time       `json:"updated_at"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -261,11 +268,11 @@ type HarnessDefaults struct {
 
 // BridgePrefs stores user preferences for the bridge dashboard.
 type BridgePrefs struct {
-	LastHarness  string                     `json:"last_harness,omitempty"`
-	LastInstanceID string                   `json:"last_instance_id,omitempty"`
-	LastSession  map[string]string          `json:"last_session,omitempty"`
-	LastInstance  map[string]string          `json:"last_instance,omitempty"`
-	Defaults     map[string]HarnessDefaults `json:"defaults,omitempty"`
+	LastHarness    string                     `json:"last_harness,omitempty"`
+	LastInstanceID string                     `json:"last_instance_id,omitempty"`
+	LastSession    map[string]string          `json:"last_session,omitempty"`
+	LastInstance   map[string]string          `json:"last_instance,omitempty"`
+	Defaults       map[string]HarnessDefaults `json:"defaults,omitempty"`
 
 	// PermissionMode is the global default mode applied to new sessions and
 	// to legacy sessions that haven't been migrated to a per-session value.
@@ -363,11 +370,11 @@ type ConformanceTestResult struct {
 
 // ConformanceHarnessResult records all test results for a single harness.
 type ConformanceHarnessResult struct {
-	Harness   string                  `json:"harness"`
-	Binary    string                  `json:"binary"`
-	TestedAt  time.Time               `json:"tested_at"`
-	Results   []ConformanceTestResult `json:"results"`
-	Summary   ConformanceSummary      `json:"summary"`
+	Harness  string                  `json:"harness"`
+	Binary   string                  `json:"binary"`
+	TestedAt time.Time               `json:"tested_at"`
+	Results  []ConformanceTestResult `json:"results"`
+	Summary  ConformanceSummary      `json:"summary"`
 }
 
 // ConformanceSummary counts test outcomes.

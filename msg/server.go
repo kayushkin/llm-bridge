@@ -93,10 +93,14 @@ type ManagedSession struct {
 	State            string  `json:"state"`
 	PID              int     `json:"pid,omitempty"`
 	AgentID          string  `json:"agent_id,omitempty"`
-	SpawnerID        string  `json:"spawner_id,omitempty"`
-	ParentID         string  `json:"parent_id,omitempty"`
+	// Deprecated: ParentID holds the FORK parent's HarnessSessionID (a harness
+	// UUID, fed to --fork) — not a session id and not a general "parent". It is
+	// superseded by ForkedFromSessionID and will be removed once the fork
+	// plumbing resolves the harness id from the parent row (§21).
+	ParentID string `json:"parent_id,omitempty"`
 	// Orchestration lineage (TEAM-ORCHESTRATION.md §21; additive — set by the
 	// team-orchestration layer, empty for ordinary sessions).
+	ForkedFromSessionID    string          `json:"forked_from_session_id,omitempty"`    // the session this one was forked from (bridge_session_id) — the honest replacement for ParentID
 	ManagerSessionID       string          `json:"manager_session_id,omitempty"`        // managing/parent session in the team tree (bridge_session_id); empty = top-level
 	RootSessionID          string          `json:"root_session_id,omitempty"`           // top of this session's tree (bridge_session_id)
 	Depth                  int             `json:"depth,omitempty"`                     // depth in the team tree (0 = root)
@@ -420,7 +424,6 @@ type CreateSessionRequest struct {
 	InstanceID    string          `json:"instance_id,omitempty"`
 	DisplayName   string          `json:"display_name,omitempty"`
 	AgentID       string          `json:"agent_id,omitempty"`
-	SpawnerID     string          `json:"spawner_id,omitempty"`
 	AutoStart     bool            `json:"auto_start,omitempty"`
 	Type          SessionType     `json:"type"`
 	Purpose       string          `json:"purpose"`

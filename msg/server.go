@@ -108,7 +108,7 @@ type ManagedSession struct {
 	RefreshedFromSessionID string          `json:"refreshed_from_session_id,omitempty"` // the session this one continues after a context refresh (bridge_session_id; fresh reseed, no history)
 	HarnessConfig          json.RawMessage `json:"harness_config,omitempty"`            // opaque harness-specific config
 	Info                   *SessionInfo    `json:"info,omitempty"`                      // latest session info reported by the harness
-	FolderName             string          `json:"folder_name,omitempty"`               // user-assigned sidebar folder; empty = unfiled
+	FolderName             string          `json:"folder_name"`                         // user-assigned sidebar folder; empty = unfiled. NOT omitempty: the session-list SSE upsert frame is a full canonical session that clients shallow-merge, so a cleared folder must serialize as "" explicitly — otherwise omitempty drops the field and the merge keeps a stale folder (e.g. header stays "Reopen" after un-archive until reload).
 	Type                   SessionType     `json:"type"`                                // how this session runs (interactive | autonomous | system); required
 	Purpose                string          `json:"purpose"`                             // what this session is for (chat, autoworker, conformance, subagent, ...); required
 	Origin                 string          `json:"origin"`                              // which service/script created this session (frontend-dash, autoworker, claudecode-adapter, ...); required

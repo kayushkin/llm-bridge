@@ -113,8 +113,27 @@ type ManagedSession struct {
 	Purpose                string          `json:"purpose"`                             // what this session is for (chat, autoworker, conformance, subagent, ...); required
 	Origin                 string          `json:"origin"`                              // which service/script created this session (frontend-dash, autoworker, claudecode-adapter, ...); required
 	Mode                   SessionMode     `json:"mode,omitempty"`                      // I/O mode picked at creation; empty = events (legacy default)
-	CreatedAt              time.Time       `json:"created_at"`
-	UpdatedAt              time.Time       `json:"updated_at"`
+
+	// Spend ceiling. MaxBudgetUSD is the server-side cap on this session's
+	// derived API spend, set from CreateSessionRequest.MaxBudget at creation
+	// or POST /sessions/{id}/config later. SpendUSD is the session's spend
+	// against it.
+	//
+	// ⚠️ ZERO MEANS NO CEILING, not "stop immediately". That is the same
+	// convention Claude Code's own --max-budget-usd flag uses, and every
+	// caller on this box already relies on it (bridge-ui strips max_budget
+	// <= 0 before sending). Read it as "unset", and never treat a zero
+	// arriving from a client as a request to halt.
+	MaxBudgetUSD float64 `json:"max_budget_usd,omitempty"`
+	// SpendUSD is the high-water mark of APISpendTotalEvent.TotalUSD for
+	// this session, in US dollars. Monotonic on purpose: the derivation
+	// that produces the running total lives in bridge-server's memory and
+	// restarts at zero when the process does, so a persisted value that
+	// could fall would re-arm a spent budget from scratch after a restart.
+	SpendUSD float64 `json:"spend_usd,omitempty"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -433,6 +452,15 @@ type CreateSessionRequest struct {
 	// to advertise SupportsPTY()==true; otherwise the server returns
 	// 400 with error code "pty_unsupported".
 	Mode SessionMode `json:"mode,omitempty"`
+	// MaxBudget is the session's spend ceiling in US dollars, stored as
+	// ManagedSession.MaxBudgetUSD and enforced server-side against the
+	// session's derived API spend. Nil and 0 both mean no ceiling;
+	// negative is rejected with 400 invalid_max_budget.
+	//
+	// This is the only way to give a ceiling to a session at the moment
+	// it is created, which is the moment that matters for anything
+	// nobody is watching. POST /sessions/{id}/config can change it later.
+	MaxBudget *float64 `json:"max_budget,omitempty"`
 }
 
 // SendMessageRequest is the request body for POST /sessions/{id}/send.

@@ -272,6 +272,13 @@ type ErrorEvent struct {
 	StatusCode int    `json:"status_code,omitempty"`
 }
 
+// ErrCodeBudgetExceeded is the ErrorEvent.Code bridge-server emits when a
+// session's derived API spend reaches ManagedSession.MaxBudgetUSD. The
+// error is bridge-originated, not harness-originated: no harness knows
+// what the session's ceiling is. Not retryable — retrying spends more.
+// Raise the ceiling (POST /sessions/{id}/config) to clear the halt.
+const ErrCodeBudgetExceeded = "budget_exceeded"
+
 // StateEvent represents a session state change.
 type StateEvent struct {
 	State    SessionState `json:"state"`

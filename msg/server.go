@@ -137,11 +137,22 @@ type ManagedSession struct {
 	// <= 0 before sending). Read it as "unset", and never treat a zero
 	// arriving from a client as a request to halt.
 	MaxBudgetUSD float64 `json:"max_budget_usd,omitempty"`
-	// SpendUSD is the high-water mark of APISpendTotalEvent.TotalUSD for
-	// this session, in US dollars. Monotonic on purpose: the derivation
-	// that produces the running total lives in bridge-server's memory and
-	// restarts at zero when the process does, so a persisted value that
-	// could fall would re-arm a spent budget from scratch after a restart.
+	// SpendUSD is what this session has spent in total, in US dollars —
+	// every API call it has made, across every harness process it has run
+	// in, matching the latest APISpendTotalEvent.TotalUSD.
+	//
+	// ⚠️ Read "across every process" literally, because the earlier wording
+	// here did not and that is what let a real hole sit open. This said the
+	// derivation producing the running total "restarts at zero when the
+	// process does", meaning bridge-server's — so a monotonic high-water
+	// mark looked like enough. But the derivation is discarded whenever the
+	// HARNESS process exits, which is every stop, crash, idle reap and
+	// resume, and the totals under a previous run's high-water mark were
+	// then never counted. Measured on one box 2026-08-01: 64 of 3,691
+	// sessions had spent $1,174 more than this field recorded, one of them
+	// $201.76 against a recorded $83.77. bridge-server now seeds a fresh
+	// derivation from this field, so the running total continues the
+	// session's history rather than starting a second one.
 	SpendUSD float64 `json:"spend_usd,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`

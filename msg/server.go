@@ -114,6 +114,18 @@ type ManagedSession struct {
 	Origin                 string          `json:"origin"`                              // which service/script created this session (frontend-dash, autoworker, claudecode-adapter, ...); required
 	Mode                   SessionMode     `json:"mode,omitempty"`                      // I/O mode picked at creation; empty = events (legacy default)
 
+	// WorkingDir is the directory this session's harness runs in, and it is
+	// the top of a four-level cascade: session > Instance.WorkingDir >
+	// Machine.DefaultWorkingDir > whatever the spawning process already had.
+	// Empty inherits the level below, exactly as the two instance-level
+	// fields already do — there is no *string anywhere in this cascade and a
+	// session must not introduce one.
+	//
+	// It is harness-neutral on purpose. Every harness runs somewhere, and
+	// before this field the only way to say where was Instance.WorkingDir,
+	// which is shared by every session on that instance.
+	WorkingDir string `json:"working_dir,omitempty"`
+
 	// Spend ceiling. MaxBudgetUSD is the server-side cap on this session's
 	// derived API spend, set from CreateSessionRequest.MaxBudget at creation
 	// or POST /sessions/{id}/config later. SpendUSD is the session's spend
@@ -461,6 +473,16 @@ type CreateSessionRequest struct {
 	// it is created, which is the moment that matters for anything
 	// nobody is watching. POST /sessions/{id}/config can change it later.
 	MaxBudget *float64 `json:"max_budget,omitempty"`
+	// WorkingDir is the directory this session's harness runs in, stored as
+	// ManagedSession.WorkingDir and resolved at spawn ahead of the
+	// instance's own WorkingDir and the machine's DefaultWorkingDir. Empty
+	// inherits the instance, which is how every session behaved before this
+	// field existed.
+	//
+	// Creation is the only place it can be set: the directory is read once,
+	// when the harness process is spawned, so changing it afterwards would
+	// silently do nothing until the session was restarted.
+	WorkingDir string `json:"working_dir,omitempty"`
 }
 
 // SendMessageRequest is the request body for POST /sessions/{id}/send.

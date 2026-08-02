@@ -531,10 +531,26 @@ type CompactSessionRequest struct {
 }
 
 // ConfigSessionRequest is the request body for POST /sessions/{id}/config.
+//
+// DisabledTools carries no omitempty, and that is load-bearing rather than an
+// oversight. It is the whole set of names to exclude, not an addition to one,
+// so an empty list is how a caller re-enables every tool — a real request with
+// a real effect, and the opposite of saying nothing. omitempty cannot tell an
+// empty slice from a nil one and drops both, which erased exactly that request:
+// bridge-server's handleConfigSession decodes into this struct and re-marshals
+// it as "config:<json>", so `{"disabled_tools":[]}` reached the harness as `{}`.
+// Both receivers test the field for nil rather than for length — llm-bridge-jig's
+// handleConfig and inber's handleBridgeConfig, each with a comment explaining
+// why the distinction matters — and neither could ever see the value it was
+// written to distinguish. jig answered "config: payload sets nothing"; inber
+// answered "updated" and changed nothing.
+//
+// Without the tag a nil slice marshals to null, which decodes back to nil, so a
+// request that names no tool set still reads as absent at both ends.
 type ConfigSessionRequest struct {
 	Model         string   `json:"model,omitempty"`
 	Effort        string   `json:"effort,omitempty"`
-	DisabledTools []string `json:"disabled_tools,omitempty"`
+	DisabledTools []string `json:"disabled_tools"`
 	MaxBudget     *float64 `json:"max_budget,omitempty"`
 }
 

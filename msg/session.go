@@ -48,4 +48,19 @@ type StoredSession struct {
 	// inference. Mirrors ManagedSession.Source so it flows straight into
 	// LLMBRIDGE_SOURCE_FOLDERS bucketing.
 	Source string `json:"source,omitempty"`
+
+	// ParentHarnessSessionID is the HARNESS-native id of the session that
+	// spawned this one, when the on-disk layout records it. Claude Code writes
+	// a subagent to <project>/<parent-uuid>/subagents/agent-<task-id>.jsonl, so
+	// the parent's UUID is in the path and the adapter reports it here.
+	//
+	// It is a harness id, not a bridge id, because that is the only id the
+	// adapter has: it never sees bridge-server's session table. Bridge-server
+	// resolves it to a bridge_session_id and writes manager_session_id — it
+	// must NOT be stored as a lineage link unresolved, and it must not be
+	// matched by display name.
+	//
+	// Empty for a top-level session, which genuinely has no parent. Empty is
+	// therefore not "unknown", and a consumer must not guess one.
+	ParentHarnessSessionID string `json:"parent_harness_session_id,omitempty"`
 }

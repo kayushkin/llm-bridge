@@ -232,6 +232,20 @@ type PlanEvent struct {
 // call). ToolUseID is the harness-native tool id (e.g. Anthropic's
 // toolu_…) — the bridge server uses it to resolve the event back to the
 // containing message bubble and stamp MessageID/HarnessMessageID.
+//
+// TaskStatus / TaskSummary / TaskOutputFile are populated for the frames that
+// close a subagent task out ("task_updated", "task_notification"). A subagent
+// emits no result event of its own, so TaskStatus reaching a terminal value is
+// the ONLY signal that its session should stop being running — see
+// llm-bridge-server internal/harness/subagent.go. It is a required field of
+// those two subtypes in every practical sense: without it the event says
+// "something about a task changed" and names the task, which settles nothing.
+//
+// These exist because both the adapter and the bridge server were parsing the
+// harness's raw frame to recover the status — two independent readers of one
+// wire format, the second of which breaks silently when the harness renames a
+// field. Adapters populate these from whatever their harness calls them;
+// consumers read only these.
 type SystemEvent struct {
 	Subtype      string `json:"subtype"`
 	Message      string `json:"message,omitempty"`
@@ -244,6 +258,44 @@ type SystemEvent struct {
 	TaskID       string `json:"task_id,omitempty"`
 	Description  string `json:"description,omitempty"`
 	LastToolName string `json:"last_tool_name,omitempty"`
+
+	// TaskStatus is the task's lifecycle status, normalized across the
+	// subtypes that report it. Terminal values are TaskStatusCompleted,
+	// TaskStatusFailed and TaskStatusCancelled; TaskStatusInProgress is not
+	// terminal. An unrecognized value must be treated as non-terminal, so a
+	// status a harness adds later cannot settle a session by accident.
+	TaskStatus string `json:"task_status,omitempty"`
+	// TaskSummary is the subagent's own report of what it did, as the harness
+	// summarized it. This is what a UI should show when the task closes; it is
+	// the payload the whole notification exists to deliver.
+	TaskSummary string `json:"task_summary,omitempty"`
+	// TaskOutputFile is the path to the subagent's full transcript, when the
+	// harness writes one. Diagnostic: a consumer may link it, but must not
+	// require it, and must not read it to reconstruct the summary.
+	TaskOutputFile string `json:"task_output_file,omitempty"`
+}
+
+// Task lifecycle statuses carried on SystemEvent.TaskStatus.
+//
+// TaskStatusInProgress is deliberately not terminal: a task that is still
+// running must keep its session running.
+const (
+	TaskStatusInProgress = "in_progress"
+	TaskStatusCompleted  = "completed"
+	TaskStatusFailed     = "failed"
+	TaskStatusCancelled  = "cancelled"
+)
+
+// TaskStatusIsTerminal reports whether status means the task will produce no
+// further work. Unrecognized values are NOT terminal — a harness that invents
+// a new status must not silently settle a session that is still running.
+func TaskStatusIsTerminal(status string) bool {
+	switch status {
+	case TaskStatusCompleted, TaskStatusFailed, TaskStatusCancelled:
+		return true
+	default:
+		return false
+	}
 }
 
 // ApprovalEvent represents a permission request or response.

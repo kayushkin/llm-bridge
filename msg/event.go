@@ -259,6 +259,13 @@ type SystemEvent struct {
 	Description  string `json:"description,omitempty"`
 	LastToolName string `json:"last_tool_name,omitempty"`
 
+	// TaskType is what kind of background work the task is — see
+	// TaskTypeIsAgent. Only "task_started" carries it, so a consumer that needs
+	// it on the terminal frames must remember it from there.
+	TaskType string `json:"task_type,omitempty"`
+	// SubagentType is the agent role a subagent was spawned as ("Explore",
+	// "general-purpose", ...). Empty for a task that is not an agent.
+	SubagentType string `json:"subagent_type,omitempty"`
 	// TaskStatus is the task's lifecycle status, normalized across the
 	// subtypes that report it. Terminal values are TaskStatusCompleted,
 	// TaskStatusFailed and TaskStatusCancelled; TaskStatusInProgress is not
@@ -285,6 +292,39 @@ const (
 	TaskStatusFailed     = "failed"
 	TaskStatusCancelled  = "cancelled"
 )
+
+// Task kinds carried on SystemEvent.TaskType.
+//
+// A harness reports background work of several kinds through one task
+// vocabulary, and only some of it is an agent. A backgrounded shell command
+// gets the same task_started / task_notification frames a subagent does, so a
+// consumer that treats every task as an agent will mint a session for `sleep 2`
+// — which is exactly what happened on this host before TaskType was surfaced.
+//
+// Values observed in Claude Code 2.1.220.
+const (
+	TaskTypeLocalAgent    = "local_agent"    // a subagent (the Agent tool)
+	TaskTypeLocalWorkflow = "local_workflow" // a workflow subagent
+	TaskTypeRemoteAgent   = "remote_agent"   // an agent running elsewhere
+	TaskTypeLocalBash     = "local_bash"     // a backgrounded shell command — NOT an agent
+)
+
+// TaskTypeIsAgent reports whether a task kind is an agent that deserves its own
+// session.
+//
+// Unrecognized kinds are NOT agents. That direction is deliberate: promoting an
+// unknown kind mints a bogus session and links it into the management tree,
+// while declining one only omits a session that can still be recovered later
+// from the harness's own on-disk record. Callers should log an unrecognized
+// kind rather than pass over it silently, so a new one is visible.
+func TaskTypeIsAgent(taskType string) bool {
+	switch taskType {
+	case TaskTypeLocalAgent, TaskTypeLocalWorkflow, TaskTypeRemoteAgent:
+		return true
+	default:
+		return false
+	}
+}
 
 // TaskStatusIsTerminal reports whether status means the task will produce no
 // further work. Unrecognized values are NOT terminal — a harness that invents

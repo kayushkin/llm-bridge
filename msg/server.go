@@ -732,3 +732,22 @@ type SourceFolderApplyResult struct {
 	Mapping SourceFolderMapping `json:"mapping"`
 	Updated int64               `json:"updated"`
 }
+
+// Who controls a session's execution — the values of ManagedSession.ControlledBy.
+//
+// ControlledByBridge means bridge-server owns the process and may message,
+// resume or kill it. ControlledByHarness means the session is coupled to a
+// parent harness process and has no process of its own: a harness subagent
+// lives inside its parent, so "running with no process" is its normal state
+// between the parent's frames, not a fault to repair.
+//
+// Every resume / message / kill path must check this. Resuming a
+// harness-controlled session is actively destructive rather than merely
+// useless: bridge-server cannot resume what it did not spawn, so the harness
+// starts a FRESH agent, which replays the turn and runs tools unsupervised, and
+// the new session id overwrites the row's harness_session_id — destroying the
+// dedupe key discovery uses to converge on that row.
+const (
+	ControlledByBridge  = "bridge"
+	ControlledByHarness = "harness"
+)

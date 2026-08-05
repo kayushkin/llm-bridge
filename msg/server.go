@@ -35,7 +35,7 @@ const (
 // session for" lives on Purpose; the "who created it" identity lives on
 // Origin. The three are orthogonal:
 //
-//   - Type: interactive | autonomous | system | herald  (how it runs)
+//   - Type: interactive | autonomous | system | herald | external  (how it runs)
 //   - Purpose: chat, autoworker, conformance, subagent, ...  (what it does)
 //   - Origin: frontend-dash, autoworker, claudecode-adapter, ...  (who spawned it)
 //
@@ -67,7 +67,49 @@ const (
 	// distinct from autonomous so frontends can surface these as a "needs you"
 	// inbox rather than mixing them with fire-and-forget worker runs.
 	SessionTypeHerald SessionType = "herald"
+
+	// SessionTypeExternal: ran outside the bridge entirely, and the bridge
+	// imported it afterwards by scanning the harness's on-disk history (see
+	// the -discover path). Nobody POSTed /sessions for it, so there is no
+	// caller to have declared anything: no agent, no pid, no parent, no
+	// spend, and an origin of "discovery" rather than a service name.
+	//
+	// It exists because the alternative was guessing. Discovery cannot tell
+	// a `claude -p` one-shot from a human's terminal REPL, and for years it
+	// resolved that by filing both as interactive — a shell smoke test
+	// recorded as a human chat, and shown as one. External says the honest
+	// thing, which is that the bridge did not run this and does not know.
+	SessionTypeExternal SessionType = "external"
 )
+
+// sessionTypes is every valid SessionType. A type outside this set cannot be
+// stored honestly — nothing downstream knows how to gate, file, or render it
+// — so the server rejects it at create rather than persisting a value it will
+// have to guess about later.
+var sessionTypes = map[SessionType]bool{
+	SessionTypeInteractive: true,
+	SessionTypeAutonomous:  true,
+	SessionTypeSystem:      true,
+	SessionTypeHerald:      true,
+	SessionTypeExternal:    true,
+}
+
+// ValidSessionType reports whether t is a known session type. Empty is not
+// valid: "no type" and "some type we don't recognize" are both a caller that
+// failed to classify its own session, and neither should reach the table.
+func ValidSessionType(t SessionType) bool { return sessionTypes[t] }
+
+// SessionTypes returns every valid session type, for callers that need to
+// render or validate the set without importing the map.
+func SessionTypes() []SessionType {
+	return []SessionType{
+		SessionTypeInteractive,
+		SessionTypeAutonomous,
+		SessionTypeSystem,
+		SessionTypeHerald,
+		SessionTypeExternal,
+	}
+}
 
 // ManagedSession is a session as tracked by llm-bridge-server.
 // This is the server's lightweight session management entity, distinct from
@@ -81,7 +123,7 @@ const (
 //     event. Will move to adapter-private storage in Phase II.C.
 //
 // Classification fields (orthogonal — see SessionType doc for the model):
-//   - Type: interactive | autonomous | system | herald  (how it runs)
+//   - Type: interactive | autonomous | system | herald | external  (how it runs)
 //   - Purpose: chat, autoworker, conformance, subagent, ...  (what it does)
 //   - Origin: frontend-dash, autoworker, claudecode-adapter, ...  (who spawned it)
 type ManagedSession struct {
@@ -109,7 +151,7 @@ type ManagedSession struct {
 	HarnessConfig          json.RawMessage `json:"harness_config,omitempty"`            // opaque harness-specific config
 	Info                   *SessionInfo    `json:"info,omitempty"`                      // latest session info reported by the harness
 	FolderName             string          `json:"folder_name"`                         // user-assigned sidebar folder; empty = unfiled. NOT omitempty: the session-list SSE upsert frame is a full canonical session that clients shallow-merge, so a cleared folder must serialize as "" explicitly — otherwise omitempty drops the field and the merge keeps a stale folder (e.g. header stays "Reopen" after un-archive until reload).
-	Type                   SessionType     `json:"type"`                                // how this session runs (interactive | autonomous | system); required
+	Type                   SessionType     `json:"type"`                                // how this session runs; required, and rejected at create unless it is one of the values on SessionType
 	Purpose                string          `json:"purpose"`                             // what this session is for (chat, autoworker, conformance, subagent, ...); required
 	Origin                 string          `json:"origin"`                              // which service/script created this session (frontend-dash, autoworker, claudecode-adapter, ...); required
 	Mode                   SessionMode     `json:"mode,omitempty"`                      // I/O mode picked at creation; empty = events (legacy default)
@@ -454,12 +496,25 @@ type ConformanceMatrix struct {
 // Type, Purpose, Origin classify the session along three orthogonal axes.
 // All three are required:
 //
-//   - Type:    interactive | autonomous | system  (how it runs)
+//   - Type:    interactive | autonomous | system | herald | external  (how it runs)
 //   - Purpose: chat, autoworker, conformance, subagent, ...  (what it does)
 //   - Origin:  frontend-dash, autoworker, claudecode-adapter, ...  (who spawned it)
 //
+// Type and Origin are enforced: the server answers 400 invalid_session_type
+// for a type outside the list above, and 400 missing_origin for an absent
+// origin. Neither can be reconstructed once the caller is gone, and for years
+// the absence of this check let unclassified sessions accumulate until a
+// startup migration guessed at them and turned shell one-shots into human
+// chats.
+//
+// Purpose is checked against the registry in purpose.go but never rejected —
+// a new caller inventing a slug is how that list grows, so an unregistered
+// purpose is stored, logged, and reported by session-taxonomy-guard. Keep it
+// a category: what a particular run is about belongs in DisplayName.
+//
 // The server persists Purpose on the session and may auto-assign a folder
-// based on the value (see LLMBRIDGE_PURPOSE_FOLDERS).
+// based on it. The folder comes from the registry, overridable per purpose by
+// the source_folders table and by LLMBRIDGE_PURPOSE_FOLDERS.
 type CreateSessionRequest struct {
 	Harness       Harness         `json:"harness"`
 	SessionID     string          `json:"session_id,omitempty"`

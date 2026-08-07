@@ -84,8 +84,12 @@ Tier A. They parse local JSONL today; swapping that to an SSE subscription on ll
 **Second PR — `BloopAI/vibe-kanban`.**
 Tier B. Tagline is literally "any coding agent" — value-prop fits without explanation. 538 PRs merged in 90 days = high throughput, fast reviews, low ceremony. Risk: that velocity also means our PR could land underbaked; we should ship it polished.
 
+> ⛔ **This target is DEAD. Do not act on the paragraph above.** vibe-kanban merged its own shutdown on 2026-04-24 and has merged **0 PRs in the 90 days since**. See "Re-validation 2026-08-07 — Tier B" below for the measurement and for the replacement shortlist.
+
 **Backup / third — `smtg-ai/claude-squad`.**
 Tier B, small team (14 contributors), careful review (9 PRs merged/90d). Exact use-case match — they already maintain Claude Code + Codex + OpenCode drivers. If either of the above drags, swap this in. Strong candidate for the highest-quality conversation but slowest cycle.
+
+> ⛔ **Ruled out on architecture, twice (2026-06-04, re-confirmed 2026-08-07).** They do not maintain drivers — an agent is a shell string, and agent state is `strings.Contains` over a `tmux capture-pane` screen-scrape. There is nothing for `msg.Event` to map onto. Also carries a CLA granting irrevocable relicensing rights. See below.
 
 ## Re-validation 2026-08-07 — ccusage (Tier A #1)
 
@@ -163,6 +167,128 @@ The draft has been re-aimed in `.local/outreach/ccusage-discovery-issue.md`; pos
 still the owner's call, and it is now a single cheap action with a clear success signal
 (`lgtmi`).
 
+## Re-validation 2026-08-07 — Tier B (the #2 slot)
+
+Measured against the live GitHub API and against each candidate's source on 2026-08-07 by
+the nightly worker. Companion to the ccusage section above, run the same night. Full
+evidence, per-repo, in noteboard note `fdd9ebd4-1417-45cd-99bf-0effc5fe587c`.
+
+**ccusage landed "target alive, plan dead". This one lands the other way: the Tier B target
+is genuinely dead, and the replacement had to be found.**
+
+### The #2 slot was empty, and nobody had said so in this document
+
+- `BloopAI/vibe-kanban` — **dead.** Last push 2026-04-24; **0 PRs merged in the 90 days
+  since**; 151 open PRs stranded; last release 2026-04-24. Its final four commits were its
+  own shutdown (`Sunset project routes to export-only page` #3387, `Add README sunsetting
+  banner` #3388). Not archived, so a naive liveness check still passes. No successor — the
+  whole `BloopAI` org's next-most-recent repo was pushed 2026-03-13.
+- `smtg-ai/claude-squad` — the designated backup, **ruled out on architecture in June and
+  re-confirmed unchanged today** against HEAD `2dd388e`. `net/http` appears zero times; an
+  agent is a shell string; agent state is `(updated bool, hasPrompt bool)` from
+  `strings.Contains` over `tmux capture-pane` output. Its `cs serve` RFC (PR #283) has been
+  an untouched draft for 15 months — `updatedAt` is 11 seconds after `createdAt`.
+
+⚠️ **vibe-kanban was the right target for the right reason, and that reason still holds.**
+Its `crates/executors/` was a real per-agent executor abstraction — the exact seam an
+additive backend slots into. The *fit* was never wrong; the company stopped. So the shape
+to hunt for is unchanged, and the shortlist below is ranked on it.
+
+### Candidates measured (merged-PR window 2026-05-09 → 2026-08-07)
+
+| repo | ★ | merged/90d | authors | licence | verdict |
+|---|---:|---:|---:|---|---|
+| slopus/happy | 23,205 | 39 | 6 | MIT | **GOOD** |
+| dexloom/vibe-kanban-indie | 51 | 12 | 2 | Apache-2.0 | **GOOD** |
+| awslabs/cli-agent-orchestrator | 1,006 | 192 | 31 | Apache-2.0 | MARGINAL |
+| iOfficeAI/AionUi (+ AionCore) | 31,653 | 504 | many | Apache-2.0 | POOR — competitor |
+| omnigent-ai/omnigent | 8,250 | 2,450 | 18 | Apache-2.0 | ⛔ COMPETITOR |
+| farion1231/cc-switch | 125,396 | 150 | many | MIT | POOR |
+| smtg-ai/claude-squad | 8,247 | 8 | 6 | AGPL + CLA | POOR |
+| BloopAI/vibe-kanban | 27,693 | **0** | 0 | Apache-2.0 | DEAD |
+
+Excluded on licence or velocity: `golutra/golutra` (0 merges/90d, no detectable licence),
+`dcouple/Pane` (no detectable licence), `Enderfga/claw-orchestrator` (3 merges/90d),
+`mco-org/mco` (23 merges/90d, 21 by one author), `TechDufus/openkanban` (0 merges/90d),
+`kagan-sh/kagan-legacy` (3 merges/90d, "legacy" in the name).
+
+### ⛔ Two candidates are competitors, not targets — this is new information
+
+**`omnigent-ai/omnigent` is Databricks** (`pyproject.toml:12-14`; `.github/MAINTAINER`
+lists Matei Zaharia). In eight weeks it has built 1.06M lines of Python containing an
+`Executor` interface with **25 concrete drivers**, a canonical `ExecutorEvent` hierarchy,
+the full lifecycle including cross-harness fork and live `switch-agent`, a declared
+per-harness capability matrix, and a conformance probe suite. Its ACP adapter docstring
+(`omnigent/inner/acp_executor.py:36-38`) states our thesis as their implementation:
+*"This executor translates the ACP event stream into Omnigent `ExecutorEvent`s."*
+
+**`iOfficeAI/AionCore`** (the Rust backend behind the AionUi frontend) is the same story at
+385k lines: `SessionBackend` / `BackendConnection` traits, a `SessionEvent` enum, capability
+negotiation, ~40 agents. Header comment: *"the only thing that crosses the seam is `Command`
+down and `SessionEnvelope` up."*
+
+Neither is a place to add a backend; both would nest a second normalization layer under an
+existing one.
+
+### 🔑 The finding that may outrank this whole document: ACP
+
+Four independent audits converged on Agent Client Protocol without being asked:
+
+- **omnigent** will drive any ACP-over-stdio process from a user's config file — **zero code
+  in their repo** (`docs/AGENT_YAML_SPEC.md:172-190`).
+- **happy** ships `happy acp -- <any-command>` — **zero upstream change**
+  (`packages/happy-cli/src/agent/acp/acpAgentConfig.ts:17-53`).
+- **AionCore** serves ~35 of ~40 agents through one generic ACP driver; adding one is a
+  **43-line SQL migration**.
+- **vibe-kanban-indie** routes Gemini/Copilot/Qwen through an `AcpAgentHarness` rather than
+  scraping stdout.
+
+**If llm-bridge exposed an ACP-over-stdio surface, three of those would be able to drive it
+with no PR at all.** Compare the bespoke route's measured cost: ~1,700–2,900 lines across
+24–34 files for an awslabs provider; 1.5k–4k Rust lines for an AionCore backend. This is a
+product decision about what llm-bridge *is*, so it is filed as its own todo and is
+deliberately not folded into the Tier B pick. The two are not exclusive.
+
+### Recommendation — the pick is the owner's
+
+**Option 1 — `slopus/happy`.** Best governance measured anywhere here: no CLA, no DCO,
+**86.2% of all 130 merged PRs externally authored** across 56 authors, 2-day median merge,
+and entire agent backends contributed by outsiders (#1430, #376). A maintainer (`ex3ndr`,
+top contributor, 847 commits) has already invited exactly this on **issue #217**: *"We are
+pretty much happy to accept if someone will contribute this!"* There is a template to copy —
+`OpenClawBackend` (`src/openclaw/OpenClawBackend.ts:57`) is already a remote-gateway,
+non-subprocess driver behind `--gateway-url` flags, which is precisely our shape. Its E2E
+encryption turns out to be orthogonal: it applies on the client↔server axis only, so an
+agent-side driver is crypto-neutral. Serves goals #2 and #3.
+*Risks:* the envelope we would map onto is marked *"UNDER REVIEW… frozen. Do not add new
+consumers"*; `AgentRegistry` is dead code so registration is a ~10-file shotgun edit; 366
+open PRs behind one maintainer who merges 83% of everything.
+
+**Option 2 — `dexloom/vibe-kanban-indie`.** A deliberate post-sunset continuation of
+vibe-kanban (forked 2026-05-13 from upstream's final commit; 315 commits since; new TUI,
+macOS app and Telegram bridge; 26 npm releases, latest 2026-08-05). It carries the
+`StandardCodingAgentExecutor` seam **and has extended it twice** — `ClaudeCodeHeaded`
+(`dffe1165`) and `OpencodeHeaded` (`4e387576`) are new executors added by the fork. There is
+a protocol-client precedent to copy (`AcpAgentHarness`) and a normalized `NormalizedEntry`
+type to map onto. **200–350 LOC**, the smallest PR of any candidate. Apache-2.0, same as
+ours. Serves goal #1 at the lowest cost.
+*Risks:* 51 stars, so goal #3 is barely served; **issues are disabled**, so step 1 of the
+outreach playbook below (open a discovery issue first) is impossible here — contact must be
+a direct PR or email; four of five recent PRs merged with no review.
+
+They are not exclusive: Option 2 is cheap enough to be the proof-of-concept that de-risks
+Option 1.
+
+**`awslabs/cli-agent-orchestrator` is a genuine maybe-later.** Green governance (no CLA, no
+samples-only notice, three outsiders have merged whole providers) and a real `BaseProvider`
+ABC with nine implementations — but its data contract is a 6-value `TerminalStatus` enum
+plus a string, scraped by regex from a tmux pane. `grep` for
+`stream-json|jsonl|json.loads|--output-format` across `providers/` returns zero hits; it
+drives even Hermes, an HTTP/SSE agent, by scraping its terminal. We would have to render
+`msg.Event` into a fake TUI for them to regex back out. If ever pursued, the honest framing
+is "add a structured-output path to `BaseProvider`", arguing from the existing
+`_resolve_native_status()` hook — a design conversation, not a drive-by PR.
+
 ## License notes
 
 llm-bridge is **Apache-2.0**. Compatibility with the three locked targets:
@@ -170,6 +296,8 @@ llm-bridge is **Apache-2.0**. Compatibility with the three locked targets:
 - **ccusage (MIT)** — fully compatible. Note: GitHub's license classifier shows "Other" but the LICENSE file is standard MIT.
 - **vibe-kanban (Apache-2.0)** — same as ours. Trivial.
 - **claude-squad (AGPL-3.0)** — fine for what we're doing. Our PR contribution becomes AGPL (theirs to keep). llm-bridge stays Apache-2.0 because they're consuming it as a network service / library, not the other way around. Two cautions: (a) never paste claude-squad code into our Apache-2.0 repos; (b) check their CONTRIBUTING.md for a CLA before opening a PR.
+
+  > ⚠️ **Caution (b) resolved on 2026-08-07, and the answer is worse than "there is a CLA".** `CLA.md` grants the maintainers a **perpetual, irrevocable** licence to relicense contributions "under any license terms", with an explicit Relicensing Rights clause, enforced automatically by `contributor-assistant` on `pull_request_target`. Contributing there means signing away any say in how the contribution is later licensed. Moot while the target is ruled out on architecture, but it is the kind of term that should be read before any future AGPL target too.
 
 ## Selection criteria (for posterity / future waves)
 

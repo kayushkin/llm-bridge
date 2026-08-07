@@ -249,6 +249,16 @@ with no PR at all.** Compare the bespoke route's measured cost: ~1,700–2,900 l
 product decision about what llm-bridge *is*, so it is filed as its own todo and is
 deliberately not folded into the Tier B pick. The two are not exclusive.
 
+⚠️ **Both things this section left unmeasured are now measured — see `ACP-SURFACE.md`
+(2026-08-07), and read it before pricing this.** Two results narrow the claim above. The four
+consumers agree on the protocol version integer and on a **four-variant core**
+(`agent_message_chunk`, `agent_thought_chunk`, `tool_call`, `tool_call_update`) and disagree
+past it — two of them reject frames that are standard v1 today. And of this repo's 19
+`msg.EventType` values, **nine have an ACP v1 carrier and five reach all four consumers**;
+`session_state`, the cache-token counters, `stopReason` and `msg.PlanEvent` have none. The
+surface is real, but what crosses it is a text/thought/tool stream, not the normalization
+this project is built on. Nothing about the decision itself was answered.
+
 ### Recommendation — the pick is the owner's
 
 **Option 1 — `slopus/happy`.** Best governance measured anywhere here: no CLA, no DCO,

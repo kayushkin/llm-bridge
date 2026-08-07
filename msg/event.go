@@ -519,7 +519,7 @@ const (
 	HookSourcePermission = "permission_prompt"
 
 	// HookSourceUserInput is a structured user-input solicitation (e.g.
-	// Claude Code's AskUserQuestion tool, ACP request_user_input). The
+	// Claude Code's AskUserQuestion tool, ACP's elicitation/create). The
 	// model is asking the human a question — the "allow" path carries the
 	// answers in UpdatedInput, so bypass/auto-allow does not apply and
 	// the request always parks for human resolution. UI renders a form.
@@ -545,7 +545,9 @@ const (
 //     resolver is human (or shell or auto) per the bridge's settings.
 //  4. User-input solicitation (Source="user_input") — the model is asking the
 //     human a structured question (Claude Code's AskUserQuestion tool,
-//     ACP's request_user_input). The "allow" verdict carries the answers in
+//     ACP's elicitation/create — capability-gated behind elicitation.form or
+//     elicitation.url, and implemented by none of the four ACP clients
+//     surveyed in ACP-SURFACE.md). The "allow" verdict carries the answers in
 //     UpdatedInput; deny surfaces the model-visible "user declined" branch.
 //     Bypass/auto-allow does not apply — these always park for a human.
 //

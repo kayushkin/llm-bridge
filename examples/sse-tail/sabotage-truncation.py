@@ -116,10 +116,14 @@ MUTATIONS = [
 ]
 
 
-def run_tests():
-    """Run the package tests. Returns (built, output)."""
+def run_tests(only=None):
+    """Run the package tests, or one named test. Returns (built, output)."""
+    cmd = ["go", "test", "-count=1"]
+    if only:
+        cmd += ["-run", "^" + only + "$"]
+    cmd.append(PACKAGE)
     proc = subprocess.run(
-        ["go", "test", "-count=1", PACKAGE],
+        cmd,
         capture_output=True,
         text=True,
     )
@@ -133,6 +137,43 @@ def run_tests():
 def failing_tests(output):
     """Test names that went red, so a row reports which test did the catching."""
     return sorted(set(re.findall(r"^\s*--- FAIL: (\S+)", output, re.M)))
+
+
+def top_level_tests():
+    """Every Test function in the package, from the toolchain rather than a grep."""
+    proc = subprocess.run(
+        ["go", "test", "-list", ".*", PACKAGE], capture_output=True, text=True
+    )
+    return [
+        line.strip()
+        for line in (proc.stdout + proc.stderr).splitlines()
+        if line.startswith("Test")
+    ]
+
+
+def complete_red_set(output):
+    """The tests a mutation reddens, with the panic blind spot closed.
+
+    A panic aborts the whole test binary, so every test ordered after the
+    panicking one never runs and cannot appear in a red set read off a single
+    package run. That understates coverage: the row prints a short list and any
+    claim read off it says "these tests do not catch this", which is wrong.
+
+    The fix is the same shape as re-running a red baseline: when a panic is
+    seen, run each test on its own so one crash cannot hide the others.
+
+    Returns (names, was_truncated).
+    """
+    reds = failing_tests(output)
+    if "panic:" not in output:
+        return reds, False
+
+    complete = set(reds)
+    for name in top_level_tests():
+        _, out = run_tests(only=name)
+        if failing_tests(out) or "panic:" in out:
+            complete.add(name)
+    return sorted(complete), True
 
 
 def panic_frames(output):
@@ -311,7 +352,7 @@ def main():
             open(SOURCE, "w").write(original.replace(m.old, m.new, 1))
             built, out = run_tests()
             verdict = classify(out, built)
-            reds = failing_tests(out)
+            reds, truncated = complete_red_set(out)
             rows.append((m, verdict, reds))
 
             want = "CAUGHT" if m.real else "UNNOTICED"
@@ -319,7 +360,8 @@ def main():
             print(f"{verdict:14s} {m.name}")
             print(f"               want {want}  {'ok' if ok else '<-- WRONG'}")
             if reds:
-                print(f"               red: {', '.join(reds)}")
+                note = " (completed per-test; a panic had hidden the rest)" if truncated else ""
+                print(f"               red: {', '.join(reds)}{note}")
             print(f"               {m.note}\n")
     finally:
         open(SOURCE, "w").write(original)

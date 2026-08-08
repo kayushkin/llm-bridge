@@ -16,6 +16,15 @@ import (
 // pick the other one passes against a plain byte cut.
 const gClef = "\U0001D11E"
 
+// reachGuard marks a failure meaning the TEST could not reach the code it
+// claims to exercise — a broken fixture, not a defect in the code under test.
+//
+// The sabotage scorer keys on this prefix to tell a reach-guard firing from an
+// assertion firing. Without the distinction a mutation that merely breaks the
+// fixture scores as "caught", which inflates the score: the suite would be
+// credited with detecting a defect when all it detected was itself.
+const reachGuard = "REACH-GUARD: "
+
 // straddleInput holds ASCII on both sides of a run of four-byte runes, so
 // sliding a budget across it produces both straddling and aligned cuts.
 func straddleInput() string {
@@ -73,7 +82,7 @@ func TestTruncateNeverSplitsARune(t *testing.T) {
 	// A loop is a claim that a range was covered, and nothing checks that
 	// claim unless it is written down.
 	if straddled == 0 {
-		t.Fatalf("no budget in 1..%d straddled a rune — the input or the loop is wrong, "+
+		t.Fatalf(reachGuard+"no budget in 1..%d straddled a rune — the input or the loop is wrong, "+
 			"so this test proved nothing", len(input))
 	}
 	t.Logf("%d of %d budgets straddled a rune", straddled, len(input))
@@ -100,7 +109,7 @@ func TestTruncateAtAnAlignedBudgetIsUnchanged(t *testing.T) {
 	}
 
 	if checked == 0 {
-		t.Fatal("no aligned budget was exercised — the control proved nothing")
+		t.Fatal(reachGuard + "no aligned budget was exercised — the control proved nothing")
 	}
 	t.Logf("%d aligned budgets held", checked)
 }
@@ -144,7 +153,7 @@ func TestRenderedToolResultStaysValidUTF8(t *testing.T) {
 	// offset: 118 bytes of ASCII, then the rune spanning bytes 118..121.
 	output := strings.Repeat("x", 118) + gClef + strings.Repeat("y", 40)
 	if !cutStraddlesARune(output, 120) {
-		t.Fatalf("fixture does not straddle offset 120 — the test would prove nothing")
+		t.Fatalf(reachGuard + "fixture does not straddle offset 120 — the test would prove nothing")
 	}
 
 	ev := msg.Event{
@@ -153,7 +162,7 @@ func TestRenderedToolResultStaysValidUTF8(t *testing.T) {
 	}
 	data, err := json.Marshal(ev)
 	if err != nil {
-		t.Fatalf("marshal fixture: %v", err)
+		t.Fatalf(reachGuard+"marshal fixture: %v", err)
 	}
 
 	got := captureStdout(t, func() { render(string(data), "sess-1") })
@@ -170,7 +179,7 @@ func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 	r, w, err := os.Pipe()
 	if err != nil {
-		t.Fatalf("os.Pipe: %v", err)
+		t.Fatalf(reachGuard+"os.Pipe: %v", err)
 	}
 	saved := os.Stdout
 	os.Stdout = w
@@ -184,11 +193,11 @@ func captureStdout(t *testing.T, fn func()) string {
 
 	fn()
 	if err := w.Close(); err != nil {
-		t.Fatalf("close pipe writer: %v", err)
+		t.Fatalf(reachGuard+"close pipe writer: %v", err)
 	}
 	out := <-done
 	if err := r.Close(); err != nil {
-		t.Fatalf("close pipe reader: %v", err)
+		t.Fatalf(reachGuard+"close pipe reader: %v", err)
 	}
 	return out
 }

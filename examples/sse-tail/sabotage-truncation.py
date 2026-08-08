@@ -22,6 +22,7 @@ Run from the directory holding main.go:  python3 sabotage-truncation.py
 
 import os
 import re
+import signal
 import subprocess
 import sys
 
@@ -328,6 +329,34 @@ def main():
 
     original = open(SOURCE).read()
 
+    # The source above holds a deliberately broken version of itself from the
+    # write in the loop below until the restore after the suite runs. The
+    # try/finally covers the ways out this function chooses to take -- and it
+    # covers SIGINT too, because Python raises KeyboardInterrupt for that one and
+    # the finally is on the way out. It covers nothing else. Measured across all
+    # five scorers in this sweep: SIGTERM and SIGHUP kill the process between the
+    # write and the restore, leaving the mutated file behind as ordinary-looking
+    # uncommitted work -- a semantic edit to a tracked source file, which
+    # `git status` reports the same way it reports real work in progress, and
+    # which this box's standing rule tells the next agent not to throw away.
+    #
+    # So the one signal a finally covers is the one you press by hand while
+    # watching, and the ones it misses are exactly what a wall-clock cap, systemd
+    # and a process-group kill send at an unattended run. A finally reads as
+    # covered and, checked the obvious way with Ctrl-C, tests as covered.
+    #
+    # SIGKILL cannot be caught by the process that receives it. It is the one gap
+    # left here, and it is named rather than papered over.
+    previous_handlers = {}
+
+    def restore_and_reraise(signum, frame):
+        open(SOURCE, "w").write(original)
+        signal.signal(signum, previous_handlers[signum])
+        os.kill(os.getpid(), signum)
+
+    for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        previous_handlers[sig] = signal.signal(sig, restore_and_reraise)
+
     built, out = run_tests()
     if not built:
         sys.exit("baseline does not build:\n" + out)
@@ -365,6 +394,8 @@ def main():
             print(f"               {m.note}\n")
     finally:
         open(SOURCE, "w").write(original)
+        for sig, handler in previous_handlers.items():
+            signal.signal(sig, handler)
 
     # A clean tree is not the same claim as the fix still being present.
     restored = open(SOURCE).read()

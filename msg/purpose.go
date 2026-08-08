@@ -76,9 +76,15 @@ var purposeSpecs = []PurposeSpec{
 		Name: PurposeConformance,
 		Type: SessionTypeSystem,
 		// The bridge runs these, but a probe that leaked into the harness's
-		// own history is re-found by discovery and attributed to the adapter
-		// that found it. Both are true origins for a conformance session.
-		Origins: []string{"llm-bridge-server", "llm-bridge-claudecode", "llm-bridge-codex"},
+		// own history is re-found by discovery, which records itself as the
+		// origin because it is what created the row. All four are true
+		// origins for a conformance session.
+		//
+		// This list used to end at the adapters, on the since-corrected
+		// belief that a re-found probe was attributed to the adapter that
+		// found it. It is not, and has not been since discovery started
+		// classifying its imports honestly.
+		Origins: []string{"llm-bridge-server", "llm-bridge-claudecode", "llm-bridge-codex", OriginDiscovery},
 		Folder:  "Conformance",
 		Summary: "Harness conformance probe run by the bridge itself.",
 	},
@@ -173,9 +179,13 @@ var purposeSpecs = []PurposeSpec{
 		Summary: "Decomposes a goal card into sub-cards.",
 	},
 	{
-		Name:    PurposeSubagent,
-		Type:    SessionTypeSystem,
-		Origins: []string{"llm-bridge-claudecode", "llm-bridge-codex"},
+		Name: PurposeSubagent,
+		Type: SessionTypeSystem,
+		// Discovery belongs here for the same reason it belongs on
+		// conformance: a subagent is recognisable from the on-disk rollout
+		// layout, so one that ran before the bridge saw its parent is
+		// imported with this purpose and an origin of "discovery".
+		Origins: []string{"llm-bridge-claudecode", "llm-bridge-codex", OriginDiscovery},
 		Folder:  "Subagents",
 		Summary: "Subagent spawned by a parent harness through its Task tool.",
 	},

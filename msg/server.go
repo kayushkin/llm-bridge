@@ -448,12 +448,20 @@ type SessionCounts struct {
 type ConformanceFeature string
 
 // ConformanceTestResult records the outcome of a single feature test.
+//
+// Passed, Skipped and Unsupported are three different answers and a reader must
+// not collapse them. Skipped means the test never ran. Unsupported means it ran,
+// the harness answered, and it does not do this — a fact about the harness, not
+// a defect in it. Failed (Passed false with neither flag) means it ran and the
+// harness got it wrong. Grading Unsupported as Failed is what made a scaffold
+// and a broken harness read alike on the matrix.
 type ConformanceTestResult struct {
-	Feature  ConformanceFeature `json:"feature"`
-	Passed   bool               `json:"passed"`
-	Skipped  bool               `json:"skipped,omitempty"`
-	Error    string             `json:"error,omitempty"`
-	Duration string             `json:"duration,omitempty"`
+	Feature     ConformanceFeature `json:"feature"`
+	Passed      bool               `json:"passed"`
+	Skipped     bool               `json:"skipped,omitempty"`
+	Unsupported bool               `json:"unsupported,omitempty"`
+	Error       string             `json:"error,omitempty"`
+	Duration    string             `json:"duration,omitempty"`
 }
 
 // ConformanceHarnessResult records all test results for a single harness.
@@ -465,12 +473,15 @@ type ConformanceHarnessResult struct {
 	Summary  ConformanceSummary      `json:"summary"`
 }
 
-// ConformanceSummary counts test outcomes.
+// ConformanceSummary counts test outcomes. The four counts are disjoint and sum
+// to Total, so Unsupported has to be its own column rather than folded into
+// Failed — see ConformanceTestResult.
 type ConformanceSummary struct {
-	Total   int `json:"total"`
-	Passed  int `json:"passed"`
-	Failed  int `json:"failed"`
-	Skipped int `json:"skipped"`
+	Total       int `json:"total"`
+	Passed      int `json:"passed"`
+	Failed      int `json:"failed"`
+	Skipped     int `json:"skipped"`
+	Unsupported int `json:"unsupported"`
 }
 
 // ConformanceMatrix holds conformance results for all tested harnesses.

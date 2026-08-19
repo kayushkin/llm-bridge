@@ -153,3 +153,52 @@ func TestValidSessionType(t *testing.T) {
 		t.Error("\"chat\" is a purpose, not a type, and must not validate")
 	}
 }
+
+// TestSessionTypesListsEveryValidType checks the direction TestValidSessionType
+// cannot.
+//
+// TestValidSessionType loops the list SessionTypes returns, so a type dropped
+// from that list is simply one iteration fewer and the run stays green.
+// Measured: removing SessionTypeHerald from SessionTypes leaves the whole
+// package passing, while sessionTypes still accepts "herald" — exactly the
+// disagreement SessionTypes exists to prevent, since its callers render the set
+// without importing the map.
+func TestSessionTypesListsEveryValidType(t *testing.T) {
+	listed := map[SessionType]bool{}
+	for _, ty := range SessionTypes() {
+		listed[ty] = true
+	}
+	for ty := range sessionTypes {
+		if !listed[ty] {
+			t.Errorf("%q is accepted by ValidSessionType but missing from SessionTypes, so callers that render the set without the map never offer it", ty)
+		}
+	}
+	if len(listed) != len(sessionTypes) {
+		t.Errorf("SessionTypes returned %d distinct types, sessionTypes holds %d", len(listed), len(sessionTypes))
+	}
+}
+
+// TestSessionTypeSetIsTheExpectedOne pins the values themselves.
+//
+// The two tests above compare the list against the map. Both are derived from
+// the same declarations, so they agree with each other no matter what those
+// declarations say: rename "herald" to "harold" in both and neither reddens.
+// This expectation is a literal the test owns, so it does not move when the
+// source does. Adding a type here is a deliberate edit; that is the point.
+func TestSessionTypeSetIsTheExpectedOne(t *testing.T) {
+	expected := []SessionType{"interactive", "autonomous", "system", "herald", "external"}
+
+	actual := map[SessionType]bool{}
+	for _, ty := range SessionTypes() {
+		actual[ty] = true
+	}
+	for _, ty := range expected {
+		if !actual[ty] {
+			t.Errorf("session type %q is no longer offered by SessionTypes", ty)
+		}
+		delete(actual, ty)
+	}
+	for ty := range actual {
+		t.Errorf("SessionTypes offers %q, which this test was not told about", ty)
+	}
+}

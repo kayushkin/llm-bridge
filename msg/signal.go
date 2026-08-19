@@ -41,6 +41,17 @@ type Signal struct {
 	// AllowFreeform reports whether the resolve verb accepts a typed answer
 	// instead of (or alongside) one of Options. Questions only.
 	AllowFreeform bool `json:"allow_freeform,omitempty"`
+	// AllowMultipleOptions reports whether more than one of Options may be
+	// picked at once. Questions only.
+	//
+	// It is a property of the QUESTION, not of the producer that raised it:
+	// AskUserQuestion sets it from its own multiSelect flag, and the derived
+	// classifier leaves it false because it mints one-of-these questions. A
+	// renderer needs it because the record is now what the answer form is
+	// drawn from — without it a multi-select question renders as radio
+	// buttons and the human can only send back one of the answers the model
+	// asked for.
+	AllowMultipleOptions bool `json:"allow_multiple_options,omitempty"`
 
 	// Answer is filled in when a question is answered. Nil while open.
 	Answer *SignalAnswer `json:"answer,omitempty"`

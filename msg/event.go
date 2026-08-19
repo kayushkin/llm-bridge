@@ -245,7 +245,8 @@ type PlanEvent struct {
 // harness's raw frame to recover the status — two independent readers of one
 // wire format, the second of which breaks silently when the harness renames a
 // field. Adapters populate these from whatever their harness calls them;
-// consumers read only these.
+// consumers read only these. The one exception is SubagentSessionID, which
+// names a bridge session and so can only come from the server that mints it.
 type SystemEvent struct {
 	Subtype      string `json:"subtype"`
 	Message      string `json:"message,omitempty"`
@@ -266,6 +267,19 @@ type SystemEvent struct {
 	// SubagentType is the agent role a subagent was spawned as ("Explore",
 	// "general-purpose", ...). Empty for a task that is not an agent.
 	SubagentType string `json:"subagent_type,omitempty"`
+	// SubagentSessionID is the bridge session id of the subagent this task
+	// spawned — the id a client follows to read what the subagent did.
+	//
+	// The bridge SERVER owns this field and is the only thing that may set it:
+	// it mints the session, so it is the only party that knows the id. An
+	// adapter must leave it empty — a harness only ever knows its own native
+	// task id, and a client that joined on that name instead would be matching
+	// on a harness-scoped string rather than the id the session store handed
+	// out.
+	//
+	// Empty means no session, which is a real answer and not a gap to paper
+	// over: a backgrounded shell task never gets one (see TaskTypeIsAgent).
+	SubagentSessionID string `json:"subagent_session_id,omitempty"`
 	// TaskStatus is the task's lifecycle status, normalized across the
 	// subtypes that report it. Terminal values are TaskStatusCompleted,
 	// TaskStatusFailed and TaskStatusCancelled; TaskStatusInProgress is not

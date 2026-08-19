@@ -30,6 +30,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/kayushkin/llm-bridge/msg"
 )
@@ -167,9 +168,35 @@ func render(data, id string) {
 func truncate(s string, n int) string {
 	s = strings.ReplaceAll(s, "\n", " ")
 	if len(s) > n {
-		return s[:n] + "…"
+		return truncateAtRuneBoundary(s, n) + "…"
 	}
 	return s
+}
+
+// truncateAtRuneBoundary returns the longest prefix of s that is at most
+// maxBytes long and does not split a rune.
+//
+// Cutting a string at a fixed byte offset splits whatever rune straddles that
+// offset, and the result is not valid UTF-8. Nothing reports it: encoding/json
+// substitutes U+FFFD rather than returning an error, so a reader sees a
+// replacement character and no error is raised anywhere along the path.
+//
+// The ellipsis is the caller's, and it sits outside maxBytes — this function
+// changes where the cut lands, not what the budget covers.
+func truncateAtRuneBoundary(s string, maxBytes int) string {
+	if maxBytes <= 0 {
+		return ""
+	}
+	if len(s) <= maxBytes {
+		return s
+	}
+	// s[cut] is the first byte past the prefix. While it is a continuation
+	// byte, a rune straddles the cut, so move the cut earlier.
+	cut := maxBytes
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
 }
 
 func fail(format string, args ...any) {

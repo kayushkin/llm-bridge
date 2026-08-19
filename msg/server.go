@@ -484,6 +484,57 @@ type ConformanceSummary struct {
 	Unsupported int `json:"unsupported"`
 }
 
+// Verdict names the outcome in one word, so callers do not each re-derive it
+// from three booleans and disagree about the precedence.
+//
+// Skipped stays first: a test that reached no verdict cannot also report one.
+// Unsupported comes before Passed so a result carrying both counts as the
+// narrower claim.
+func (r ConformanceTestResult) Verdict() string {
+	switch {
+	case r.Skipped:
+		return "skipped"
+	case r.Unsupported:
+		return "unsupported"
+	case r.Passed:
+		return "passed"
+	default:
+		return "failed"
+	}
+}
+
+// AddResult records one feature test and keeps Summary consistent with
+// Results. It lives on the type rather than in a runner because the four
+// counts are an invariant of the shape — disjoint, and summing to Total — and
+// a caller that appends to Results by hand silently breaks it.
+func (hr *ConformanceHarnessResult) AddResult(r ConformanceTestResult) {
+	hr.Results = append(hr.Results, r)
+	hr.Summary.Total++
+	switch r.Verdict() {
+	case "skipped":
+		hr.Summary.Skipped++
+	case "unsupported":
+		hr.Summary.Unsupported++
+	case "passed":
+		hr.Summary.Passed++
+	default:
+		hr.Summary.Failed++
+	}
+}
+
+// Supports reports whether the harness PASSED the named feature. Unsupported,
+// skipped and failed are all "no" here, deliberately: a caller asking whether
+// it can use a feature wants one answer, and the three ways of not having it
+// are the matrix's business, not the caller's.
+func (hr *ConformanceHarnessResult) Supports(f ConformanceFeature) bool {
+	for _, r := range hr.Results {
+		if r.Feature == f {
+			return r.Passed
+		}
+	}
+	return false
+}
+
 // ConformanceMatrix holds conformance results for all tested harnesses.
 type ConformanceMatrix struct {
 	GeneratedAt time.Time                  `json:"generated_at"`

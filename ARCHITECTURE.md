@@ -647,8 +647,8 @@ The `msg/` package is the **single source of truth** for all shared types across
 | `message.go` | `Conversation`, `Message` | LLM API wire types |
 | `content.go` | `ContentBlock`, `TextBlock`, `ImageBlock`, ... | Content block discriminated union |
 | `event.go` | `Event`, `ResultEvent`, `ToolSummary`, ... | Harness event types |
-| `session.go` | `Session`, `SessionTask`, `StoredSession` | Agent-level session state |
-| `instance.go` | `Instance`, `InstanceCredential`, `CredentialSlot`, `InstanceStatus`, `CredentialStatus` | Harness instance types |
+| `session.go` | `StoredSession` | A session discovered on disk in a harness's own storage |
+| `instance.go` | `Instance`, `InstanceCredential`, `InstanceStatus`, `Machine`, `Transport`, `RunnerEnrollment` | Harness instance types |
 | `provider.go` | `Provider`, `Role`, `Harness`, `EventType`, `SessionState`, ... | Enums and constants |
 | `config.go` | `GenerationConfig`, `AnthropicConfig`, `OpenAIConfig`, ... | Provider config types |
 | `response.go` | `CompletionResponse`, `SafetyRating`, ... | LLM API response types |

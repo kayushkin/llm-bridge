@@ -1,6 +1,17 @@
 # Migration — Identity & Layer Consolidation
 
-Status: **proposed**, not started. This doc describes a multi-phase breaking change to the session, turn, message, and event identity model, plus the storage layout that backs it. It is the single source of truth for the planned shape; consumer repos can read it to anticipate work.
+Status: **partly shipped**. This doc describes a multi-phase breaking change to the session, turn, message, and event identity model, plus the storage layout that backs it. It is the single source of truth for the planned shape; consumer repos can read it to anticipate work.
+
+⚠️ The header said *"proposed, not started"* from the day it was written until 2026-08-21, while the body below stamped four steps **Shipped**, **Done** or **Partial** in May. A reader who trusts the header re-plans work that has already landed. Measured against `main` on 2026-08-21, phase by phase:
+
+| phase | state | the evidence |
+|---|---|---|
+| **II.A** — events SSOT in log-store | **steps 1-4 landed, 5-8 have not** | the four read paths are cut over (bridge-server `82ccb3e`), and bridge-server still declares its own `events` table at `internal/store/store.go:181`, so dual-write is still on |
+| **II.B** — memory-store untangle + sessions projection | **landed** | `msg.Session` and `msg.SessionTask` deleted in `d3c175d`; memory-store declares no `SaveSession`; log-store's `sessions` projection table exists |
+| **I** — one session id | **not started** | `bridge_id` is still the sessions primary key (`llm-bridge-server/internal/store/store.go:166`) |
+| **III** — harness-side reconciliation | **not started** | |
+
+Dates inside the body are kept as written: each records what was true on the day it was stamped, and a step that shipped in May is not made wrong by a name that changed in August.
 
 The migration ships in three phases. Each phase is independently shippable after Phase I lands. Within a phase, sub-steps are ordered.
 
@@ -113,7 +124,7 @@ Bridge-server already pushes every event to log-store at `manager.go:503` with t
 
 **Log-store API extensions needed (after III.B):**
 
-1. `GET /api/v1/sessions/{id}/turn-state` — returns `{last_user_message_event_id, last_terminator_event_id, in_flight: bool}`. Covers `RecoverInFlightTurn` (lines 945, 959), `PendingTurnMessage` (lines 439, 450), and the "find last user_message" half of `ListCurrentTurnEventsWithIDs` (line 758). **Shipped 2026-05-10 (log-store 43e7b7a).**
+1. `GET /api/v1/sessions/{id}/turn-state` — returns `{last_user_message_event_id, last_terminator_event_id, in_flight: bool}`. Covers `RecoverInFlightTurn` (lines 945, 959), `PendingTurnMessage` (lines 439, 450 — renamed `InterruptedTurn` in bridge-server `0408cf7`, 2026-08-14; grep for that), and the "find last user_message" half of `ListCurrentTurnEventsWithIDs` (line 758). **Shipped 2026-05-10 (log-store 43e7b7a).**
 2. `?types=user_message,result,...` filter on `/events` and `/history`. Covers `RecentTurnTexts` (line 673, renamer transcript), `ListToolCallInputs` (line 824, git path discovery), and the events-after-last-user-message half of `ListCurrentTurnEventsWithIDs` (line 763). **Shipped 2026-05-10 (log-store 43e7b7a).**
 3. Turn count + last activity — already in II.B's sessions projection table (`turn_count`, `last_active`). No separate endpoint needed; bridge-server reads from the projection. Covers `CountUserMessages` (line 587) and `LastActivityAt` (line 530).
 

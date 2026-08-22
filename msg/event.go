@@ -138,18 +138,46 @@ type ResultEvent struct {
 	IsError          bool            `json:"is_error,omitempty"`
 	StructuredOutput json.RawMessage `json:"structured_output,omitempty"`
 
-	Usage         TokenUsage    `json:"usage"`
-	Cost          *Cost         `json:"cost,omitempty"`
-	DurationMS    int64         `json:"duration_ms,omitempty"`
-	DurationAPIMS int64         `json:"duration_api_ms,omitempty"`
-	NumTurns      int           `json:"num_turns,omitempty"`
-	APICalls      int           `json:"api_calls,omitempty"`
-	Model         string        `json:"model,omitempty"`
-	APICallUsages []TokenUsage  `json:"api_call_usages,omitempty"`
-	ToolEvents    []ToolSummary `json:"tool_events,omitempty"`
+	Usage         TokenUsage   `json:"usage"`
+	Cost          *Cost        `json:"cost,omitempty"`
+	DurationMS    int64        `json:"duration_ms,omitempty"`
+	DurationAPIMS int64        `json:"duration_api_ms,omitempty"`
+	NumTurns      int          `json:"num_turns,omitempty"`
+	APICalls      int          `json:"api_calls,omitempty"`
+	Model         string       `json:"model,omitempty"`
+	APICallUsages []TokenUsage `json:"api_call_usages,omitempty"`
+
+	// ToolEvents is empty on every live result event, from every harness.
+	// Measured 2026-08-22 across ~/repos: 28 non-test ResultEvent
+	// constructions in 13 repos, of which 2 set this field — both in
+	// import_history.go's translateAssistantEvent (llm-bridge-claudecode
+	// and llm-bridge-copilotcli, one authoring pasted twice), reachable
+	// only from the -import-history subcommand that replays a stored
+	// session .jsonl. None of the 24 constructions on the live event path
+	// set it.
+	//
+	// So a consumer that reads ToolEvents off a live result cannot tell
+	// "no tools ran" from "no harness fills this". log-store's
+	// internal/logstack/forward.go is the only reader on this box and
+	// derives its ToolCalls count from len(ToolEvents), which is
+	// therefore structurally 0 for every live session.
+	//
+	// The tool data does exist: llm-bridge-server's
+	// internal/harness/derivation.go accumulates the same ToolSummary
+	// type from the raw tool_call/tool_result stream, pairing call to
+	// result by tool_use_id, and emits it centrally for every harness as
+	// TurnCompleteEvent.ToolCalls.
+	//
+	// Whether to delete this field in favour of that one, or keep both
+	// and define what each means, is an open question — noteboard card
+	// d1f0aa38. This comment only stops the field reading as populated.
+	ToolEvents []ToolSummary `json:"tool_events,omitempty"`
 }
 
-// ToolSummary records a tool invocation within a completed run.
+// ToolSummary records a tool invocation. It is the element type of both
+// TurnCompleteEvent.ToolCalls, which is filled per turn, and
+// ResultEvent.ToolEvents, which nothing fills on the live path — see
+// the note on that field.
 type ToolSummary struct {
 	Tool   string `json:"tool"`
 	Input  string `json:"input,omitempty"`

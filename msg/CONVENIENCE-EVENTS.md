@@ -154,7 +154,11 @@ TurnComplete *TurnCompleteEvent `json:"turn_complete,omitempty"`
 
 **Emission rule:** one event per turn, fired immediately after the terminating `EventResult` (or `EventError` for error-terminated turns) is fanned out. Server keeps a per-turn accumulator keyed on `Event.TurnID`; closes it on terminator.
 
-`ToolSummary` is the existing type from `event.go:113`. Reusing it keeps the schema consistent with `ResultEvent.ToolEvents`.
+`ToolSummary` is the existing type from `event.go`. Reusing it keeps the schema consistent with
+`ResultEvent.ToolEvents` at the type level — but note that `ResultEvent.ToolEvents` is filled by
+nothing on the live event path (measured 2026-08-22: 2 of 28 constructions set it, both in
+`import_history.go`). `TurnCompleteEvent.ToolCalls` is the only per-turn tool record any harness
+actually produces. See the note on `ToolEvents` in `event.go`.
 
 ### New EventType constants
 

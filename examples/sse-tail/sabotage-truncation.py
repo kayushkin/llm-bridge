@@ -26,6 +26,36 @@ import signal
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import tree_hold  # noqa: E402  vendored; see tree_hold.py on keeping copies identical
+
+
+def _repository_holding(path):
+    """The git repository above `path` — the tree whose suite exit code this run reads.
+
+    NOT the directory the mutation is written into, and the two differ here. The hold's
+    whole job is to keep two runs from reading each other's red suites, so it has to be
+    keyed on the tree that decides the exit code. `examples/sse-tail` carries no `go.mod`
+    of its own, so `go test ./` there builds the whole llm-bridge module and a concurrent
+    mutation anywhere in that repository reddens this run. Keying on the cwd would hand
+    this engine a private lock namespace that interlocks with nothing — the exact failure
+    `tree_hold.py`'s docstring warns about for a `__file__`-relative lock directory,
+    arriving here from the caller's side instead.
+
+    Walks up rather than shelling out to `git rev-parse`, so it costs no subprocess and
+    works the same in a linked worktree, where `.git` is a file rather than a directory.
+    """
+    here = os.path.abspath(path)
+    while True:
+        if os.path.exists(os.path.join(here, ".git")):
+            return here
+        parent = os.path.dirname(here)
+        if parent == here:
+            # No repository above it. Hold the directory itself: a narrower hold than
+            # the truth is still sound, and refusing to run at all would be worse.
+            return os.path.dirname(os.path.abspath(path))
+        here = parent
+
 SOURCE = "main.go"
 TEST_FILE = "main_test.go"
 PACKAGE = "./"
@@ -322,8 +352,40 @@ def self_test():
 
 
 def main():
+    """Take this tree exclusively, then run. Call this, not `main_on_a_held_tree`.
+
+    Card `d869d2be`. Every verdict below is read off the SUITE'S exit code, and that
+    exit code belongs to the whole tree rather than to the mutation this run wrote. A
+    second run mutating the same tree hands this one a red suite it did not cause, and
+    this one records it as CAUGHT — the collision does not add noise, it **inflates the
+    score**, and these scores are the numbers the nightly write-ups quote.
+
+    It refuses rather than waits. A run told to come back later can say so and exit;
+    one silently blocked for the length of somebody else's suite looks hung. The
+    refusal exits non-zero, because a caller reading exit 0 would read "measured, and
+    clean" from a run that measured nothing.
+
+    The restore-on-signal handling below is a different guard. It stops THIS run
+    leaving a mutation behind. It cannot see a concurrent run at all, because the
+    other run restores each file before its next case and the tree is clean between
+    mutations exactly when it is most dangerous to trust.
+    """
+    # Before the hold, not after it. `SOURCE` is cwd-relative, so this guard is also
+    # what makes `_repository_holding(SOURCE)` name the right tree: run from anywhere
+    # else it would resolve against a directory this engine never touches and take a
+    # lock on it. A hold is a claim on a tree; do not stake one you are about to refuse.
     if not os.path.exists(SOURCE) or not os.path.exists(TEST_FILE):
         sys.exit(f"run me from the directory holding {SOURCE} and {TEST_FILE}")
+
+    with tree_hold.exclusive_hold_on_tree(
+            _repository_holding(SOURCE),
+            purpose=os.path.basename(sys.argv[0] or "sabotage-truncation")) as refusal:
+        if refusal:
+            sys.exit("REFUSING: " + refusal)
+        return main_on_a_held_tree()
+
+
+def main_on_a_held_tree():
 
     self_test()
 

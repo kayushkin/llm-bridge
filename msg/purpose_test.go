@@ -76,7 +76,7 @@ func TestClassifyPurpose(t *testing.T) {
 		},
 		{
 			name: "free text in purpose is the failure this catches",
-			typ:  SessionTypeAutonomous, purpose: "dashv2 browser verification + A/B perf", origin: "bridge-agent",
+			typ:  SessionTypeAutonomous, purpose: "browser verification + A/B perf", origin: "bridge-agent",
 			wantKinds: []string{"unknown-purpose"},
 		},
 		{

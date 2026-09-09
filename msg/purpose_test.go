@@ -202,3 +202,25 @@ func TestSessionTypeSetIsTheExpectedOne(t *testing.T) {
 		t.Errorf("SessionTypes offers %q, which this test was not told about", ty)
 	}
 }
+
+func TestPurposeSurfacesQuestions(t *testing.T) {
+	cases := []struct {
+		purpose string
+		want    bool
+	}{
+		{PurposeDispatcher, true},
+		// The older spelling answers as its replacement, so a session created
+		// under it is not muted for a slug.
+		{"kanban-dispatcher", true},
+		{PurposeAutoworker, false},
+		{PurposeHealthcheck, false},
+		{PurposeChat, false},
+		{"", false},
+		{"never-registered", false},
+	}
+	for _, c := range cases {
+		if got := PurposeSurfacesQuestions(c.purpose); got != c.want {
+			t.Errorf("PurposeSurfacesQuestions(%q) = %v, want %v", c.purpose, got, c.want)
+		}
+	}
+}

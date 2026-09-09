@@ -48,6 +48,25 @@ type PurposeSpec struct {
 	// Sessions keep the slug they were created with; the server resolves
 	// through this field when it needs the canonical one.
 	SupersededBy string
+
+	// SurfacesQuestions says whether an unattended session with this purpose
+	// may put a question in front of a person instead of being denied one.
+	//
+	// It is the split between two kinds of autonomous session. A nightly
+	// backlog worker or a healthcheck responder has nobody to ask and nowhere
+	// to ask it, so its AskUserQuestion is denied and its turn-ends are not
+	// classified — a signal raised there is a row nobody reads, minted at the
+	// cost of a model call. A session working a kanban card has both: the
+	// question lands on the card, where the person on the ticket answers it,
+	// and the answer comes back as the session's next message.
+	//
+	// Surfacing is not the same as blocking. A question from such a session is
+	// first triaged by a cheap model: a sign-off ("shall I proceed?") is
+	// answered on the spot and the session continues; only a question that
+	// genuinely needs the person's or the customer's input reaches the card.
+	// Whether a question is surfaced is decided here, per purpose; what
+	// happens to it afterwards is the server's business.
+	SurfacesQuestions bool
 }
 
 // purposeSpecs is the registry. Keep it sorted by name.
@@ -107,6 +126,9 @@ var purposeSpecs = []PurposeSpec{
 		Origins: []string{"scheduler"},
 		Folder:  "Scheduled",
 		Summary: "Kanban dispatcher reviving or starting work for a card.",
+		// The one autonomous kind with a person behind it: the card. A question
+		// raised here has a place to land and someone to answer it.
+		SurfacesQuestions: true,
 	},
 	{
 		Name:    PurposeE2E,
@@ -248,6 +270,16 @@ func CanonicalPurpose(name string) string {
 		return p.SupersededBy
 	}
 	return name
+}
+
+// PurposeSurfacesQuestions reports whether a session with this purpose may
+// surface a question to a person. Superseded spellings answer as their
+// replacement, so a session created under an old slug is not silently muted.
+// Unknown purposes answer false: a purpose the registry has never heard of
+// has not been given anywhere for a question to land.
+func PurposeSurfacesQuestions(name string) bool {
+	p, ok := purposeByName[CanonicalPurpose(name)]
+	return ok && p.SurfacesQuestions
 }
 
 // KnownPurposes returns every registered spec, sorted by name. Superseded

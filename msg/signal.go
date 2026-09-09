@@ -65,6 +65,19 @@ type Signal struct {
 	// raising session is linked to one.
 	LinkedTodoID string `json:"linked_todo_id,omitempty"`
 
+	// Audience says who a surfaced question is really for, as judged by the
+	// question triage an unattended session's question goes through: the
+	// person working the card, or the customer whose mail the card came from.
+	// Empty for notifications, for questions raised on attended sessions, and
+	// for questions minted before triage existed.
+	Audience SignalAudience `json:"audience,omitempty"`
+
+	// CustomerReplyDraft is a reply to the customer, drafted at triage time
+	// and ready to send, for a question whose Audience is customer. Nil
+	// otherwise. It is a draft: nothing sends it until a person does, and a
+	// person may edit it first.
+	CustomerReplyDraft *SignalCustomerReplyDraft `json:"customer_reply_draft,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 	// ResolvedAt is stamped when State leaves open. Nil while open.
 	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
@@ -120,6 +133,33 @@ const (
 	SignalStateAcknowledged SignalState = "acknowledged" // notification seen
 	SignalStateDismissed    SignalState = "dismissed"    // closed without an answer
 )
+
+// SignalAudience is who a triaged question is for. It is advice to the
+// person reading the card, not a routing rule: the card shows a drafted reply
+// for a customer question and a plain answer box for an assignee question,
+// and the person may do either regardless.
+type SignalAudience string
+
+const (
+	// SignalAudienceAssignee — the person working the card can answer this
+	// from what they know: a design choice, a repository convention, a
+	// priority call.
+	SignalAudienceAssignee SignalAudience = "assignee"
+	// SignalAudienceCustomer — only the person who asked for the work can
+	// answer this: what they meant, what they want, which of two readings of
+	// their request is right.
+	SignalAudienceCustomer SignalAudience = "customer"
+)
+
+// SignalCustomerReplyDraft is a reply to the customer, drafted by triage. To
+// is resolved from the card's linked mail when the mail store can be asked,
+// and left empty when it cannot — an empty To is the truth about what could
+// be resolved, and a renderer must say so rather than guess an address.
+type SignalCustomerReplyDraft struct {
+	To      string `json:"to,omitempty"`
+	Subject string `json:"subject"`
+	Body    string `json:"body"`
+}
 
 // SignalSeverity grades a notification. Questions do not carry one.
 type SignalSeverity string

@@ -370,6 +370,13 @@ type BridgePrefs struct {
 	LastInstance   map[string]string          `json:"last_instance,omitempty"`
 	Defaults       map[string]HarnessDefaults `json:"defaults,omitempty"`
 
+	// DefaultPrincipalID is the principal-store id new sessions are started
+	// as when the caller names none: the chat's pending pane and the kanban
+	// dispatcher both send it as CreateSessionRequest.PrincipalID. Empty means
+	// sessions are created with no principal, which is how every session
+	// behaved before the field existed. Set on the Settings page.
+	DefaultPrincipalID string `json:"default_principal_id,omitempty"`
+
 	// PermissionMode is the global default mode applied to new sessions and
 	// to legacy sessions that haven't been migrated to a per-session value.
 	// One of PermissionModeAsk / PermissionModeAuto / PermissionModeBypass;

@@ -2193,6 +2193,13 @@ export interface ManagedSession {
    */
   principal_id?: string;
   /**
+   * BundleID is the bundle-store id (as a string, like every other store id
+   * on a session) of the session bundle this session was started with — the
+   * skills and tools it was composed from, normally a kanban board's
+   * default_bundle_id. Optional. Set at creation only.
+   */
+  bundle_id?: string;
+  /**
    * Deprecated: ParentID holds the FORK parent's HarnessSessionID (a harness
    * UUID, fed to --fork) — not a session id and not a general "parent". It is
    * superseded by ForkedFromSessionID and will be removed once the fork
@@ -2584,6 +2591,13 @@ export interface CreateSessionRequest {
    * reads grant-store's effective set for.
    */
   principal_id?: string;
+  /**
+   * BundleID names the session bundle to compose the session from: a
+   * bundle-store id ("6"), never the bundle's name. Optional. The server
+   * checks it with bundle-store — an id it does not know is 400
+   * unknown_bundle — and the spawn resolves and provisions it.
+   */
+  bundle_id?: string;
   auto_start?: boolean;
   type: SessionType;
   purpose: string;

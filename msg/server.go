@@ -143,6 +143,14 @@ type ManagedSession struct {
 	// instance also has wired. Set at creation only; a principal is who asked
 	// for the session, which does not change afterwards.
 	PrincipalID string `json:"principal_id,omitempty"`
+	// BundleID is the bundle-store id (as a string, like every other store id
+	// on a session) of the session bundle this session was started with —
+	// the skills and tools it was composed from, normally a kanban board's
+	// default_bundle_id. Optional; a session with none is provisioned from
+	// its instance's opt-ins as before. With one, the spawn asks bundle-store
+	// to resolve it and provisions exactly the tools it names (narrowed by
+	// the principal's can_use grants when it holds any). Set at creation only.
+	BundleID string `json:"bundle_id,omitempty"`
 	// Deprecated: ParentID holds the FORK parent's HarnessSessionID (a harness
 	// UUID, fed to --fork) — not a session id and not a general "parent". It is
 	// superseded by ForkedFromSessionID and will be removed once the fork
@@ -603,7 +611,13 @@ type CreateSessionRequest struct {
 	// with principal-store — an id it does not know is 400 unknown_principal
 	// — and stores it as ManagedSession.PrincipalID, which is what the spawn
 	// reads grant-store's effective set for.
-	PrincipalID   string          `json:"principal_id,omitempty"`
+	PrincipalID string `json:"principal_id,omitempty"`
+	// BundleID names the session bundle to compose the session from: a
+	// bundle-store id ("6"), never the bundle's name. Optional. The server
+	// checks it with bundle-store — an id it does not know is 400
+	// unknown_bundle — and stores it as ManagedSession.BundleID, which the
+	// spawn resolves and provisions.
+	BundleID      string          `json:"bundle_id,omitempty"`
 	AutoStart     bool            `json:"auto_start,omitempty"`
 	Type          SessionType     `json:"type"`
 	Purpose       string          `json:"purpose"`

@@ -135,6 +135,14 @@ type ManagedSession struct {
 	State            string  `json:"state"`
 	PID              int     `json:"pid,omitempty"`
 	AgentID          string  `json:"agent_id,omitempty"`
+	// PrincipalID is the principal-store id (principal_000001, human or
+	// group) this session was started as. Optional: a session with none
+	// behaves as every session did before the field existed. With one, the
+	// server reads the principal's effective grants from grant-store at spawn
+	// and offers only what they name — today the can_use tools the session's
+	// instance also has wired. Set at creation only; a principal is who asked
+	// for the session, which does not change afterwards.
+	PrincipalID string `json:"principal_id,omitempty"`
 	// Deprecated: ParentID holds the FORK parent's HarnessSessionID (a harness
 	// UUID, fed to --fork) — not a session id and not a general "parent". It is
 	// superseded by ForkedFromSessionID and will be removed once the fork
@@ -578,11 +586,17 @@ type ConformanceMatrix struct {
 // based on it. The folder comes from the registry, overridable per purpose by
 // the source_folders table and by LLMBRIDGE_PURPOSE_FOLDERS.
 type CreateSessionRequest struct {
-	Harness       Harness         `json:"harness"`
-	SessionID     string          `json:"session_id,omitempty"`
-	InstanceID    string          `json:"instance_id,omitempty"`
-	DisplayName   string          `json:"display_name,omitempty"`
-	AgentID       string          `json:"agent_id,omitempty"`
+	Harness     Harness `json:"harness"`
+	SessionID   string  `json:"session_id,omitempty"`
+	InstanceID  string  `json:"instance_id,omitempty"`
+	DisplayName string  `json:"display_name,omitempty"`
+	AgentID     string  `json:"agent_id,omitempty"`
+	// PrincipalID names who the session is started as: a principal-store id
+	// (principal_000001), human or group. Optional. The server checks it
+	// with principal-store — an id it does not know is 400 unknown_principal
+	// — and stores it as ManagedSession.PrincipalID, which is what the spawn
+	// reads grant-store's effective set for.
+	PrincipalID   string          `json:"principal_id,omitempty"`
 	AutoStart     bool            `json:"auto_start,omitempty"`
 	Type          SessionType     `json:"type"`
 	Purpose       string          `json:"purpose"`

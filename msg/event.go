@@ -515,11 +515,14 @@ type APISpendTotalEvent struct {
 // different spending. Per-turn result costs miss model calls in a turn that
 // never reached a result (aborted, interrupted, timed out). Per-call spend
 // (EventAPISpendTotal) misses calls whose telemetry was not exported before
-// the process ended. So for each harness process the larger of the two is
-// taken — with calls made after the process's last result added on top of the
-// result side — and processes are summed. Measured over 285 Claude Code
-// sessions on 2026-09-16: 218 agreed within 2 %, 29 had results higher, 38 had
-// calls higher.
+// the process ended. Each is a lower bound, so for each harness process the
+// larger of the two is taken, and processes are summed. Measured over 285 Claude
+// Code sessions on 2026-09-16: 218 agreed within 2 %, 29 had results higher, 38
+// had calls higher.
+//
+// Within a process the two are not combined turn by turn: a turn's last call is
+// reported about a second AFTER its result, so "results plus calls since the last
+// result" counts that call twice.
 //
 // TotalUSD is that estimate, never lower than a previous one for the same
 // session. APISpendUSD and TurnResultUSD are the two inputs, session-cumulative,

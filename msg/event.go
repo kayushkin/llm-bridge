@@ -84,6 +84,7 @@ type Event struct {
 	TurnComplete  *TurnCompleteEvent  `json:"turn_complete,omitempty"`
 	APICall       *APICallEvent       `json:"api_call,omitempty"`
 	APISpendTotal *APISpendTotalEvent `json:"api_spend_total,omitempty"`
+	SessionCost   *SessionCostEvent   `json:"session_cost,omitempty"`
 
 	// DerivedFrom lists the upstream event ids this event was synthesized
 	// from, when llm-bridge-server (or a harness) emits a convenience event
@@ -138,7 +139,13 @@ type ResultEvent struct {
 	IsError          bool            `json:"is_error,omitempty"`
 	StructuredOutput json.RawMessage `json:"structured_output,omitempty"`
 
-	Usage         TokenUsage   `json:"usage"`
+	Usage TokenUsage `json:"usage"`
+	// Cost is what THIS turn cost, never a running total. A harness whose
+	// upstream reports a cumulative figure converts it before emitting:
+	// Claude Code's `total_cost_usd` is cumulative for the CLI process and
+	// resets when the process restarts, and summing it once per turn is how
+	// log-store recorded $267.71 for a session whose calls cost $97.60
+	// (measured 2026-09-16). Consumers sum it across turns.
 	Cost          *Cost        `json:"cost,omitempty"`
 	DurationMS    int64        `json:"duration_ms,omitempty"`
 	DurationAPIMS int64        `json:"duration_api_ms,omitempty"`
@@ -498,6 +505,32 @@ type APISpendTotalEvent struct {
 	Calls         int                `json:"calls"`                     // how many api_call events contributed
 	ByModel       map[string]float64 `json:"by_model,omitempty"`        // USD per model (key = APICallEvent.Model)
 	ByQuerySource map[string]float64 `json:"by_query_source,omitempty"` // USD per query_source (e.g. main, generate_session_title, prompt_suggestion)
+}
+
+// SessionCostEvent is the body for EventSessionCost — the session's best
+// estimate of what it has cost so far, derived by llm-bridge-server from the
+// two figures a harness reports.
+//
+// Both figures are the harness's own price-table estimate, and each misses
+// different spending. Per-turn result costs miss model calls in a turn that
+// never reached a result (aborted, interrupted, timed out). Per-call spend
+// (EventAPISpendTotal) misses calls whose telemetry was not exported before
+// the process ended. Each is a lower bound, so for each harness process the
+// larger of the two is taken, and processes are summed. Measured over 285 Claude
+// Code sessions on 2026-09-16: 218 agreed within 2 %, 29 had results higher, 38
+// had calls higher.
+//
+// Within a process the two are not combined turn by turn: a turn's last call is
+// reported about a second AFTER its result, so "results plus calls since the last
+// result" counts that call twice.
+//
+// TotalUSD is that estimate, never lower than a previous one for the same
+// session. APISpendUSD and TurnResultUSD are the two inputs, session-cumulative,
+// for a reader who wants to see why.
+type SessionCostEvent struct {
+	TotalUSD      float64 `json:"total_usd"`
+	APISpendUSD   float64 `json:"api_spend_usd"`
+	TurnResultUSD float64 `json:"turn_result_usd"`
 }
 
 // TurnCompleteEvent is the body for EventTurnComplete. Emitted once per

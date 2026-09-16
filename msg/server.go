@@ -195,9 +195,11 @@ type ManagedSession struct {
 	// <= 0 before sending). Read it as "unset", and never treat a zero
 	// arriving from a client as a request to halt.
 	MaxBudgetUSD float64 `json:"max_budget_usd,omitempty"`
-	// SpendUSD is what this session has spent in total, in US dollars —
-	// every API call it has made, across every harness process it has run
-	// in, matching the latest APISpendTotalEvent.TotalUSD.
+	// SpendUSD is what this session has spent in total, in US dollars, across
+	// every harness process it has run in: the latest SessionCostEvent.TotalUSD,
+	// the estimate combining per-call spend with per-turn result costs. Until
+	// 2026-09-16 it was the per-call API sum alone (APISpendTotalEvent.TotalUSD),
+	// which misses calls whose telemetry was never exported.
 	//
 	// ⚠️ Read "across every process" literally, because the earlier wording
 	// here did not and that is what let a real hole sit open. This said the
@@ -431,18 +433,19 @@ type MaterializedTool struct {
 	Error  bool            `json:"error,omitempty"`
 }
 
-// SessionAggregate is the per-session token/cost summary returned by
-// GET /api/v1/sessions/aggregates. Computed by SUMming the result events
-// stored for each session — no separate aggregate table. Model is the
-// most recent value reported across the session's result events.
+// SessionAggregate is the per-session token and duration summary returned by
+// GET /api/v1/sessions/aggregates, summed from the session's result events.
+// Model is the most recent value reported across them. It carries no cost:
+// a session's cost is ManagedSession.SpendUSD (and the summary's spendUsd),
+// the estimate llm-bridge-server derives — summing result costs here is what
+// once recorded $267.71 for a session that cost $97.60.
 type SessionAggregate struct {
-	SessionID    string  `json:"session_id"`
-	Turns        int     `json:"turns"`
-	InputTokens  int64   `json:"input_tokens"`
-	OutputTokens int64   `json:"output_tokens"`
-	CostUSD      float64 `json:"cost_usd"`
-	DurationMS   int64   `json:"duration_ms"`
-	Model        string  `json:"model,omitempty"`
+	SessionID    string `json:"session_id"`
+	Turns        int    `json:"turns"`
+	InputTokens  int64  `json:"input_tokens"`
+	OutputTokens int64  `json:"output_tokens"`
+	DurationMS   int64  `json:"duration_ms"`
+	Model        string `json:"model,omitempty"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

@@ -203,6 +203,10 @@ const (
 	// (session-title generation, prompt-suggestion). The delta between
 	// the two is the ambient overhead.
 	EventAPISpendTotal EventType = "api_spend_total"
+	// EventSessionCost is the session's best cost estimate, derived by
+	// llm-bridge-server from per-turn result costs and per-call spend. See
+	// SessionCostEvent.
+	EventSessionCost EventType = "session_cost"
 )
 
 // SessionState represents the current state of an llm-bridge-managed

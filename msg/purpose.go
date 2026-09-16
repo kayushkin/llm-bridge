@@ -172,6 +172,20 @@ var purposeSpecs = []PurposeSpec{
 		SupersededBy: PurposeDispatcher,
 	},
 	{
+		Name: PurposeOneshot,
+		// External for the same reason discovered is: the bridge did not run
+		// the session, it found the transcript afterwards. That keeps these
+		// out of the default sidebar, which hides external sessions, while
+		// every one of them stays stored and counted.
+		Type: SessionTypeExternal,
+		// Discovery is the only thing that creates these rows. The harness's
+		// oneshot mode is stateless and registers no session; the transcript
+		// Claude Code leaves behind is what discovery imports.
+		Origins: []string{OriginDiscovery},
+		Folder:  "Oneshot",
+		Summary: "Stateless model call made through a harness's oneshot mode (classifiers, generators); imported from its transcript.",
+	},
+	{
 		Name:    PurposeRenamer,
 		Type:    SessionTypeSystem,
 		Origins: []string{"llm-bridge-server"},
@@ -235,6 +249,7 @@ const (
 	PurposeHarnessWatch     = "harness-watch"
 	PurposeHealthcheck      = "healthcheck"
 	PurposeHerald           = "herald"
+	PurposeOneshot          = "oneshot"
 	PurposeRenamer          = "renamer"
 	PurposeScheduledTask    = "scheduled-task"
 	PurposeScoper           = "scoper"

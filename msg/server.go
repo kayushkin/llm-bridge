@@ -195,9 +195,11 @@ type ManagedSession struct {
 	// <= 0 before sending). Read it as "unset", and never treat a zero
 	// arriving from a client as a request to halt.
 	MaxBudgetUSD float64 `json:"max_budget_usd,omitempty"`
-	// SpendUSD is what this session has spent in total, in US dollars —
-	// every API call it has made, across every harness process it has run
-	// in, matching the latest APISpendTotalEvent.TotalUSD.
+	// SpendUSD is what this session has spent in total, in US dollars, across
+	// every harness process it has run in: the latest SessionCostEvent.TotalUSD,
+	// the estimate combining per-call spend with per-turn result costs. Until
+	// 2026-09-16 it was the per-call API sum alone (APISpendTotalEvent.TotalUSD),
+	// which misses calls whose telemetry was never exported.
 	//
 	// ⚠️ Read "across every process" literally, because the earlier wording
 	// here did not and that is what let a real hole sit open. This said the

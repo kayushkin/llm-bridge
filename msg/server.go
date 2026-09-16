@@ -433,18 +433,19 @@ type MaterializedTool struct {
 	Error  bool            `json:"error,omitempty"`
 }
 
-// SessionAggregate is the per-session token/cost summary returned by
-// GET /api/v1/sessions/aggregates. Computed by SUMming the result events
-// stored for each session — no separate aggregate table. Model is the
-// most recent value reported across the session's result events.
+// SessionAggregate is the per-session token and duration summary returned by
+// GET /api/v1/sessions/aggregates, summed from the session's result events.
+// Model is the most recent value reported across them. It carries no cost:
+// a session's cost is ManagedSession.SpendUSD (and the summary's spendUsd),
+// the estimate llm-bridge-server derives — summing result costs here is what
+// once recorded $267.71 for a session that cost $97.60.
 type SessionAggregate struct {
-	SessionID    string  `json:"session_id"`
-	Turns        int     `json:"turns"`
-	InputTokens  int64   `json:"input_tokens"`
-	OutputTokens int64   `json:"output_tokens"`
-	CostUSD      float64 `json:"cost_usd"`
-	DurationMS   int64   `json:"duration_ms"`
-	Model        string  `json:"model,omitempty"`
+	SessionID    string `json:"session_id"`
+	Turns        int    `json:"turns"`
+	InputTokens  int64  `json:"input_tokens"`
+	OutputTokens int64  `json:"output_tokens"`
+	DurationMS   int64  `json:"duration_ms"`
+	Model        string `json:"model,omitempty"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

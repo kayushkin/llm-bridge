@@ -207,6 +207,10 @@ const (
 	// llm-bridge-server from per-turn result costs and per-call spend. See
 	// SessionCostEvent.
 	EventSessionCost EventType = "session_cost"
+	// EventSessionStatus carries the session's whole current status —
+	// state, tools in flight, running subagents — each time any of it
+	// changes. Derived by llm-bridge-server. See SessionStatus.
+	EventSessionStatus EventType = "session_status"
 )
 
 // SessionState represents the current state of an llm-bridge-managed

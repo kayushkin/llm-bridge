@@ -85,6 +85,8 @@ type Event struct {
 	APICall       *APICallEvent       `json:"api_call,omitempty"`
 	APISpendTotal *APISpendTotalEvent `json:"api_spend_total,omitempty"`
 	SessionCost   *SessionCostEvent   `json:"session_cost,omitempty"`
+	// Status is the body of an EventSessionStatus. See SessionStatus.
+	Status *SessionStatus `json:"status,omitempty"`
 
 	// DerivedFrom lists the upstream event ids this event was synthesized
 	// from, when llm-bridge-server (or a harness) emits a convenience event
@@ -329,6 +331,23 @@ type SystemEvent struct {
 	// harness writes one. Diagnostic: a consumer may link it, but must not
 	// require it, and must not read it to reconstruct the summary.
 	TaskOutputFile string `json:"task_output_file,omitempty"`
+
+	// Status is what a `status` subtype reports the harness to be doing on
+	// its own initiative — SystemStatusCompacting while it compacts context
+	// without having been asked. Empty on a `status` frame means whatever was
+	// being reported has ended.
+	Status string `json:"status,omitempty"`
+	// CompactResult is how a compaction ended ("success", ...), on the
+	// `status` frame that closes it.
+	CompactResult string `json:"compact_result,omitempty"`
+
+	// RateLimitStatus, RateLimitType and RateLimitResetsAt carry a
+	// `rate_limit` subtype's report: the provider's verdict (RateLimitAllowed,
+	// RateLimitAllowedWarning, RateLimitRejected), the window it concerns
+	// (five_hour, seven_day, ...) and when that window resets, unix seconds.
+	RateLimitStatus   string `json:"rate_limit_status,omitempty"`
+	RateLimitType     string `json:"rate_limit_type,omitempty"`
+	RateLimitResetsAt int64  `json:"rate_limit_resets_at,omitempty"`
 }
 
 // Task lifecycle statuses carried on SystemEvent.TaskStatus.

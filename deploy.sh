@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# One shared gate decides whether this tree may be deployed (main clone, default
+# branch, clean, pushed, not behind, and the same for every tree the build reads).
+# It lives in healthcheck/scripts/deploy-gate.sh. Do not inline or copy it.
+( cd "$(dirname "$0")" && "$HOME/bin/deploy-gate" check )
+
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_DIR"
 
@@ -107,3 +112,6 @@ echo "    All changes committed and pushed."
 STAMPED_SHA=$(head -1 "$OUTFILE" | grep -oP '@ \K[a-f0-9]+' || echo "unknown")
 echo "    Types generated from commit ${STAMPED_SHA:0:7}."
 echo "==> All checks passed. llm-bridge is ready for downstream consumption."
+
+# Last act: write this deploy to repo-store's ledger, so the next agent sees what is live.
+( cd "$(dirname "$0")" && "$HOME/bin/deploy-gate" record )

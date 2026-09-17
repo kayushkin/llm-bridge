@@ -91,7 +91,7 @@ ACP v1 has **11** `session/update` variants. This repo has **19** `msg.EventType
 | `session_info` | 4 different variants | 4 of 10 fields find a carrier |
 | `usage_total` | `usage_update` | 2 of 8 usage fields survive (below) |
 | `result` / `turn_complete` | the `session/prompt` response | `stopReason` is not derivable (below) |
-| `session_state` | — | **no carrier. 13 values dropped.** |
+| `session_state` | — | **no carrier. 14 values dropped.** |
 | `error` | — | no carrier in the update stream |
 | `system` | — | no carrier |
 | `approval` | — | direction inverted (below) |
@@ -138,7 +138,7 @@ counters that `0d052752` and `8754300f` exist to get right are exactly the field
 drops.
 
 **4. `session_state` is the largest single loss and it is this project's own subject.** ACP has
-no session-state channel — none of the 11 variants carries one. The 13 `SessionState` values
+no session-state channel — none of the 11 variants carries one. The 14 `SessionState` values
 (`msg/provider.go:219-241`: `starting`, `model_generating`, `tool_running`, `compacting`,
 `awaiting_permission`, `awaiting_user`, `rate_limited`, `paused`, `idle`, `completed`,
 `error`, `aborted`, `disconnected`) have no representation. Every consumer of an ACP surface

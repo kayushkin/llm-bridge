@@ -44,11 +44,47 @@ func TestSessionStateActiveAndBlockedAreDisjoint(t *testing.T) {
 		SessionCompacting, SessionAwaitingPermission, SessionAwaitingUser,
 		SessionRateLimited, SessionPaused, SessionIdle, SessionCompleted,
 		SessionError, SessionAborted, SessionDisconnected, SessionRunning,
-		SessionWaitingApproval,
+		SessionWaitingApproval, SessionBackgroundTasksRunning,
 	}
 	for _, s := range all {
 		if s.IsActive() && s.IsBlockedOnUser() {
 			t.Errorf("state %q is both IsActive and IsBlockedOnUser", s)
+		}
+	}
+}
+
+// A turn that ended with subagents or backgrounded commands still running is
+// live work. Reported as idle it was invisible to the restart reconcile, which
+// selects on ActiveSessionStates, and a redeploy killed it for good.
+func TestBackgroundTasksRunningIsActiveAndNotBlockedOnUser(t *testing.T) {
+	if !SessionBackgroundTasksRunning.IsActive() {
+		t.Error("background_tasks_running must be IsActive, or a restart will not resume it")
+	}
+	if SessionBackgroundTasksRunning.IsBlockedOnUser() {
+		t.Error("background_tasks_running is not waiting on a person")
+	}
+}
+
+// ActiveSessionStates is the SQL-side copy of IsActive. They are two lists of
+// the same fact, so a state added to one and not the other is resumed by the
+// watchdog and skipped by the reconcile, or the reverse.
+func TestActiveSessionStatesAgreesWithIsActive(t *testing.T) {
+	listed := map[SessionState]bool{}
+	for _, s := range ActiveSessionStates() {
+		listed[s] = true
+		if !s.IsActive() {
+			t.Errorf("ActiveSessionStates lists %q but IsActive says false", s)
+		}
+	}
+	for _, s := range []SessionState{
+		SessionStarting, SessionModelGenerating, SessionToolRunning,
+		SessionCompacting, SessionBackgroundTasksRunning, SessionAwaitingPermission,
+		SessionAwaitingUser, SessionRateLimited, SessionPaused, SessionIdle,
+		SessionCompleted, SessionError, SessionAborted, SessionDisconnected,
+		SessionRunning, SessionWaitingApproval,
+	} {
+		if s.IsActive() && !listed[s] {
+			t.Errorf("%q is IsActive but missing from ActiveSessionStates", s)
 		}
 	}
 }

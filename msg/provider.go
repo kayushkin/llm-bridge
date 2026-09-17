@@ -231,6 +231,20 @@ const (
 	SessionToolRunning     SessionState = "tool_running"     // tool call in flight
 	SessionCompacting      SessionState = "compacting"       // context compaction in progress
 
+	// SessionBackgroundTasksRunning: the turn has ended, but work the turn
+	// started is still running inside the harness process — subagents,
+	// workflows, backgrounded shell commands. The harness will open a turn on
+	// its own when one reports, so nobody is waiting on the user.
+	//
+	// It is an active state, not a kind of idle. This used to be reported as
+	// idle, and llm-bridge-server's restart reconcile and watchdog both key on
+	// IsActive: a session whose three subagents were mid-search was killed by a
+	// redeploy and never resumed, because the row said nothing was happening.
+	//
+	// Not named awaiting_*: every awaiting_* state means blocked on a person and
+	// is excluded from IsActive for that reason. This one is the opposite.
+	SessionBackgroundTasksRunning SessionState = "background_tasks_running"
+
 	// Blocked on user (action required).
 	SessionAwaitingPermission SessionState = "awaiting_permission" // hook prompt open, blocking on approve/deny
 	SessionAwaitingUser       SessionState = "awaiting_user"       // turn ended, expects user reply (best-effort heuristic)
@@ -273,6 +287,7 @@ func (s SessionState) IsActive() bool {
 		SessionModelGenerating,
 		SessionToolRunning,
 		SessionCompacting,
+		SessionBackgroundTasksRunning,
 		SessionRateLimited,
 		SessionRunning:
 		return true
@@ -309,6 +324,7 @@ func ActiveSessionStates() []SessionState {
 		SessionModelGenerating,
 		SessionToolRunning,
 		SessionCompacting,
+		SessionBackgroundTasksRunning,
 		SessionRateLimited,
 		SessionRunning,
 	}

@@ -9,15 +9,19 @@ described below has been folded into `SessionState`; the rest of the spec
 The original spec proposed `AgentState` as a coarser 4-value UI projection
 of `SessionState` (which had 6 values mirroring the harness lifecycle).
 With the agent-manager work in bridge-ui requiring finer granularity than
-either enum carried, `SessionState` has been extended to 13 values that
+either enum carried, `SessionState` has been extended to 13 values (14 since
+`background_tasks_running`, 2026-09-17) that
 encompass the full UI vocabulary. `AgentState` is no longer a coarsening —
 it would be a strict subset of the new `SessionState` — so it has been
 deprecated.
 
-**Single SessionState (13 values), grouped by operator action:**
+**Single SessionState (14 values), grouped by operator action:**
 
 - Pre-flight: `starting`
-- Active: `model_generating`, `tool_running`, `compacting`
+- Active: `model_generating`, `tool_running`, `compacting`,
+  `background_tasks_running` (added 2026-09-17: the turn ended but subagents or
+  backgrounded commands it started are still running; derived from the
+  harness's `background_tasks_changed` list, and active so a restart resumes it)
 - Blocked on user: `awaiting_permission`, `awaiting_user`
 - Self-healing wait: `rate_limited`, `paused`
 - Quiet: `idle`

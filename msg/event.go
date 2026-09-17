@@ -332,6 +332,17 @@ type SystemEvent struct {
 	// require it, and must not read it to reconstruct the summary.
 	TaskOutputFile string `json:"task_output_file,omitempty"`
 
+	// BackgroundTasks is the harness's own list of every background task that
+	// is running now, on a SystemSubtypeBackgroundTasksChanged frame. It is the
+	// whole list each time, not a delta: an empty list on that subtype means
+	// nothing is running in the background any more. Read it only on that
+	// subtype — on every other frame it is empty because it was not reported.
+	//
+	// This is the source for "is background work running". Counting
+	// task_started against the closing frames reconstructs the same fact from
+	// parts, and drifts the first time a frame is missed.
+	BackgroundTasks []BackgroundTask `json:"background_tasks,omitempty"`
+
 	// Status is what a `status` subtype reports the harness to be doing on
 	// its own initiative — SystemStatusCompacting while it compacts context
 	// without having been asked. Empty on a `status` frame means whatever was
@@ -348,6 +359,22 @@ type SystemEvent struct {
 	RateLimitStatus   string `json:"rate_limit_status,omitempty"`
 	RateLimitType     string `json:"rate_limit_type,omitempty"`
 	RateLimitResetsAt int64  `json:"rate_limit_resets_at,omitempty"`
+}
+
+// SystemSubtypeBackgroundTasksChanged is the SystemEvent subtype on which a
+// harness reports its full list of running background tasks — see
+// SystemEvent.BackgroundTasks.
+const SystemSubtypeBackgroundTasksChanged = "background_tasks_changed"
+
+// BackgroundTask is one running background task as the harness lists it.
+type BackgroundTask struct {
+	// TaskID is the harness's own id for the task, the same id the
+	// task_started / task_progress / task_notification frames carry.
+	TaskID string `json:"task_id"`
+	// TaskType is the kind of work — see the TaskType constants below.
+	TaskType string `json:"task_type,omitempty"`
+	// Description is the harness's short label for the task.
+	Description string `json:"description,omitempty"`
 }
 
 // Task lifecycle statuses carried on SystemEvent.TaskStatus.

@@ -41,7 +41,7 @@ type EffectiveSetting struct {
 	Key EffectiveSettingKey `json:"key"`
 	// Value is the decided value: a string, a number, a list, or null when
 	// nothing decides it (Layer is then EffectiveLayerNone).
-	Value any `json:"value" tstype:"unknown"`
+	Value any                  `json:"value" tstype:"unknown"`
 	Layer EffectiveConfigLayer `json:"layer"`
 	// Record names where the value is stored, in the owning service's terms,
 	// e.g. "bridge-prefs.defaults.claude_code.model" or "kanban-store board

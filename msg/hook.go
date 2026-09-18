@@ -51,3 +51,31 @@ type Hook struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
+
+// HookOptions is what a hook editor needs and must not hardcode: which
+// harnesses this server wires hooks into, the scope kinds in precedence
+// order, and the event names each harness is known to fire. llm-bridge-server
+// serves it at GET /hook-options.
+type HookOptions struct {
+	Harnesses []HookHarnessOption `json:"harnesses"`
+	// ScopeKinds is narrowest first: a hook on an earlier kind wins over one
+	// on a later kind when both register the same (harness, event, matcher).
+	ScopeKinds []HookScope `json:"scope_kinds"`
+}
+
+// HookHarnessOption is one harness the server wires hooks into at spawn. A
+// hook stored for any other harness is kept and never runs.
+type HookHarnessOption struct {
+	Harness Harness `json:"harness"`
+	// ConfigKey is the harness_config key the synthesized hook block is
+	// written under ("settings" for claude_code, "codex_hooks" for codex). A
+	// caller who sets that key on a session replaces the block, stored hooks
+	// included.
+	ConfigKey string `json:"config_key"`
+	// KnownEvents are event names this harness fires, for an editor to offer.
+	// Not an allowlist: Hook.Event is harness-native and stored as given, so a
+	// harness that gains an event needs no change here to use it.
+	KnownEvents []string `json:"known_events"`
+	// MatcherHelp says what Hook.Matcher means to this harness.
+	MatcherHelp string `json:"matcher_help"`
+}

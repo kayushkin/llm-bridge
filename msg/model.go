@@ -66,8 +66,13 @@ type ModelSelectedBy string
 const (
 	// ModelSelectedBySession: a per-session / per-turn override chose the model.
 	ModelSelectedBySession ModelSelectedBy = "session"
-	// ModelSelectedByPrefs: no session override, so the per-harness default in
-	// bridge-prefs chose it.
+	// ModelSelectedByBundle: no session override, and the session's bundle
+	// names a model. A bundle is chosen for the work — by a board, a tag rule or
+	// the caller — so it outranks the per-harness default, which is chosen for
+	// the machine.
+	ModelSelectedByBundle ModelSelectedBy = "bundle"
+	// ModelSelectedByPrefs: no session override and no bundle model, so the
+	// per-harness default in bridge-prefs chose it.
 	ModelSelectedByPrefs ModelSelectedBy = "prefs"
 	// ModelSelectedByRole: nothing overrode, so resolution fell through to a
 	// model-store role (normally ModelRoleDefault). This is the floor: if even

@@ -98,15 +98,28 @@ func TestStartupNamesEveryFaultAtOnce(t *testing.T) {
 		"UNRELATED_VARIABLE":        "left alone",
 	}))
 	if err == nil {
-		t.Fatal("a registry was built from a malformed duration, a missing required setting and a misspelled variable")
+		t.Fatal("a registry was built from a malformed duration and a misspelled variable")
 	}
-	for _, want := range []string{"SAMPLE_CLASSIFIER_TIMEOUT", "not a duration", "SAMPLE_OWNER_URL is unset", "SAMPLE_CLASIFIER_MODEL is set and sample declares no such setting"} {
+	for _, want := range []string{"SAMPLE_CLASSIFIER_TIMEOUT", "not a duration", "SAMPLE_CLASIFIER_MODEL is set and sample declares no such setting"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the startup error does not mention %q: %v", want, err)
 		}
 	}
 	if strings.Contains(err.Error(), "UNRELATED_VARIABLE") {
 		t.Errorf("a variable outside the service's prefixes was reported: %v", err)
+	}
+}
+
+func TestARequiredSettingIsCheckedByTheServerAndNotByEveryCommandOfTheBinary(t *testing.T) {
+	registry, err := New("sample", []string{"SAMPLE_"}, sampleDefinitions(), MapEnvironment(nil))
+	if err != nil {
+		t.Fatalf("a command with no environment could not read its settings: %v", err)
+	}
+	if err := registry.CheckRequired(); err == nil || !strings.Contains(err.Error(), "SAMPLE_OWNER_URL is unset") {
+		t.Errorf("CheckRequired = %v, want it to name SAMPLE_OWNER_URL", err)
+	}
+	if err := mustRegistry(t, map[string]string{"SAMPLE_OWNER_URL": "http://owner"}).CheckRequired(); err != nil {
+		t.Errorf("CheckRequired with the setting present = %v", err)
 	}
 }
 

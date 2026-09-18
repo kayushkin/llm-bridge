@@ -130,7 +130,6 @@ func MapEnvironment(variables map[string]string) Environment {
 //     is not a behaviour setting, a secret with a default, a default that does
 //     not parse);
 //   - a set variable whose value does not parse as its type;
-//   - a required setting that is unset with no default;
 //   - a set variable that starts with one of ownedPrefixes and is declared by
 //     nobody. That is a misspelling or a leftover, and either way the operator
 //     believes it does something.
@@ -187,9 +186,6 @@ func New(service string, ownedPrefixes []string, definitions []Definition, envir
 			registry.sources[definition.Key] = msg.ServiceSettingSourceDefault
 		default:
 			registry.sources[definition.Key] = msg.ServiceSettingSourceUnset
-			if definition.Required {
-				faults = append(faults, fmt.Sprintf("%s is unset: %s", definition.EnvironmentVariable, definition.Description))
-			}
 		}
 	}
 
@@ -210,6 +206,26 @@ func New(service string, ownedPrefixes []string, definitions []Definition, envir
 		return nil, fmt.Errorf("%s settings: %s", service, strings.Join(faults, "; "))
 	}
 	return registry, nil
+}
+
+// CheckRequired names every Required setting with no value in force. It is a
+// step of its own, not part of New, because one binary is often both a server
+// and a handful of operator commands: the server cannot run without its
+// required settings, and a command run from a shell has no use for them. The
+// server's main calls this and refuses to start on an error.
+func (r *Registry) CheckRequired() error {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	var missing []string
+	for _, definition := range r.definitions {
+		if _, inForce := r.values[definition.Key]; definition.Required && !inForce {
+			missing = append(missing, fmt.Sprintf("%s is unset: %s", definition.EnvironmentVariable, definition.Description))
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("%s settings: %s", r.service, strings.Join(missing, "; "))
+	}
+	return nil
 }
 
 // AttachStoredValues makes the service's own record the source of every

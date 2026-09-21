@@ -155,6 +155,12 @@ type ManagedSession struct {
 	// to resolve it and provisions exactly the tools it names (narrowed by
 	// the principal's can_use grants when it holds any). Set at creation only.
 	BundleID string `json:"bundle_id,omitempty"`
+	// CardID is the kanban-store card this session works, normally set by
+	// the dispatcher that started it for the card. Optional. At every spawn
+	// the server reads the card's tags and injects the agent-store context
+	// sections they select, so a tag added to the card reaches the next
+	// spawn. Set at creation only.
+	CardID string `json:"card_id,omitempty"`
 	// Deprecated: ParentID holds the FORK parent's HarnessSessionID (a harness
 	// UUID, fed to --fork) — not a session id and not a general "parent". It is
 	// superseded by ForkedFromSessionID and will be removed once the fork
@@ -624,7 +630,12 @@ type CreateSessionRequest struct {
 	// checks it with bundle-store — an id it does not know is 400
 	// unknown_bundle — and stores it as ManagedSession.BundleID, which the
 	// spawn resolves and provisions.
-	BundleID      string          `json:"bundle_id,omitempty"`
+	BundleID string `json:"bundle_id,omitempty"`
+	// CardID names the kanban-store card the session works. Optional. The
+	// server checks it with kanban-store — a card it does not know is 400
+	// unknown_card — and stores it as ManagedSession.CardID, whose tags
+	// select the context sections every spawn injects.
+	CardID        string          `json:"card_id,omitempty"`
 	AutoStart     bool            `json:"auto_start,omitempty"`
 	Type          SessionType     `json:"type"`
 	Purpose       string          `json:"purpose"`

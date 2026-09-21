@@ -68,13 +68,16 @@ const (
 	EffectiveSettingAgent          EffectiveSettingKey = "agent"
 	EffectiveSettingBundle         EffectiveSettingKey = "bundle"
 	EffectiveSettingTools          EffectiveSettingKey = "tools"
+	// EffectiveSettingContext is the agent-store context sections the
+	// session's card tags select, by section id and title.
+	EffectiveSettingContext EffectiveSettingKey = "context"
 )
 
 // EffectiveSettingKeys is every key, in the order a view should list them.
 var EffectiveSettingKeys = []EffectiveSettingKey{
 	EffectiveSettingModel, EffectiveSettingEffort, EffectiveSettingMaxBudget, EffectiveSettingDisabledTools,
 	EffectiveSettingPermissionMode, EffectiveSettingPrincipal, EffectiveSettingInstance, EffectiveSettingAgent,
-	EffectiveSettingBundle, EffectiveSettingTools,
+	EffectiveSettingBundle, EffectiveSettingTools, EffectiveSettingContext,
 }
 
 // EffectiveConfigLayer names which layer decided a setting.

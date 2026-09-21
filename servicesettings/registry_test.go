@@ -21,6 +21,7 @@ func sampleDefinitions() []Definition {
 		{Key: "classifier.model", EnvironmentVariable: "SAMPLE_CLASSIFIER_MODEL", Kind: msg.ServiceSettingKindBehaviour, ValueType: msg.ServiceSettingValueTypeString, Description: "the model the classifier asks for", Default: "small-model", Editable: true},
 		{Key: "classifier.timeout", EnvironmentVariable: "SAMPLE_CLASSIFIER_TIMEOUT", Kind: msg.ServiceSettingKindBehaviour, ValueType: msg.ServiceSettingValueTypeDuration, Description: "how long one call may take", Default: "20s", Editable: true},
 		{Key: "classifier.max_characters", EnvironmentVariable: "SAMPLE_CLASSIFIER_MAX_CHARS", Kind: msg.ServiceSettingKindBehaviour, ValueType: msg.ServiceSettingValueTypeInteger, Description: "how much text is sent", Default: "6000"},
+		{Key: "classifier.ceiling_usd", EnvironmentVariable: "SAMPLE_CLASSIFIER_CEILING_USD", Kind: msg.ServiceSettingKindBehaviour, ValueType: msg.ServiceSettingValueTypeDecimal, Description: "the most one call may spend", Default: "0.25"},
 	}
 }
 
@@ -256,11 +257,30 @@ func TestSetRefusesWhatItShouldAndStoresNothing(t *testing.T) {
 	}
 }
 
+func TestADecimalIsReadAsANumberAndAMalformedOneIsRefused(t *testing.T) {
+	if got := mustRegistry(t, map[string]string{"SAMPLE_OWNER_URL": "http://owner"}).Decimal("classifier.ceiling_usd"); got != 0.25 {
+		t.Errorf("default decimal = %v, want 0.25", got)
+	}
+	if got := mustRegistry(t, map[string]string{"SAMPLE_OWNER_URL": "http://owner", "SAMPLE_CLASSIFIER_CEILING_USD": "12.50"}).Decimal("classifier.ceiling_usd"); got != 12.5 {
+		t.Errorf("decimal from the environment = %v, want 12.5", got)
+	}
+	for _, malformed := range []string{"3.50usd", "NaN", "Inf", "-Inf", "twelve"} {
+		_, err := New("sample", []string{"SAMPLE_"}, sampleDefinitions(), MapEnvironment(map[string]string{
+			"SAMPLE_OWNER_URL":              "http://owner",
+			"SAMPLE_CLASSIFIER_CEILING_USD": malformed,
+		}))
+		if err == nil || !strings.Contains(err.Error(), "not a decimal number") {
+			t.Errorf("%q: want a refusal naming a decimal number, got %v", malformed, err)
+		}
+	}
+}
+
 func TestReadingAnUndeclaredKeyOrTheWrongTypePanics(t *testing.T) {
 	registry := mustRegistry(t, map[string]string{"SAMPLE_OWNER_URL": "http://owner"})
 	for name, read := range map[string]func(){
-		"undeclared": func() { registry.String("never.declared") },
-		"wrong type": func() { registry.Integer("classifier.timeout") },
+		"undeclared":              func() { registry.String("never.declared") },
+		"wrong type":              func() { registry.Integer("classifier.timeout") },
+		"integer read as decimal": func() { registry.Decimal("classifier.max_characters") },
 	} {
 		func() {
 			defer func() {

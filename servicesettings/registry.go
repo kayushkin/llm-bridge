@@ -13,6 +13,7 @@ package servicesettings
 import (
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -424,6 +425,16 @@ func (r *Registry) Integer(key string) int {
 	return number
 }
 
+// Decimal returns the value in force, zero when none is.
+func (r *Registry) Decimal(key string) float64 {
+	text := r.text(key, msg.ServiceSettingValueTypeDecimal)
+	if text == "" {
+		return 0
+	}
+	number, _ := strconv.ParseFloat(text, 64) // parsed when it was accepted
+	return number
+}
+
 // Boolean returns the value in force, false when none is.
 func (r *Registry) Boolean(key string) bool {
 	flag, _ := strconv.ParseBool(r.text(key, msg.ServiceSettingValueTypeBoolean))
@@ -482,6 +493,11 @@ func checkValue(valueType msg.ServiceSettingValueType, text string) error {
 	case msg.ServiceSettingValueTypeInteger:
 		if _, err := strconv.Atoi(text); err != nil {
 			return fmt.Errorf("%q is not a whole number", text)
+		}
+	case msg.ServiceSettingValueTypeDecimal:
+		// ParseFloat takes "NaN" and "Inf", which no setting means.
+		if number, err := strconv.ParseFloat(text, 64); err != nil || math.IsNaN(number) || math.IsInf(number, 0) {
+			return fmt.Errorf("%q is not a decimal number such as 25 or 12.50", text)
 		}
 	case msg.ServiceSettingValueTypeBoolean:
 		if _, err := strconv.ParseBool(text); err != nil {

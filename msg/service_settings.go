@@ -61,6 +61,8 @@ type ServiceSettingValueType string
 const (
 	ServiceSettingValueTypeString  ServiceSettingValueType = "string"
 	ServiceSettingValueTypeInteger ServiceSettingValueType = "integer"
+	// A number that may have a fractional part: "25", "12.50".
+	ServiceSettingValueTypeDecimal ServiceSettingValueType = "decimal"
 	ServiceSettingValueTypeBoolean ServiceSettingValueType = "boolean"
 	// A Go duration: "15m", "20s", "1h30m".
 	ServiceSettingValueTypeDuration ServiceSettingValueType = "duration"

@@ -264,6 +264,9 @@ const (
 	OperationEventStarted      OperationEventKind = "started"
 	OperationEventProgress     OperationEventKind = "progress"
 	OperationEventChildUpdated OperationEventKind = "child_updated"
+	// OperationEventCancelRequested: the caller asked a running operation to
+	// stop. It is still running until its executor returns.
+	OperationEventCancelRequested OperationEventKind = "cancel_requested"
 	OperationEventSucceeded    OperationEventKind = "succeeded"
 	OperationEventFailed       OperationEventKind = "failed"
 	OperationEventConflicted   OperationEventKind = "conflicted"
@@ -282,7 +285,9 @@ var OperationEventKindForTerminalState = map[OperationState]OperationEventKind{
 }
 
 // OperationEvent is one change to an operation, persisted and streamed in
-// Sequence order. Receipt is the whole receipt after the change.
+// Sequence order. Every change to a receipt writes exactly one event, so
+// Sequence equals Receipt.Revision. Receipt is the whole receipt after the
+// change.
 type OperationEvent struct {
 	OperationID string             `json:"operation_id"`
 	Sequence    int64              `json:"sequence"`

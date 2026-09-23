@@ -13,7 +13,7 @@ operations; this document is the contract a caller and an executor can rely on.
 | --- | --- |
 | `POST /operations` | Accept an intent. `202` and a new receipt, or `200` and the first receipt for a repeated intent. |
 | `GET /operations/{id}` | The receipt. |
-| `GET /operations/{id}/events` | Server-sent events: every stored event, then new ones as they happen. `Last-Event-ID` resumes after a sequence. |
+| `GET /operations/{id}/events` | Server-sent events: every stored event, then new ones as they happen, ending after the terminal one. An event's SSE id is its sequence, which equals the receipt revision; `Last-Event-ID` resumes after it. |
 | `POST /operations/{id}/cancel` | Ask the operation to stop. |
 | `GET /operations/{id}/children` | The receipts of its children. |
 | `GET /operations` | Receipts, filtered by `organization_id`, `principal_id`, `type`, `state`, `created_after`, `created_before`. |

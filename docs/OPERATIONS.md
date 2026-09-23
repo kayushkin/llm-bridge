@@ -17,7 +17,8 @@ operations; this document is the contract a caller and an executor can rely on.
 | `POST /operations/{id}/cancel` | Ask the operation to stop. |
 | `GET /operations/{id}/children` | The receipts of its children. |
 | `GET /operations` | Receipts, filtered by `organization_id`, `principal_id`, `type`, `state`, `created_after`, `created_before`. |
-| `GET /operation-types` | The types this server can run. |
+| `GET /operation-types` | The types this server can run. Needs no credential. |
+| `GET /operation-budgets`, `GET`/`PUT`/`DELETE /operation-budgets/{organization_id}` | Organization monthly limits and this month's spend. Operators only. |
 
 A principal sees only operations it started; an administrator and the internal
 service see all of them. Someone else's operation is `404`, as a missing one is.
@@ -54,6 +55,56 @@ reader keeps whichever copy has the higher revision.
 - **cancelled** means the caller asked it to stop. A queued operation is
   cancelled at once. A running one is told to stop and reaches `cancelled` when
   its executor returns; if its executor finishes first, it keeps that state.
+
+## Who may start what
+
+A principal needs a grant-store `can_run_operation` grant on the
+`operation_type` it starts (the id is the type name, such as
+`classification.run`); a grant to a group covers its members. The bridge's
+`operations.grant_enforcement` setting decides what holding no such grant
+means:
+
+- `lenient` (the default): a principal holding no `can_run_operation` grant may
+  start any type; one holding any may start only the types they name.
+- `strict`: a principal may start only the types its grants name.
+
+Administrators and the internal service are not checked. A refusal is `403
+not_granted`; a grant-store that cannot answer is `502`.
+`requested_capabilities` must be empty until capabilities are defined (`400
+unknown_capability`).
+
+## Budgets
+
+Money is counted in US dollars at **list price**: each model call's tokens
+times model-store's per-model input and output price, with cache reads and
+writes charged at the input price. A call on a subscription login costs
+nothing extra, so for those the figure is an upper bound. `usage.cost_basis`
+says `list_price`.
+
+Two limits apply, and the lower one wins:
+
+- **Per organization per month.** An operator sets it with `PUT
+  /operation-budgets/{organization_id} {"monthly_limit_usd": 50}`. Months are
+  UTC calendar months. Once the month's spend reaches the limit, a new intent is
+  `402 organization_budget_exhausted` (a repeat of an accepted one still gets
+  its receipt).
+- **Per operation.** `maximum_cost_usd` on the intent caps the operation and
+  every child it starts.
+
+An executor asks for the allowance before each model call and does not make one
+when it is spent (`budget_exhausted`). A call may overshoot by its own cost;
+the next one is refused. Under a budget, a call whose model has no price in
+model-store is refused before it is made (`model_price_unknown`), and so is one
+whose model is not known in advance (`budget_unenforceable`).
+
+## llm.completion
+
+One stateless model call through a bridge harness instance
+(`operations.completion_instance`), the same one-shot path the bridge's own
+classifier uses. The harness holds the login; nothing calls a provider API
+directly. Input is `LLMCompletionInput`; a `schema` forces a JSON answer into
+`parsed`. With no `model`, `operations.completion_model` is used. A failed call
+is retried once.
 
 ## Idempotency
 

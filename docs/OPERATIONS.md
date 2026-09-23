@@ -13,7 +13,7 @@ operations; this document is the contract a caller and an executor can rely on.
 | --- | --- |
 | `POST /operations` | Accept an intent. `202` and a new receipt, or `200` and the first receipt for a repeated intent. |
 | `GET /operations/{id}` | The receipt. |
-| `GET /operations/{id}/events` | Server-sent events: every stored event, then new ones as they happen, ending after the terminal one. An event's SSE id is its sequence, which equals the receipt revision; `Last-Event-ID` resumes after it. |
+| `GET /operations/{id}/events` | Server-sent events: every stored event, then new ones as they happen. The stream closes once the operation and all its children have finished. An event's SSE id is its sequence, which equals the receipt revision; `Last-Event-ID` resumes after it. |
 | `POST /operations/{id}/cancel` | Ask the operation to stop. |
 | `GET /operations/{id}/children` | The receipts of its children. |
 | `GET /operations` | Receipts, filtered by `organization_id`, `principal_id`, `type`, `state`, `created_after`, `created_before`. |
@@ -21,6 +21,15 @@ operations; this document is the contract a caller and an executor can rely on.
 
 A principal sees only operations it started; an administrator and the internal
 service see all of them. Someone else's operation is `404`, as a missing one is.
+`organization_id` must be an active principal-store group, and a principal who
+is not an administrator must be a member of it (`403
+not_a_member_of_organization`).
+
+The first event is `accepted`, with the receipt `queued`. `started` marks each
+attempt, `progress` each change an executor makes, `queued` an attempt that
+will be retried, `cancel_requested` a cancel that reached a running operation,
+and `child_updated` a change to a child. The last is the event named for the
+terminal state.
 
 ## States
 

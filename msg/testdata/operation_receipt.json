@@ -14,7 +14,7 @@
   "result_references": [{"entity_type": "file", "entity_id": "file_000031", "version": "3"}],
   "evidence": [{"kind": "keyword_match", "summary": "matched \"invoice\"", "reference": {"entity_type": "mail_message", "entity_id": "mail_17"}, "detail": {"keyword": "invoice"}}],
   "effects": [{"target": {"entity_type": "card", "entity_id": "card_000112", "version": "4"}, "action": "move", "external_operation_id": "kanban-req-9", "outcome": "unknown", "recorded_at": "2026-09-23T10:00:03Z"}],
-  "usage": {"tokens": {"input_tokens": 120, "output_tokens": 14, "total_tokens": 134}, "cost": {"total_usd": 0.0004}},
+  "usage": {"tokens": {"input_tokens": 120, "output_tokens": 14, "total_tokens": 134}, "cost": {"total_usd": 0.0004}, "calls": 1, "cost_basis": "list_price"},
   "error": {"code": "effect_outcome_unknown", "message": "kanban-store did not answer within 30s", "retryable": false},
   "executor": "keyword-classifier",
   "child_operation_ids": ["operation_01K5Z9V4BBBBBBBBBBBBBBBBBB"],

@@ -134,8 +134,13 @@ type OperationIntent struct {
 	// credentials; see docs/OPERATIONS.md.
 	Input json.RawMessage `json:"input,omitempty"`
 	// RequestedCapabilities names what the operation needs to be allowed to
-	// do, beyond running its type ("mail.read", "ticket.write").
+	// do, beyond running its type ("mail.read", "ticket.write"). No
+	// capability is defined yet, so any value is refused.
 	RequestedCapabilities []string `json:"requested_capabilities,omitempty"`
+	// MaximumCostUSD caps what this one operation may spend, children
+	// included. Zero means no cap of its own; the organization's monthly
+	// budget still applies.
+	MaximumCostUSD float64 `json:"maximum_cost_usd,omitempty"`
 	// PolicyRevision is the revision of the caller's policy the intent was
 	// built under, recorded so a later reader can tell which rules applied.
 	PolicyRevision string `json:"policy_revision,omitempty"`
@@ -199,6 +204,34 @@ type OperationEffect struct {
 type OperationUsage struct {
 	Tokens TokenUsage `json:"tokens"`
 	Cost   Cost       `json:"cost"`
+	// Calls counts the model calls summed here.
+	Calls int `json:"calls"`
+	// CostBasis says how Cost was worked out. Always
+	// OperationCostBasisListPrice today.
+	CostBasis OperationCostBasis `json:"cost_basis,omitempty"`
+}
+
+// OperationCostBasis says where an operation's dollar figure comes from.
+type OperationCostBasis string
+
+// OperationCostBasisListPrice: tokens multiplied by model-store's per-model
+// input and output price. It is what the call would cost on a metered API
+// key. A call on a subscription login costs nothing extra, so for those it is
+// an upper bound, and budgets are enforced against it all the same.
+const OperationCostBasisListPrice OperationCostBasis = "list_price"
+
+// OrganizationBudget is one organization's monthly spending limit and what
+// its operations have spent this month, as GET /operation-budgets serves it.
+// Months are calendar months in UTC.
+type OrganizationBudget struct {
+	OrganizationID  string    `json:"organization_id"`
+	MonthlyLimitUSD float64   `json:"monthly_limit_usd"`
+	SpentUSD        float64   `json:"spent_usd"`
+	MonthStartsAt   time.Time `json:"month_starts_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	// UpdatedBy is the principal who set the limit, empty for the internal
+	// service.
+	UpdatedBy string `json:"updated_by,omitempty"`
 }
 
 // OperationError explains a failed, conflicted, unknown or cancelled
@@ -350,4 +383,25 @@ type ClassificationItemResult struct {
 	Confidence float64 `json:"confidence"`
 	// Evidence is what the labels rest on, for this item.
 	Evidence []OperationEvidence `json:"evidence,omitempty"`
+}
+
+// LLMCompletionInput is the Input of an llm.completion operation: one
+// stateless model call through a bridge harness instance.
+type LLMCompletionInput struct {
+	Prompt       string `json:"prompt"`
+	SystemPrompt string `json:"system_prompt,omitempty"`
+	// Model asks for a model by model-store id. Empty takes the bridge's
+	// configured completion model.
+	Model string `json:"model,omitempty"`
+	// Schema, when set, is a JSON Schema the answer must match; the answer
+	// then arrives in Parsed.
+	Schema    json.RawMessage `json:"schema,omitempty"`
+	MaxTokens int             `json:"max_tokens,omitempty"`
+}
+
+// LLMCompletionResult is the Result of a succeeded llm.completion.
+type LLMCompletionResult struct {
+	Text       string          `json:"text,omitempty"`
+	Parsed     json.RawMessage `json:"parsed,omitempty"`
+	StopReason string          `json:"stop_reason,omitempty"`
 }

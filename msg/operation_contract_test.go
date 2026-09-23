@@ -58,6 +58,9 @@ var operationContractTypes = []any{
 	ClassificationItem{},
 	ClassificationRunResult{},
 	ClassificationItemResult{},
+	OrganizationBudget{},
+	LLMCompletionInput{},
+	LLMCompletionResult{},
 }
 
 var typeScriptFieldPattern = regexp.MustCompile(`(?m)^  ([a-z_]+)\??:`)

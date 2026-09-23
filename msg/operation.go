@@ -2,6 +2,9 @@ package msg
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -300,11 +303,11 @@ const (
 	// OperationEventCancelRequested: the caller asked a running operation to
 	// stop. It is still running until its executor returns.
 	OperationEventCancelRequested OperationEventKind = "cancel_requested"
-	OperationEventSucceeded    OperationEventKind = "succeeded"
-	OperationEventFailed       OperationEventKind = "failed"
-	OperationEventConflicted   OperationEventKind = "conflicted"
-	OperationEventUnknown      OperationEventKind = "unknown"
-	OperationEventCancelled    OperationEventKind = "cancelled"
+	OperationEventSucceeded       OperationEventKind = "succeeded"
+	OperationEventFailed          OperationEventKind = "failed"
+	OperationEventConflicted      OperationEventKind = "conflicted"
+	OperationEventUnknown         OperationEventKind = "unknown"
+	OperationEventCancelled       OperationEventKind = "cancelled"
 )
 
 // OperationEventKindForTerminalState is the event that announces an operation
@@ -344,21 +347,89 @@ type OperationTypeDescription struct {
 	TimeoutSeconds int `json:"timeout_seconds"`
 }
 
-// ClassificationRunInput is the Input of a classification.run operation.
-type ClassificationRunInput struct {
-	// Labels are the labels an item may be given. At least one.
-	Labels []ClassificationLabel `json:"labels"`
-	// Items are the texts to classify. At least one.
-	Items []ClassificationItem `json:"items"`
+// ClassificationTaxonomy is what items may be labelled with: one or more
+// independent axes, each with its own values. It varies by board — kanban-store
+// keeps one on each board that is classified — and a classification.run may
+// also carry one inline.
+type ClassificationTaxonomy struct {
+	// Name is the taxonomy's own name, for people reading a result.
+	Name string `json:"name"`
+	// Domain is one line saying what the items are ("support mail to a
+	// logistics company"). It leads the model's instructions, because every
+	// axis reads differently depending on it.
+	Domain string               `json:"domain,omitempty"`
+	Axes   []ClassificationAxis `json:"axes"`
 }
 
-// ClassificationLabel is one label a classifier may assign.
-type ClassificationLabel struct {
+// ClassificationAxis is one independent question asked of every item, such
+// as category, action or urgency.
+type ClassificationAxis struct {
+	Name        string                `json:"name"`
+	Description string                `json:"description,omitempty"`
+	Values      []ClassificationValue `json:"values"`
+	// AllowMultiple lets an item take more than one value on this axis.
+	AllowMultiple bool `json:"allow_multiple,omitempty"`
+	// Required means every item must get a value on this axis; an item that
+	// does not is marked for review rather than guessed.
+	Required bool `json:"required,omitempty"`
+}
+
+// ClassificationValue is one value an axis may take. Description is what
+// the model is told it means, so write it for the model.
+type ClassificationValue struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
-	// Keywords are phrases that suggest the label. A model-backed classifier
-	// may use them as hints; the keyword classifier uses nothing else.
-	Keywords []string `json:"keywords,omitempty"`
+}
+
+// Validate refuses a taxonomy a classifier could not use: no axes, an axis
+// with no values, or a repeated or blank name.
+func (taxonomy *ClassificationTaxonomy) Validate() error {
+	if strings.TrimSpace(taxonomy.Name) == "" {
+		return errors.New("taxonomy needs a name")
+	}
+	if len(taxonomy.Axes) == 0 {
+		return errors.New("taxonomy needs at least one axis")
+	}
+	axisNames := map[string]bool{}
+	for axisIndex, axis := range taxonomy.Axes {
+		if strings.TrimSpace(axis.Name) == "" || axis.Name != strings.TrimSpace(axis.Name) {
+			return fmt.Errorf("axis %d has a blank or untrimmed name %q", axisIndex, axis.Name)
+		}
+		if axisNames[axis.Name] {
+			return fmt.Errorf("axis %q appears twice", axis.Name)
+		}
+		axisNames[axis.Name] = true
+		if len(axis.Values) == 0 {
+			return fmt.Errorf("axis %q has no values", axis.Name)
+		}
+		valueNames := map[string]bool{}
+		for valueIndex, value := range axis.Values {
+			if strings.TrimSpace(value.Name) == "" || value.Name != strings.TrimSpace(value.Name) {
+				return fmt.Errorf("axis %q value %d has a blank or untrimmed name %q", axis.Name, valueIndex, value.Name)
+			}
+			if valueNames[value.Name] {
+				return fmt.Errorf("axis %q has value %q twice", axis.Name, value.Name)
+			}
+			valueNames[value.Name] = true
+		}
+	}
+	return nil
+}
+
+// ClassificationRunInput is the Input of a classification.run operation.
+// Name the taxonomy in exactly one way: inline in Taxonomy, or by the
+// kanban-store board that keeps it in TaxonomyBoardID.
+type ClassificationRunInput struct {
+	Taxonomy *ClassificationTaxonomy `json:"taxonomy,omitempty"`
+	// TaxonomyBoardID is a kanban-store board id. The board's taxonomy is
+	// read when the operation runs, as the operation's principal, so a
+	// principal who cannot view the board cannot use its taxonomy.
+	TaxonomyBoardID string `json:"taxonomy_board_id,omitempty"`
+	// Items are the texts to classify. At least one.
+	Items []ClassificationItem `json:"items"`
+	// Model asks for a model by model-store id. Empty takes the bridge's
+	// configured completion model.
+	Model string `json:"model,omitempty"`
 }
 
 // ClassificationItem is one text to classify. ID is the caller's id for it,
@@ -371,18 +442,30 @@ type ClassificationItem struct {
 
 // ClassificationRunResult is the Result of a succeeded classification.run.
 type ClassificationRunResult struct {
-	Items []ClassificationItemResult `json:"items"`
+	// Taxonomy is the taxonomy the items were classified against, as it was
+	// when the operation ran; a board's may have changed since.
+	Taxonomy ClassificationTaxonomy `json:"taxonomy"`
+	// TaxonomySource is the board the taxonomy came from, with the board's
+	// updated_at as its version. Nil for an inline taxonomy.
+	TaxonomySource *OperationReference        `json:"taxonomy_source,omitempty"`
+	Items          []ClassificationItemResult `json:"items"`
 }
 
-// ClassificationItemResult is the classifier's answer for one item. Labels is
-// empty when nothing matched; that is an answer, not a failure.
+// ClassificationItemResult is the classifier's answer for one item.
 type ClassificationItemResult struct {
-	ID     string   `json:"id"`
-	Labels []string `json:"labels"`
-	// Confidence is between 0 and 1.
+	ID string `json:"id"`
+	// Values maps each axis name to the values the item was given on it. An
+	// axis with no value is present with an empty list.
+	Values map[string][]string `json:"values"`
+	// Confidence is between 0 and 1, the classifier's own estimate.
 	Confidence float64 `json:"confidence"`
-	// Evidence is what the labels rest on, for this item.
-	Evidence []OperationEvidence `json:"evidence,omitempty"`
+	// Rationale is one or two sentences on why.
+	Rationale string `json:"rationale,omitempty"`
+	// NeedsReview is set when a required axis got no value, or the model
+	// answered with values the taxonomy does not have (dropped, and listed in
+	// Evidence). A person should look before this result is trusted.
+	NeedsReview bool                `json:"needs_review,omitempty"`
+	Evidence    []OperationEvidence `json:"evidence,omitempty"`
 }
 
 // LLMCompletionInput is the Input of an llm.completion operation: one

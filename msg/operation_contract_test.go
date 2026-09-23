@@ -54,7 +54,9 @@ var operationContractTypes = []any{
 	OperationEvent{},
 	OperationTypeDescription{},
 	ClassificationRunInput{},
-	ClassificationLabel{},
+	ClassificationTaxonomy{},
+	ClassificationAxis{},
+	ClassificationValue{},
 	ClassificationItem{},
 	ClassificationRunResult{},
 	ClassificationItemResult{},
@@ -138,5 +140,31 @@ func TestEveryTerminalOperationStateHasAnEvent(t *testing.T) {
 	}
 	if OperationState("partial").IsKnown() {
 		t.Error("partial is shown by a surface from child counts; it is not a state")
+	}
+}
+
+func TestTaxonomyValidation(t *testing.T) {
+	valid := ClassificationTaxonomy{Name: "support", Axes: []ClassificationAxis{
+		{Name: "category", Values: []ClassificationValue{{Name: "billing"}, {Name: "outage"}}},
+		{Name: "urgency", Required: true, Values: []ClassificationValue{{Name: "low"}, {Name: "high"}}},
+	}}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("valid taxonomy refused: %v", err)
+	}
+	for name, spoil := range map[string]func(*ClassificationTaxonomy){
+		"no name":         func(t *ClassificationTaxonomy) { t.Name = " " },
+		"no axes":         func(t *ClassificationTaxonomy) { t.Axes = nil },
+		"axis repeated":   func(t *ClassificationTaxonomy) { t.Axes[1].Name = "category" },
+		"no values":       func(t *ClassificationTaxonomy) { t.Axes[0].Values = nil },
+		"value repeated":  func(t *ClassificationTaxonomy) { t.Axes[0].Values[1].Name = "billing" },
+		"untrimmed value": func(t *ClassificationTaxonomy) { t.Axes[0].Values[0].Name = "billing " },
+	} {
+		copied := valid
+		copied.Axes = []ClassificationAxis{valid.Axes[0], valid.Axes[1]}
+		copied.Axes[0].Values = append([]ClassificationValue(nil), valid.Axes[0].Values...)
+		spoil(&copied)
+		if err := copied.Validate(); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
 	}
 }

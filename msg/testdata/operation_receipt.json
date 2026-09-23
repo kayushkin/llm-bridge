@@ -10,7 +10,7 @@
   "revision": 9,
   "attempt": 2,
   "progress": {"completed": 1, "total": 2, "message": "classified 1 of 2"},
-  "result": {"items": [{"id": "mail_17", "labels": ["billing"], "confidence": 0.9}]},
+  "result": {"items": [{"id": "mail_17", "values": {"category": ["billing"]}, "confidence": 0.9}]},
   "result_references": [{"entity_type": "file", "entity_id": "file_000031", "version": "3"}],
   "evidence": [{"kind": "keyword_match", "summary": "matched \"invoice\"", "reference": {"entity_type": "mail_message", "entity_id": "mail_17"}, "detail": {"keyword": "invoice"}}],
   "effects": [{"target": {"entity_type": "card", "entity_id": "card_000112", "version": "4"}, "action": "move", "external_operation_id": "kanban-req-9", "outcome": "unknown", "recorded_at": "2026-09-23T10:00:03Z"}],

@@ -262,7 +262,7 @@ func ValidateEvent(e *Event) *ValidationError {
 // ValidateSession was removed in Phase II.B along with the legacy Session
 // type. ManagedSession (msg/server.go) is validated at the bridge-server
 // boundary in handleCreateSession; per-state-machine validation lives in
-// bridge-server's harness manager. See MIGRATION-session-identity.md.
+// bridge-server's harness manager. See docs/plans/MIGRATION-session-identity.md.
 
 // --- Internal helpers ---
 

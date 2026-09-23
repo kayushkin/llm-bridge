@@ -42,9 +42,9 @@ const (
 // Most autonomous services have Purpose == Origin (autoworker spawns its
 // own kind of work); the values diverge for indirect spawns like subagents
 // (Purpose=subagent, Origin=claudecode-adapter) and shared frontends
-// (Purpose=chat, Origin=frontend-dash vs frontend-llmux).
+// (Purpose=chat, Origin=frontend-dash vs llm-bridge-tui).
 //
-// See MIGRATION-session-identity.md.
+// See docs/plans/MIGRATION-session-identity.md.
 type SessionType string
 
 const (
@@ -166,7 +166,7 @@ type ManagedSession struct {
 	// superseded by ForkedFromSessionID and will be removed once the fork
 	// plumbing resolves the harness id from the parent row (§21).
 	ParentID string `json:"parent_id,omitempty"`
-	// Orchestration lineage (TEAM-ORCHESTRATION.md §21; additive — set by the
+	// Orchestration lineage (llm-bridge-server docs/plans/TEAM-ORCHESTRATION.md §21; additive — set by the
 	// team-orchestration layer, empty for ordinary sessions).
 	ForkedFromSessionID    string          `json:"forked_from_session_id,omitempty"`    // the session this one was forked from (bridge_session_id) — the honest replacement for ParentID
 	ManagerSessionID       string          `json:"manager_session_id,omitempty"`        // managing/parent session in the team tree (bridge_session_id); empty = top-level
@@ -589,7 +589,7 @@ type ConformanceMatrix struct {
 // (autoworker, scheduler, etc.) hold a synchronous handle for kanban links
 // before the create round-trip returns; interactive callers may leave it
 // empty and consume the server-minted value. Recommended caller format:
-// ULID. See MIGRATION-session-identity.md.
+// ULID. See docs/plans/MIGRATION-session-identity.md.
 //
 // Type, Purpose, Origin classify the session along three orthogonal axes.
 // All three are required:

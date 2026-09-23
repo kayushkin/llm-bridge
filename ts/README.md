@@ -34,7 +34,7 @@ The package ships raw `.ts` (not pre-compiled `.d.ts`), so it works directly wit
 - `CreateSessionRequest`, `SendMessageRequest`, `ManagedSession` — server API shapes
 - `HarnessInfo`, `Capabilities` — runtime discovery shapes
 
-See [`for-integrators.md`](https://github.com/kayushkin/llm-bridge/blob/main/for-integrators.md) in the parent repo for end-to-end integration guidance.
+See [`docs/plans/for-integrators.md`](https://github.com/kayushkin/llm-bridge/blob/main/docs/plans/for-integrators.md) in the parent repo for end-to-end integration guidance.
 
 ## Versioning
 

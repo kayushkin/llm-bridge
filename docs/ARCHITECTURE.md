@@ -678,7 +678,6 @@ The `msg/` package is the **single source of truth** for all shared types across
 | **llm-bridge-server** | Go: `import "github.com/kayushkin/llm-bridge/msg"` — uses type aliases for backward compat (e.g. `type Session = msg.ManagedSession`) |
 | **log-store** | Go: same as above |
 | **bridge-ui** | TS: `import type { ... } from '@kayushkin/llm-bridge-types'` — re-exports with aliases (e.g. `BridgeSession` = `ManagedSession`) |
-| **llmux** | TS: imports canonical types directly from `@kayushkin/llm-bridge-types`, or indirectly via `@kayushkin/bridge-ui` |
 
 ## TypeScript Types (`ts/`)
 
@@ -694,7 +693,7 @@ The `ts/` directory contains **auto-generated TypeScript types** derived from th
 1. Edit Go types in `msg/`
 2. Run `./generate-ts.sh`
 3. Commit both Go and TypeScript changes together
-4. Downstream consumers (`bridge-ui`, `llmux`) import from `@kayushkin/llm-bridge-types`
+4. Downstream consumers (`bridge-ui`) import from `@kayushkin/llm-bridge-types`
 
 **Do not:**
 - Edit files in `ts/` directly

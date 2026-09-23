@@ -55,7 +55,7 @@ type Event struct {
 	// event descends from — for Claude Code, the spawning Task/Agent tool's
 	// tool_use_id (raw stream-json field: parent_tool_use_id). Non-empty only on
 	// harness-internal subagent events; the adapter uses it to demux subagents
-	// into their own bridge sessions (TEAM-ORCHESTRATION.md §21.4). Empty for an
+	// into their own bridge sessions (llm-bridge-server docs/plans/TEAM-ORCHESTRATION.md §21.4). Empty for an
 	// agent's own (non-subagent) events.
 	HarnessParentID string `json:"harness_parent_id,omitempty"`
 
@@ -668,7 +668,7 @@ const (
 //     human a structured question (Claude Code's AskUserQuestion tool,
 //     ACP's elicitation/create — capability-gated behind elicitation.form or
 //     elicitation.url, and implemented by none of the four ACP clients
-//     surveyed in ACP-SURFACE.md). The "allow" verdict carries the answers in
+//     surveyed in docs/plans/ACP-SURFACE.md). The "allow" verdict carries the answers in
 //     UpdatedInput; deny surfaces the model-visible "user declined" branch.
 //     Bypass/auto-allow does not apply — these always park for a human.
 //

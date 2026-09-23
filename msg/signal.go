@@ -4,7 +4,7 @@ import "time"
 
 // Signal is the one canonical record for anything a session surfaces to a
 // human: a question that needs an answer, or a notification that needs at
-// most an acknowledgement. See SESSION-SIGNALS.md in llm-bridge-server for
+// most an acknowledgement. See docs/SESSION-SIGNALS.md in llm-bridge-server for
 // the full design.
 //
 // The record is unified across session type. What varies is Surface, which

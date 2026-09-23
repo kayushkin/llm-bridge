@@ -5,7 +5,7 @@ import "time"
 // AgentDef is the canonical agent shape — harness-agnostic. Sourced from
 // agent-store. Renderers consume this via AgentView; harness bridges
 // consume this via AgentReconciler.EnsureAgent. See
-// ~/repos/llm-bridge-server/AGENT-MANAGEMENT.md.
+// ~/repos/llm-bridge-server/docs/AGENT-MANAGEMENT.md.
 type AgentDef struct {
 	ID              int64     `json:"id"`
 	Slug            string    `json:"slug"`

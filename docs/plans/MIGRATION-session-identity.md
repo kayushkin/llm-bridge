@@ -325,7 +325,7 @@ Indirect (no code change but semantics shift):
 
 - **`kanban-store`** — opaque to the change. Card-link `entity_type="bus_session"` literal lives in scheduler; kanban-store just stores strings. After Phase I, the entity_type label can stay or be renamed to `"session"`; entity_ref values shift.
 - **`harness-store`** — no references; unaffected.
-- **`dash`, `llmux`** — host bridge-ui. Inherit changes when bridge-ui ships.
+- **`dash`** — hosts bridge-ui. Inherit changes when bridge-ui ships.
 - **Other harness adapters** (`-codex`, `-jig`, `-anthropic`, `-openai`, etc.) — pass-through wrappers. Need to import the new `bridge/identity` package only if they have multi-message-per-turn behavior; otherwise unchanged.
 
 ## Open questions

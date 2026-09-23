@@ -6,7 +6,7 @@ Smallest possible consumer of llm-bridge-server's per-session SSE feed. Tails
 event type.
 
 This is the canonical reference for the **additive integration** pattern
-described in [`for-integrators.md`](../../for-integrators.md): your project
+described in [`docs/plans/for-integrators.md`](../../docs/plans/for-integrators.md): your project
 adds an env var or config flag, opens an SSE connection, and renders
 canonical events. No need to embed any harness bridge, parse JSONL, or
 re-derive per-agent state machines — the server normalizes everything for
@@ -69,6 +69,6 @@ A larger sample with framework polish would be less reusable as a
 reference.
 
 For TypeScript/Python equivalents see the snippets in
-[`../../for-integrators.md`](../../for-integrators.md). A standalone
+[`../../docs/plans/for-integrators.md`](../../docs/plans/for-integrators.md). A standalone
 TypeScript example may follow as a sibling directory once the
 `@kayushkin/llm-bridge-types` npm package is published.

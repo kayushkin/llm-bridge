@@ -2,7 +2,7 @@
 //
 // The legacy Session and SessionTask types lived here as inber-era rich
 // agent-state representations (usage, cost, tasks). They were retired in
-// Phase II.B of MIGRATION-session-identity.md — confirmed zero callers
+// Phase II.B of docs/plans/MIGRATION-session-identity.md — confirmed zero callers
 // across the ecosystem; per-session aggregates now live in log-store's
 // sessions projection table, queried via /api/v1/sessions/aggregates.
 //

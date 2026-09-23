@@ -8,7 +8,7 @@
 // Pre-Phase III.B this logic lived in llm-bridge-server's harness manager
 // (assignAssistantID + HarnessToBridgeMap). After Phase III.B it moves out to
 // each harness adapter so bridge-server stops needing harness_message_id.
-// See MIGRATION-session-identity.md.
+// See docs/plans/MIGRATION-session-identity.md.
 package identity
 
 // Store is the persistence interface adapters implement. It is per-session;

@@ -81,7 +81,7 @@ var purposeSpecs = []PurposeSpec{
 	{
 		Name:    PurposeChat,
 		Type:    SessionTypeInteractive,
-		Origins: []string{"frontend", "frontend-dash", "frontend-llmux", "llm-bridge-tui"},
+		Origins: []string{"frontend", "frontend-dash", "llm-bridge-tui"},
 		Summary: "A human talking to a harness through a frontend.",
 	},
 	{

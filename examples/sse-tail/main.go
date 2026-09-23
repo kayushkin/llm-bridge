@@ -16,7 +16,7 @@
 //
 //	go run ./examples/sse-tail -session <id> -last-event-id 42
 //
-// See for-integrators.md for the broader integration story and
+// See docs/plans/for-integrators.md for the broader integration story and
 // msg/CONVENIENCE-EVENTS.md for the agent_state / usage_total /
 // turn_complete derivation rules.
 package main

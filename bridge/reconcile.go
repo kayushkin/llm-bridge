@@ -12,7 +12,7 @@ import (
 // HarnessBridge (which manages session lifecycle) — both interfaces are
 // typically implemented by the same llm-bridge-<harness> wrapper.
 //
-// See ~/repos/llm-bridge-server/HARNESS-LAYER.md for the full contract.
+// See ~/repos/llm-bridge-server/docs/HARNESS-LAYER.md for the full contract.
 type AgentReconciler interface {
 	// Harness returns which harness this reconciler handles.
 	Harness() msg.Harness

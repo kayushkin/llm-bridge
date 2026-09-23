@@ -4,7 +4,7 @@
 // Renderers are PURE FUNCTIONS — same input bytes, same output bytes. Used
 // by both agent-store (for the /files preview tab) and each
 // llm-bridge-<harness> wrapper (in AgentReconciler.EnsureAgent and
-// PrepareSession). See ~/repos/llm-bridge-server/AGENT-MANAGEMENT.md.
+// PrepareSession). See ~/repos/llm-bridge-server/docs/AGENT-MANAGEMENT.md.
 package render
 
 import (

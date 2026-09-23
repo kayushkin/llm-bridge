@@ -67,7 +67,7 @@ curl -s -X POST "${serverURL}/sessions" \
 wscat -c "${serverURL/http/ws}/sessions/<sess>/attach"
 ```
 
-For the full wire format (binary vs text frames, control message schema, single-writer / multi-reader policy, auth posture) and the spec's open questions, see [`PTY-MODE.md`](https://github.com/kayushkin/llm-bridge-server/blob/main/PTY-MODE.md) in `llm-bridge-server`.
+For the full wire format (binary vs text frames, control message schema, single-writer / multi-reader policy, auth posture) and the spec's open questions, see [`PTY-MODE.md`](https://github.com/kayushkin/llm-bridge-server/blob/main/docs/PTY-MODE.md) in `llm-bridge-server`.
 
 ## Minimum integration (Go)
 
@@ -175,5 +175,5 @@ For "would you accept a PR for X?" or "is approach Y or Z better?" — open a di
 ## Footer
 
 - See [README.md](README.md) for the full ecosystem map.
-- See [ARCHITECTURE.md](ARCHITECTURE.md) for design rationale.
+- See [ARCHITECTURE.md](../ARCHITECTURE.md) for design rationale.
 - License: Apache-2.0. See [LICENSE](LICENSE).

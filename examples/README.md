@@ -2,7 +2,7 @@
 
 Tiny reference consumers of the llm-bridge ecosystem. Each example is a
 standalone, copy-pasteable starting point for the **additive integration**
-pattern documented in [`../for-integrators.md`](../for-integrators.md):
+pattern documented in [`../docs/plans/for-integrators.md`](../docs/plans/for-integrators.md):
 your project subscribes to llm-bridge-server's SSE feed and renders
 canonical `msg.Event` records, without embedding any harness bridge.
 

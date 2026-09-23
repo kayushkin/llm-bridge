@@ -273,7 +273,7 @@ Implementation: `readEvents` does its existing fan-out at `manager.go:447-494`, 
 
 Old SSE consumers don't know `agent_state`/`usage_total`/`turn_complete`. They get the raw type discriminator on `Event.Type`, fail to find a matching switch case, and the entire event lands in `Overflow`. This is the existing forward-compat mechanism; no special handling needed.
 
-`for-integrators.md` should advertise the new events as **opt-in to consume but always-on to emit** — i.e. the server always emits them, but consumers choose whether to switch on them.
+`docs/plans/for-integrators.md` should advertise the new events as **opt-in to consume but always-on to emit** — i.e. the server always emits them, but consumers choose whether to switch on them.
 
 ## Testing
 
@@ -311,7 +311,7 @@ Children scoped so each can be finished by an unattended session. 1 is a prereq 
 2. **Implement `state` derivation in `llm-bridge-server`.** New `derivationState` struct, transition table from this spec, hook into `Manager.readEvents`. Unit-test the state machine in isolation. Wire `agent_state` events into fan-out + persistence. One recorded conformance fixture asserts state transitions.
 3. **Implement `usage_total` derivation.** Cumulative accumulator hooked to `EventResult`. Unit + conformance tests.
 4. **Implement `turn_complete` derivation.** Per-turn accumulator + emission on terminator. Unit + conformance tests.
-5. **Update `for-integrators.md` and `~/repos/llm-bridge/README.md`.** New section: "Convenience events: less wiring, same data". Show the four-line consumer pattern that wasn't possible before.
+5. **Update `docs/plans/for-integrators.md` and `~/repos/llm-bridge/README.md`.** New section: "Convenience events: less wiring, same data". Show the four-line consumer pattern that wasn't possible before.
 6. **End-to-end check against a real session.** Spawn claudecode, send a tool-using prompt, assert the convenience event sequence matches expectations. Live test (real `claude` binary), behind a build tag, similar to the pty integration test pattern.
 
 ## Open questions

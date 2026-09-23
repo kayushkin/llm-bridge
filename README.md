@@ -1,307 +1,150 @@
 # llm-bridge
 
-A unified interface for AI coding agents. Written in Go, with type definitions available for TypeScript and Python.
+llm-bridge runs coding agents (Claude Code, codex, hermes, aider, …) behind one API. Each agent CLI speaks its own protocol; a wrapper per agent turns that into one event type, `msg.Event`, and a session server hands those events to every client the same way.
 
-AI coding agents — Claude Code, Codex, Aider, Goose, Cline, and others — each have their own protocol, CLI interface, and event format. llm-bridge treats every agent as a **black box** and provides a single canonical event stream to your application. You don't need to know which agent is running. You just consume `msg.Event`.
+This repo holds the shared contract: the types every other part reads and writes, and the interfaces a wrapper implements. This README is also the map of the whole system: which repo owns what, and where a given change belongs.
 
-Every component is a separate repo and completely optional. Use only what you need.
-
-## How it works
+## The system
 
 ```
-  ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
-    Your Application  (dashboard, CLI, bot, anything)
-  └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┬ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
-                            │ msg.Event via HTTP/SSE
-  ╔═════════════════════════╪═════════════════════════════╗
-  ║              llm-bridge ecosystem                     ║
-  ║                         │                             ║
-  ║   ┌─────────────────────▼───────────────────────┐     ║
-  ║   │            llm-bridge-server                │     ║
-  ║   │     HTTP gateway + SSE event streaming      │     ║
-  ║   │                                             │     ║
-  ║   │  Sessions: start, send, stop, resume, fork, │     ║
-  ║   │    interrupt, compact, config, discover     │     ║
-  ║   │                                             │     ║
-  ║   │  Optional stores:                           │     ║
-  ║   │    agent-store · model-store                │     ║
-  ║   │    harness-store · memory-store · log-store │     ║
-  ║   └─────────────────────┬───────────────────────┘     ║
-  ║                         │ stdin/stdout NDJSON          ║
-  ║   ┌─────────────────────▼───────────────────────┐     ║
-  ║   │            Harness Bridges                  │     ║
-  ║   │     One per agent, translates native        │     ║
-  ║   │     protocol → canonical msg.Event          │     ║
-  ║   │                                             │     ║
-  ║   │  claudecode · jig · codex · hermes · aider  │     ║
-  ║   │  goose · openclaw · nanoclaw · cline        │     ║
-  ║   │  roocode · kilocode · commander · forgecode │     ║
-  ║   │  autohand · dexto · gemini · inber          │     ║
-  ║   └─────────────────────┬───────────────────────┘     ║
-  ╚═════════════════════════╪═════════════════════════════╝
-                            │ native protocol (varies)
-  ┌─────────────────────────▼───────────────────────────┐
-  │                    Agent CLIs                       │
-  │   Claude Code, Codex, Aider, Goose, Cline, ...     │
-  │          (completely opaque — black boxes)          │
-  └─────────────────────────────────────────────────────┘
+  clients:  dash + bridge-ui · scheduler · bridge-agent · llm-bridge-tui · llm-bridge-adapter (NATS)
+                │ HTTP, SSE, WebSocket
+                ▼
+  ┌───────────────────────────┐      services it asks: principal-store, grant-store,
+  │     llm-bridge-server     │ ───► kanban-store, log-store, auth-store, tool-store,
+  │  sessions, access, routes │      bundle-store, permission-store, healthcheck
+  │  + six embedded stores    │
+  └───────────────────────────┘
+                │ JSON-RPC in, msg.Event out, as NDJSON over stdin/stdout
+                │ (locally, over SSH, or through llm-bridge-runner on another machine)
+                ▼
+  harness wrapper, one repo per agent:  llm-bridge-claudecode, -codex, -hermes, …
+                │ the agent's own protocol
+                ▼
+  the agent:  claude, codex, a hermes server, …
 ```
 
-Your application sits on one side, the agents sit on the other, and the llm-bridge ecosystem handles everything in between. The harness bridge is the only component that knows an agent's native protocol. Everything above it — the server, the stores, your code — just sees canonical events.
+Everything above the wrappers sees only `msg.Event`. Everything below them is the agent's own business.
+
+## Who owns what
+
+### The contract (this repo)
+
+| Package | What it holds |
+|---|---|
+| `msg/` | Every shared type: `Event`, `Message`, `Conversation`, sessions, instances, signals, `EffectiveConfig`, the harness list (`msg.AllHarnesses`), session purposes |
+| `bridge/` | The interfaces a wrapper or a provider converter implements (`HarnessBridge`, `HarnessSession`, `APIBridge`, `AgentReconciler`) |
+| `ndjson/` | Reads the NDJSON stream between the server and a wrapper |
+| `identity/` | Mints the `message_id` a wrapper puts on each event |
+| `render/` | Turns an agent definition into one harness's flags, MCP config and prompt text |
+| `servicesettings/` | How any service here declares, reads and serves its settings (`GET /settings`) |
+| `bridgeutil/` | Helpers wrappers share, and detection of fields a provider added that `msg/` does not map yet |
+| `ts/`, `py/` | `msg/` as TypeScript and Python types, generated; never edit by hand |
 
-## What you get from every agent
+This repo imports nothing else here, so everything can import it.
 
-Regardless of which agent is behind the harness, your application receives a uniform set of capabilities through the server API:
+### The session server
 
-| Capability | Description |
-|------------|-------------|
-| **Event streaming** | Real-time `msg.Event` stream over SSE — results, tool calls, tool results, thinking, errors, state changes |
-| **Action approval** | Approval events surface tool/command permission requests; your app can confirm or deny |
-| **Session lifecycle** | Start, stop, resume, and discover sessions across any harness |
-| **Forking** | Fork a session to branch a conversation from a specific point |
-| **Compaction** | Compact a session's context to stay within token limits |
-| **Interruption** | Interrupt a running session mid-turn, then resume or send a new message |
-| **Configuration** | Update session config (model, tools, permissions) on the fly |
-| **Usage tracking** | Token counts, cost, duration, API call breakdowns per session |
-| **Task tracking** | Structured task/todo state from agents that support it |
-| **Thinking/planning** | Extended thinking and plan events surfaced from agents that emit them |
-| **Message history** | Materialized conversation history via log-store (optional) |
+[llm-bridge-server](https://github.com/kayushkin/llm-bridge-server) owns sessions, signals, folders and who may call what. It embeds model-store, agent-store, harness-store, hook-store, snapshot-store and memory-store as libraries. Its README lists every route.
 
-## Packages
+### Harness wrappers
 
-### `msg` — Canonical message types
+One binary per agent. The server starts it; it starts or connects to the agent and translates. It is the only code that knows the agent's protocol.
 
-The lingua franca of the ecosystem. All bridges, stores, and consumers work with these types.
+| Repo | Agent | How it drives the agent |
+|---|---|---|
+| [llm-bridge-claudecode](https://github.com/kayushkin/llm-bridge-claudecode) | Claude Code | `claude` with stream-json in and out; also pty mode |
+| [llm-bridge-jig](https://github.com/kayushkin/llm-bridge-jig) | Claude Code with jig profiles | Loads a YAML profile, then runs `claude` |
+| [llm-bridge-codex](https://github.com/kayushkin/llm-bridge-codex) | codex | codex app-server's JSON-RPC |
+| [llm-bridge-hermes](https://github.com/kayushkin/llm-bridge-hermes) | hermes | HTTP and SSE to hermes `/v1/responses` |
+| [llm-bridge-inber](https://github.com/kayushkin/llm-bridge-inber) | inber | inber's HTTP API |
+| [llm-bridge-openclaw](https://github.com/kayushkin/llm-bridge-openclaw) | OpenClaw | HTTP and SSE, plus its session log |
+| [llm-bridge-nanoclaw](https://github.com/kayushkin/llm-bridge-nanoclaw) | NanoClaw | A Docker container per session |
+| [llm-bridge-cline](https://github.com/kayushkin/llm-bridge-cline) | Cline | `cline -y --json`, one process per turn |
+| [llm-bridge-aider](https://github.com/kayushkin/llm-bridge-aider) | aider | `aider --message`, one process per turn |
+| [llm-bridge-kilocode](https://github.com/kayushkin/llm-bridge-kilocode) | Kilo Code | `kilo serve` and its HTTP API |
+| [llm-bridge-forgecode](https://github.com/kayushkin/llm-bridge-forgecode) | ForgeCode | `forge -p`, one process per turn |
+| [llm-bridge-copilotcli](https://github.com/kayushkin/llm-bridge-copilotcli) | GitHub Copilot CLI | Planned only: its code is still a copy of the claudecode wrapper |
 
-```go
-import "github.com/kayushkin/llm-bridge/msg"
-```
+`cmd/mock-harness` in llm-bridge-server is a fake agent for tests.
 
-```typescript
-import { Message, Event, Conversation } from '@kayushkin/llm-bridge-types'
-```
+⚠️ **Retired; do not build on them:** `llm-bridge-gemini`, `-commander`, `-goose`, `-roocode`, `-autohand` and `-dexto`. They only print "not yet implemented".
 
-```python
-from llm_bridge_types import Message, Event, Conversation
-```
+### Reaching the server from elsewhere
 
-**Core types:**
-- `Conversation` — Full conversation state: messages, tools, generation config, provider-specific options
-- `Message` — Single message with role, content blocks, and metadata
-- `ContentBlock` — Polymorphic content: `TextBlock`, `ImageBlock`, `AudioBlock`, `VideoBlock`, `DocumentBlock`, `ToolUseBlock`, `ToolResultBlock`, `ThinkingBlock`, `CodeExecBlock`, and more
-- `CompletionResponse` — Parsed LLM response with choices, usage, and raw provider JSON
-- `Event` — Canonical harness event (`result`, `stream`, `tool_call`, `tool_result`, `thinking`, `system`, `approval`, `error`, `session_state`, `plan`, `session_info`, `user_message`, `hook`, plus the server-derived convenience events `agent_state`, `usage_total`, `turn_complete` — see [`msg/CONVENIENCE-EVENTS.md`](msg/CONVENIENCE-EVENTS.md))
-- `StreamEvent` — Granular streaming deltas (block start/delta/stop, message delta)
-- `ToolDef` / `ToolChoice` — Tool definitions and selection modes
-- `GenerationConfig` — Temperature, top-p, max tokens, stop sequences
-- `TokenUsage` / `Cost` — Token counts and cost tracking
-- `Session` / `Instance` — Session and harness instance metadata
+| Repo | What it does |
+|---|---|
+| [llm-bridge-runner](https://github.com/kayushkin/llm-bridge-runner) | A daemon on another machine. Holds one WebSocket open to the server and starts wrappers there, so no inbound SSH is needed |
+| [llm-bridge-adapter](https://github.com/kayushkin/llm-bridge-adapter) | Drives sessions from NATS: takes requests on `bridge.inbound`, publishes events on `bridge.event` |
+| [llm-bridge-tui](https://github.com/kayushkin/llm-bridge-tui) | Terminal client |
+| [bridge-ui](https://github.com/kayushkin/bridge-ui), [chat-core](https://github.com/kayushkin/chat-core), [dash](https://github.com/kayushkin/dash) | The web surface: bridge-ui draws it, chat-core holds the chat's data, dash serves both and signs users in |
 
-All types include `Extensions map[string]any` and `Overflow map[string]json.RawMessage` fields for forward compatibility — unknown fields are preserved, not dropped.
+### Provider format converters
 
-### `bridge` — Bridge interfaces
+Libraries that turn a `msg.Conversation` into one provider's request bytes and parse its response. They make no HTTP calls.
 
-```go
-import "github.com/kayushkin/llm-bridge/bridge"
-```
+| Repo | Provider |
+|---|---|
+| [llm-bridge-anthropic](https://github.com/kayushkin/llm-bridge-anthropic) | Anthropic |
+| [llm-bridge-openai](https://github.com/kayushkin/llm-bridge-openai) | OpenAI |
+| [llm-bridge-google](https://github.com/kayushkin/llm-bridge-google) | Google Gemini |
+| [llm-bridge-openrouter](https://github.com/kayushkin/llm-bridge-openrouter) | OpenRouter; empty so far |
 
-**`HarnessBridge`** — Session lifecycle for an agent harness. Owns transport (subprocess, WebSocket, etc.).
+### Stores
 
-```go
-type HarnessBridge interface {
-    Harness() msg.Harness
-    Start(ctx context.Context, prompt string, config json.RawMessage) (HarnessSession, error)
-    Resume(ctx context.Context, sessionID string, prompt string, config json.RawMessage) (HarnessSession, error)
-}
-```
+Each store owns one kind of record, in its own repo and database. Take a record's id from the store that owns it.
 
-**`HarnessSession`** — A running session that emits `msg.Event` on a channel.
+| Store | Owns | How the server reaches it |
+|---|---|---|
+| model-store | Models, roles, prices | embedded |
+| agent-store | Agents, context files, every prompt | embedded |
+| harness-store | Machines, instances, credential bindings | embedded |
+| hook-store | Hooks wired into harnesses | embedded |
+| snapshot-store | File contents around each Edit or Write | embedded |
+| memory-store | Agent memories | embedded |
+| log-store | Every session's event history | HTTP |
+| principal-store | People and groups | HTTP |
+| grant-store | Who may use which instance, agent or tool | HTTP |
+| kanban-store | Boards and cards | HTTP |
+| auth-store | Credentials | HTTP |
+| tool-store, bundle-store | Tools, and the sets a session is given | HTTP |
+| permission-store | Rules for tool calls | HTTP |
 
-```go
-type HarnessSession interface {
-    ID() string
-    Events() <-chan msg.Event
-    Stop() error
-}
-```
+## Where a change belongs
 
-**`APIBridge`** — Stateless format conversion between canonical types and provider wire formats (Anthropic, OpenAI, etc.). No HTTP calls — the caller handles transport.
+| To… | Change | Then |
+|---|---|---|
+| Add a field to an event or session | `msg/` here | Run `./generate-ts.sh` and `./generate-py.sh`; update the wrapper that fills it and the client that reads it |
+| Support a new agent CLI | A new `llm-bridge-<name>` wrapper repo | Add it to `msg.AllHarnesses` here; the server gives it a prompt-delivery row on next start |
+| Change how one agent is driven | That agent's wrapper only | Nothing else should need to change |
+| Add or change a route | llm-bridge-server | Give it an access rule and a description there; its README's route table is generated from them |
+| Change who may do what | grant-store or principal-store records | Not code in the server |
+| Change what a stored record holds | The store that owns it | Then whoever reads it |
+| Support a new provider's wire format | A new `llm-bridge-<provider>` converter | Implement `APIBridge` |
+| Add a setting to a Go service | That service, through `servicesettings/` | Never a bare `os.Getenv` |
 
-**`StreamReader`** — Optional interface for reading provider SSE/NDJSON streams.
+## The event contract
 
-### `bridgeutil` — Schema drift detection
+A session's events arrive as `msg.Event`, one per SSE `data:` line from `GET /sessions/{id}/events`. `Type` says which field is set: `result`, `stream`, `tool_call`, `tool_result`, `thinking`, `system`, `approval`, `error`, `session_state`, `plan`, `session_info`, `user_message`, `hook`.
 
-Utilities for detecting when provider APIs add new fields that aren't yet mapped to canonical types.
+The server adds three events of its own so clients need not work them out: `agent_state` (idle, awaiting input, tool running, error), `usage_total` (running totals after each result) and `turn_complete` (one summary per turn). [`msg/CONVENIENCE-EVENTS.md`](msg/CONVENIENCE-EVENTS.md) has the rules.
 
-### Generated type packages
+A field a type does not map yet lands in its `Overflow` map rather than being dropped, so passing a record through changes nothing.
 
-Type definitions are auto-generated from the canonical Go types to keep all languages in sync.
+## Rules every part keeps
 
-| Language | Package | Generator | Source |
-|----------|---------|-----------|--------|
-| TypeScript | `@kayushkin/llm-bridge-types` | [tygo](https://github.com/gzuidhof/tygo) | `ts/` directory in this repo |
-| Python | `llm-bridge-types` | `cmd/genpy` (Go AST → Python dataclasses) | `py/` directory in this repo |
+- **Only a wrapper knows its agent's protocol.** Nothing above it may depend on which agent runs.
+- **Layers pass data through unchanged.** No formatting, cutting or lossy change between the wrapper and the client; presentation happens in the client.
+- **Each record has one owner.** Join on the owner's id, never on a name, and never keep a second copy.
+- **Fail loudly.** A missing setting, an unknown field or a store that will not answer is an error, not a quiet default.
 
-## Ecosystem
+## Types for other languages
 
-Everything below is a separate repository. Install only what your project needs.
+`ts/` (`@kayushkin/llm-bridge-types`) and `py/` (`llm-bridge-types`) are generated from `msg/` by `./generate-ts.sh` and `./generate-py.sh`, and each file records the commit it came from. They are not published; use them from this repo (`file:../llm-bridge/ts`, `pip install -e py/`).
 
-### [llm-bridge-server](https://github.com/kayushkin/llm-bridge-server)
+## Docs
 
-Central HTTP gateway and session server. Spawns harness bridges as subprocesses, manages their lifecycle, and streams their `msg.Event` output to clients over SSE. Handles credential bindings and session operations (start, stop, resume, fork, compact, interrupt).
-
-Optionally composes store libraries (see below) for agent identity, model registry, harness tracking, memory, and event logging.
-
-### [llm-bridge-adapter](https://github.com/kayushkin/llm-bridge-adapter)
-
-NATS bus adapter. Bridges llm-bridge-server with the [inber](https://github.com/kayushkin/inber) messaging ecosystem, translating between NATS pub/sub and HTTP/SSE.
-
-### [llm-bridge-runner](https://github.com/kayushkin/llm-bridge-runner)
-
-Long-lived remote-machine daemon. Registers a machine with llm-bridge-server over a single outbound WebSocket and accepts harness-spawn requests, letting the server drive harness subprocesses on machines behind NAT without inbound SSH or a VPN.
-
-### Harness Bridges
-
-Each harness bridge wraps a single agent CLI or API as a black box. It knows how to spawn the agent, speak its native protocol, and translate everything into canonical `msg.Event` streams. The agent's internals are completely opaque — the harness is the translation layer, and the server (or any consumer) only sees uniform events.
-
-Harness bridges communicate with llm-bridge-server via stdin/stdout NDJSON (JSON-RPC requests in, `msg.Event` stream out). Each implements the `HarnessBridge` interface.
-
-| Repo | Agent | Status | Notes |
-|------|-------|--------|-------|
-| [llm-bridge-claudecode](https://github.com/kayushkin/llm-bridge-claudecode) | Claude Code | Implemented | Wraps `claude` CLI via `--input-format stream-json`. Session resume/fork, message injection, usage aggregation. |
-| [llm-bridge-jig](https://github.com/kayushkin/llm-bridge-jig) | Claude Code (profiles) | Implemented | Profile manager. Loads YAML profiles from `.jig/profiles/` with inheritance and env var substitution. |
-| [llm-bridge-codex](https://github.com/kayushkin/llm-bridge-codex) | Codex | Implemented | WebSocket client to Codex app-server JSON-RPC API. |
-| [llm-bridge-hermes](https://github.com/kayushkin/llm-bridge-hermes) | Hermes | Implemented | HTTP+SSE client for OpenAI-compatible Hermes `/v1/responses` endpoint. |
-| [llm-bridge-inber](https://github.com/kayushkin/llm-bridge-inber) | Inber | Implemented | HTTP client for inber agent framework. |
-| [llm-bridge-openclaw](https://github.com/kayushkin/llm-bridge-openclaw) | OpenClaw | Implemented | OpenAI-compatible HTTP+SSE client plus session JSONL tail for full event stream. |
-| [llm-bridge-nanoclaw](https://github.com/kayushkin/llm-bridge-nanoclaw) | NanoClaw | Implemented | Docker container subprocess harness. |
-| [llm-bridge-cline](https://github.com/kayushkin/llm-bridge-cline) | Cline | Implemented | One-shot subprocess per turn (`cline -y --json`). Resume via `-T`. |
-| [llm-bridge-aider](https://github.com/kayushkin/llm-bridge-aider) | Aider | Implemented | Spawns `aider --message` per turn with credential env injection. |
-| [llm-bridge-kilocode](https://github.com/kayushkin/llm-bridge-kilocode) | Kilo Code | Implemented | Spawns `kilo serve` and drives it over its HTTP API (sessions, messages, fork, summarize, abort). |
-| [llm-bridge-forgecode](https://github.com/kayushkin/llm-bridge-forgecode) | ForgeCode | Implemented | Wraps ForgeCode CLI in `forge -p` one-shot mode with credential injection. |
-| [llm-bridge-commander](https://github.com/kayushkin/llm-bridge-commander) | Commander | Scaffold | Rust/Tauri desktop app bridge. |
-| [llm-bridge-gemini](https://github.com/kayushkin/llm-bridge-gemini) | Gemini CLI | Scaffold | CLI wrapper for Google's Gemini CLI agent. |
-| [llm-bridge-goose](https://github.com/kayushkin/llm-bridge-goose) | Goose | Scaffold | Agent framework bridge. |
-| [llm-bridge-roocode](https://github.com/kayushkin/llm-bridge-roocode) | Roo Code | Scaffold | CLI wrapper. |
-| [llm-bridge-autohand](https://github.com/kayushkin/llm-bridge-autohand) | Autohand | Scaffold | ACP-over-stdio bridge. |
-| [llm-bridge-dexto](https://github.com/kayushkin/llm-bridge-dexto) | Dexto | Scaffold | REST+SSE client. |
-
-To add support for a new agent, implement `HarnessBridge` in a new repo. The server and all consumers pick it up automatically.
-
-### Provider Bridges
-
-Stateless Go libraries that convert `msg.Conversation` to/from provider wire formats. These are **not** LLM API clients — you call `BuildRequest` to get bytes, make the HTTP call yourself, then call `ParseResponse` on what comes back.
-
-| Repo | Provider | Status |
-|------|----------|--------|
-| [llm-bridge-anthropic](https://github.com/kayushkin/llm-bridge-anthropic) | Anthropic Claude | Implemented |
-| [llm-bridge-openai](https://github.com/kayushkin/llm-bridge-openai) | OpenAI | Implemented |
-| [llm-bridge-google](https://github.com/kayushkin/llm-bridge-google) | Google Gemini | Implemented |
-| [llm-bridge-openrouter](https://github.com/kayushkin/llm-bridge-openrouter) | OpenRouter | Scaffold |
-
-### Stores (optional)
-
-Go libraries with SQLite backends. Each is independently usable — import one without importing any others. llm-bridge-server can optionally compose them for a richer API, but none are required.
-
-| Repo | Description |
-|------|-------------|
-| [agent-store](https://github.com/kayushkin/agent-store) | Agent identity and config. Stores identity, runtime configs, tools, limits, and memories. |
-| [model-store](https://github.com/kayushkin/model-store) | Model registry, auth, and usage tracking. Manages API keys, OAuth tokens, and model credentials across providers. |
-| [harness-store](https://github.com/kayushkin/harness-store) | Registry of harness instances deployed across machines (local or SSH). Credential bindings with priority and concurrency limits. |
-| [hook-store](https://github.com/kayushkin/hook-store) | Bridge-managed harness hooks (event/matcher → shell command) bound to global, instance, or session scope. |
-| [memory-store](https://github.com/kayushkin/memory-store) | Persistent vector memory with semantic search, importance decay, compaction, and context building. Pluggable backend via `MemoryStore` interface. |
-| [snapshot-store](https://github.com/kayushkin/snapshot-store) | Point-in-time file snapshots before/after tool calls (Edit/Write) so consumers can render diffs. SQLite metadata + content-addressed git blob backend. |
-| [log-store](https://github.com/kayushkin/log-store) | Durable event log. Stores events as JSONL by date/source, materializes message history on read. Includes an HTTP client library. |
-
-### Example consumers
-
-These projects consume the llm-bridge ecosystem and serve as reference implementations:
-
-| Project | Description |
-|---------|-------------|
-| [bridge-ui](https://github.com/kayushkin/bridge-ui) | React component library (`@kayushkin/bridge-ui`). Session hooks, instance management, SSE helpers. |
-| [llmux](https://github.com/kayushkin/llmux) | Dashboard for deploying and managing harness instances. Built on bridge-ui. |
-
-## Quick start
-
-The server exposes one SSE endpoint per session: `GET /sessions/{id}/events`. Every event on the wire is a canonical `msg.Event` — same shape regardless of which agent is running behind the harness. The samples below all consume that endpoint.
-
-Alongside the raw harness events, llm-bridge-server pre-derives three convenience events so consumers don't have to re-implement the same state machine:
-
-- `agent_state` — `idle` / `awaiting_input` / `tool_running` / `error`, on every transition.
-- `usage_total` — running session totals (tokens, cost, turns) after every `result`.
-- `turn_complete` — coalesced per-turn summary (final message, tool calls, usage delta, duration) on the terminating `result` or `error`.
-
-They are always-on to emit and opt-in to consume — see [`msg/CONVENIENCE-EVENTS.md`](msg/CONVENIENCE-EVENTS.md) for the state machine and emission rules.
-
-> The TypeScript (`@kayushkin/llm-bridge-types`) and Python (`llm-bridge-types`) packages are currently source-only — generated from the Go types in `ts/` and `py/`. They are not yet published to npm or PyPI. Until then, install from this repo (e.g. `file:../llm-bridge/ts` for TS, `pip install -e py/` for Python).
-
-### Consume events from a harness (Go)
-
-```go
-import (
-    "bufio"
-    "encoding/json"
-    "fmt"
-    "net/http"
-    "strings"
-
-    "github.com/kayushkin/llm-bridge/msg"
-)
-
-resp, _ := http.Get(serverURL + "/sessions/" + sessionID + "/events")
-defer resp.Body.Close()
-
-scanner := bufio.NewScanner(resp.Body)
-for scanner.Scan() {
-    data, ok := strings.CutPrefix(scanner.Text(), "data: ")
-    if !ok {
-        continue
-    }
-    var event msg.Event
-    if err := json.Unmarshal([]byte(data), &event); err != nil {
-        continue
-    }
-    switch event.Type {
-    case msg.EventResult:
-        fmt.Println(event.Result.Text)
-    case msg.EventToolCall:
-        fmt.Println("Tool:", event.ToolCall.Name)
-    case msg.EventError:
-        fmt.Println("Error:", event.Error.Message)
-    }
-}
-```
-
-### Consume events from a harness (TypeScript)
-
-```typescript
-import type { Event } from '@kayushkin/llm-bridge-types'
-
-const events = new EventSource(`${serverURL}/sessions/${sessionID}/events`)
-events.onmessage = (e) => {
-    const event: Event = JSON.parse(e.data)
-    // Same canonical shape regardless of agent
-}
-```
-
-### Consume events from a harness (Python)
-
-```python
-import json
-import requests
-import sseclient  # pip install sseclient-py
-from llm_bridge_types import Event
-
-response = requests.get(f"{server_url}/sessions/{session_id}/events", stream=True)
-for event in sseclient.SSEClient(response).events():
-    e: Event = json.loads(event.data)
-    # Same canonical shape regardless of agent
-```
-
-## Design principles
-
-- **Agents are black boxes.** A harness bridge is the only thing that knows an agent's native protocol. Everything above the harness sees one uniform event stream. Swap agents without changing your application.
-- **Bridges are transparent.** No formatting, truncation, or lossy transforms in bridge layers. Data passes through unchanged. Presentation belongs at the edge.
-- **Everything is optional.** Need just the types? Import `llm-bridge`. Need session management? Add the server. Need memory? Add memory-store. No component forces you to adopt another.
-- **Overflow is preserved.** Unknown fields land in `Overflow` maps, not the garbage collector. Round-tripping through canonical types doesn't lose data.
+- `docs/ARCHITECTURE.md`: how the layers fit, at more length; older than this README, and partly out of date
+- `msg/CONVENIENCE-EVENTS.md`: the three server-made events
+- `examples/sse-tail`: a minimal client of the event stream
+- `docs/plans/`: the session-identity migration (partly done), and the write-ups from the plan to publish llm-bridge (`RELEASE-TARGETS`, `ACP-SURFACE`, `for-integrators`)

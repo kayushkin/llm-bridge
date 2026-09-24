@@ -99,12 +99,21 @@ whose model is not known in advance (`budget_unenforceable`).
 
 ## llm.completion
 
-One stateless model call through a bridge harness instance
-(`operations.completion_instance`), the same one-shot path the bridge's own
-classifier uses. The harness holds the login; nothing calls a provider API
-directly. Input is `LLMCompletionInput`; a `schema` forces a JSON answer into
-`parsed`. With no `model`, `operations.completion_model` is used. A failed call
-is retried once.
+One stateless model call through a bridge harness instance, the same one-shot
+path the bridge's own classifier uses. The harness holds the login; nothing
+calls a provider API directly. Input is `LLMCompletionInput`; a `schema` forces
+a JSON answer into `parsed`. A failed call is retried once; a reply cut off at
+the output limit fails as `reply_truncated` and is not.
+
+**Which model, on which instance.** `model` — or, when the input names none,
+the bridge's `operations.completion_model` — is resolved through model-store:
+a model id, an alias, or a role (`default`, `best`, `efficient`). The call goes
+to the instance `operations.completion_instances` maps the resolved model's
+provider to, and the harness receives the resolved id. The same applies to
+`classification.run`. An unresolvable model is `unknown_model`, no model at all
+`no_model`, and a provider with no instance `no_instance_for_provider`; all
+fail before any call. The receipt's `model_call` evidence names what was asked
+for and what answered.
 
 ## Idempotency
 

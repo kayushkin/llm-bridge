@@ -71,13 +71,16 @@ const (
 	// EffectiveSettingContext is the agent-store context sections the
 	// session's card tags select, by section id and title.
 	EffectiveSettingContext EffectiveSettingKey = "context"
+	// EffectiveSettingDeniedReadPaths is the paths the session may not read,
+	// from its bundle, which the harness is told to refuse.
+	EffectiveSettingDeniedReadPaths EffectiveSettingKey = "denied_read_paths"
 )
 
 // EffectiveSettingKeys is every key, in the order a view should list them.
 var EffectiveSettingKeys = []EffectiveSettingKey{
 	EffectiveSettingModel, EffectiveSettingEffort, EffectiveSettingMaxBudget, EffectiveSettingDisabledTools,
 	EffectiveSettingPermissionMode, EffectiveSettingPrincipal, EffectiveSettingInstance, EffectiveSettingAgent,
-	EffectiveSettingBundle, EffectiveSettingTools, EffectiveSettingContext,
+	EffectiveSettingBundle, EffectiveSettingTools, EffectiveSettingContext, EffectiveSettingDeniedReadPaths,
 }
 
 // EffectiveConfigLayer names which layer decided a setting.
@@ -111,6 +114,9 @@ const (
 	// EffectiveLayerRegistry: model-store's default role, the floor under the
 	// model.
 	EffectiveLayerRegistry EffectiveConfigLayer = "registry"
+	// EffectiveLayerToolStore: tool-store's master switch. A harness tool
+	// disabled there is off in every session of that harness.
+	EffectiveLayerToolStore EffectiveConfigLayer = "tool_store"
 	// EffectiveLayerNone: nothing decides it; the harness does what it does.
 	EffectiveLayerNone EffectiveConfigLayer = "none"
 )
@@ -134,5 +140,6 @@ var EffectiveConfigLayers = []EffectiveConfigLayerDefinition{
 	{EffectiveLayerHarnessDefault, "bridge-prefs.defaults for the harness — the Settings page's per-harness section."},
 	{EffectiveLayerGlobal, "A bridge-prefs field that applies everywhere: permission_mode, default_principal_id."},
 	{EffectiveLayerRegistry, "model-store's default role, the floor under the model."},
+	{EffectiveLayerToolStore, "tool-store's master switch: a harness tool disabled there is off in every session of that harness."},
 	{EffectiveLayerNone, "Nothing decides it; the harness does what it does."},
 }

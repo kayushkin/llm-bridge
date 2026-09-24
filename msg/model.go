@@ -26,8 +26,11 @@ const (
 	// ModelRoleBest is the highest-performance model, cost no object.
 	ModelRoleBest ModelRole = "best"
 	// ModelRoleDefault is the everyday model: much cheaper than best, better
-	// than efficient. It is the tier used when no other layer overrides.
+	// than balanced. It is the tier used when no other layer overrides.
 	ModelRoleDefault ModelRole = "default"
+	// ModelRoleBalanced sits between default and efficient: judgement that
+	// runs at volume, where efficient answers too carelessly.
+	ModelRoleBalanced ModelRole = "balanced"
 	// ModelRoleEfficient is cheap enough to run at volume — titles,
 	// classification, polling and other high-count one-shot calls.
 	ModelRoleEfficient ModelRole = "efficient"
@@ -36,7 +39,7 @@ const (
 // CanonicalModelRoles is the single definition of the valid role set, in the
 // order a UI should surface them. It mirrors model-store's CanonicalRoles;
 // nothing else may carry its own copy.
-var CanonicalModelRoles = []ModelRole{ModelRoleBest, ModelRoleDefault, ModelRoleEfficient}
+var CanonicalModelRoles = []ModelRole{ModelRoleBest, ModelRoleDefault, ModelRoleBalanced, ModelRoleEfficient}
 
 // Model mirrors a model-store registry row — the single source of truth. This
 // is the shared wire/TS shape; model-store's own Model is the same shape and is

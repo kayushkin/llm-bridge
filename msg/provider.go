@@ -63,6 +63,9 @@ const (
 	HarnessForgecode  Harness = "forgecode"
 	HarnessGemini     Harness = "gemini"
 	HarnessCopilotCLI Harness = "copilot_cli"
+	// HarnessDatabricks is not an agent CLI: its wrapper calls models served
+	// on a Databricks workspace directly, for one-shot calls only.
+	HarnessDatabricks Harness = "databricks"
 	// HarnessMock is a test/deploy-verification harness. Its wrapper binary
 	// (`llm-bridge-mock`, ships from llm-bridge-server/cmd/mock-harness)
 	// speaks the full NDJSON protocol but makes no LLM calls, so it can drive
@@ -92,6 +95,7 @@ var AllHarnesses = []Harness{
 	HarnessForgecode,
 	HarnessGemini,
 	HarnessCopilotCLI,
+	HarnessDatabricks,
 	HarnessMock,
 }
 
@@ -156,6 +160,8 @@ func HarnessBinaryName(h Harness) string {
 		return "llm-bridge-gemini"
 	case HarnessCopilotCLI:
 		return "llm-bridge-copilotcli"
+	case HarnessDatabricks:
+		return "llm-bridge-databricks"
 	case HarnessMock:
 		return "llm-bridge-mock"
 	default:

@@ -601,16 +601,22 @@ type TurnCompleteEvent struct {
 // the agent's initial handshake, and persisted on ManagedSession so it can
 // be retrieved via GET /sessions/{id} without replaying events.
 type SessionInfo struct {
-	SystemPrompt       string          `json:"system_prompt,omitempty"`
-	AppendSystemPrompt string          `json:"append_system_prompt,omitempty"`
-	WorkingDir         string          `json:"working_dir,omitempty"`
-	Model              string          `json:"model,omitempty"`
-	PermissionMode     string          `json:"permission_mode,omitempty"`
-	Tools              []ToolInfo      `json:"tools,omitempty"`
-	SlashCommands      []string        `json:"slash_commands,omitempty"`
-	Agents             []string        `json:"agents,omitempty"`
-	Skills             []string        `json:"skills,omitempty"`
-	MCPServers         []MCPServerInfo `json:"mcp_servers,omitempty"`
+	SystemPrompt       string `json:"system_prompt,omitempty"`
+	AppendSystemPrompt string `json:"append_system_prompt,omitempty"`
+	WorkingDir         string `json:"working_dir,omitempty"`
+	Model              string `json:"model,omitempty"`
+	PermissionMode     string `json:"permission_mode,omitempty"`
+	// Effort is the reasoning effort the agent reports it is running at —
+	// its own resolved value, so it names the level even when nothing set
+	// one and the agent chose its default. Empty when the agent does not
+	// report one. Claude Code reports it through get_settings, so the
+	// claudecode harness emits a fresh SessionInfo after each effort change.
+	Effort        string          `json:"effort,omitempty"`
+	Tools         []ToolInfo      `json:"tools,omitempty"`
+	SlashCommands []string        `json:"slash_commands,omitempty"`
+	Agents        []string        `json:"agents,omitempty"`
+	Skills        []string        `json:"skills,omitempty"`
+	MCPServers    []MCPServerInfo `json:"mcp_servers,omitempty"`
 }
 
 // ToolInfo names a tool the agent has available. Description is optional —

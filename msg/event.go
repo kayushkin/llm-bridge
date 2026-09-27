@@ -87,6 +87,8 @@ type Event struct {
 	SessionCost   *SessionCostEvent   `json:"session_cost,omitempty"`
 	// Status is the body of an EventSessionStatus. See SessionStatus.
 	Status *SessionStatus `json:"status,omitempty"`
+	// SessionFile is the body of an EventSessionFile.
+	SessionFile *SessionFile `json:"session_file,omitempty"`
 
 	// DerivedFrom lists the upstream event ids this event was synthesized
 	// from, when llm-bridge-server (or a harness) emits a convenience event
@@ -243,12 +245,46 @@ type ToolCallEvent struct {
 //
 // MessageID mirrors ToolCallEvent.MessageID — the harness-native id of the
 // bubble that contained the tool_result block.
+//
+// Output is the result's text. Content holds the blocks that are not text —
+// an image the tool returned, such as a screenshot or an image file the agent
+// read — as canonical blocks, so a client can draw them without reading a
+// harness's raw frame. Text stays in Output and is not repeated here.
 type ToolResultEvent struct {
-	ToolID    string `json:"tool_id"`
-	Name      string `json:"name"`
-	Output    string `json:"output"`
-	IsError   bool   `json:"is_error,omitempty"`
-	MessageID string `json:"message_id,omitempty"`
+	ToolID    string         `json:"tool_id"`
+	Name      string         `json:"name"`
+	Output    string         `json:"output"`
+	Content   []ContentBlock `json:"content,omitempty"`
+	IsError   bool           `json:"is_error,omitempty"`
+	MessageID string         `json:"message_id,omitempty"`
+}
+
+// SessionFileSharer says who put a file into a session.
+type SessionFileSharer string
+
+const (
+	// SessionFileSharedByUser is a file a person uploaded to the session.
+	SessionFileSharedByUser SessionFileSharer = "user"
+	// SessionFileSharedByAgent is a file the session's agent published for
+	// the person to see.
+	SessionFileSharedByAgent SessionFileSharer = "agent"
+)
+
+// SessionFile is one file shared into a session, in either direction.
+//
+// FileID is file-store's id for the bytes (`file_000001`); llm-bridge-server
+// owns which session a file belongs to and serves the content at
+// GET /sessions/{id}/files/{file_id}/content. Path is where the agent can
+// read the same bytes on the host running the session.
+type SessionFile struct {
+	FileID    string            `json:"file_id"`
+	SessionID string            `json:"session_id"`
+	Filename  string            `json:"filename"`
+	MediaType string            `json:"media_type"`
+	SizeBytes int64             `json:"size_bytes"`
+	SharedBy  SessionFileSharer `json:"shared_by"`
+	Path      string            `json:"path"`
+	CreatedAt time.Time         `json:"created_at"`
 }
 
 // ThinkingEvent is a thinking/reasoning event.

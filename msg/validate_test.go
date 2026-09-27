@@ -395,6 +395,7 @@ func TestValidateEvent_AllTypes(t *testing.T) {
 		{EventSessionState, Event{State: &StateEvent{State: SessionRunning}}},
 		{EventPlan, Event{Plan: &PlanEvent{Text: "step 1"}}},
 		{EventHook, Event{Hook: &HookEvent{Event: "PreToolUse", Phase: "started"}}},
+		{EventSessionFile, Event{SessionFile: &SessionFile{FileID: "file_000001", Filename: "a.png", SharedBy: SessionFileSharedByUser}}},
 	}
 	for _, tt := range types {
 		t.Run(string(tt.et), func(t *testing.T) {

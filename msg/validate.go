@@ -168,7 +168,8 @@ func ValidateEvent(e *Event) *ValidationError {
 	switch e.Type {
 	case EventResult, EventStream, EventBlock, EventToolCall, EventToolResult,
 		EventThinking, EventSystem, EventApproval, EventError, EventSessionState, EventPlan, EventHook,
-		EventAgentState, EventUsageTotal, EventTurnComplete, EventAPICall, EventAPISpendTotal, EventSessionCost, EventSessionStatus:
+		EventAgentState, EventUsageTotal, EventTurnComplete, EventAPICall, EventAPISpendTotal, EventSessionCost, EventSessionStatus,
+		EventSessionFile:
 		// Valid.
 	case "":
 		failures = append(failures, ValidationFailure{
@@ -237,6 +238,9 @@ func ValidateEvent(e *Event) *ValidationError {
 		payloads++
 	}
 	if e.Status != nil {
+		payloads++
+	}
+	if e.SessionFile != nil {
 		payloads++
 	}
 

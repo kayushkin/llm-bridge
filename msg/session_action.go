@@ -15,8 +15,11 @@ const (
 	SessionActionDeploy SessionActionType = "deploy"
 	// SessionActionRunSchedulerJob runs one scheduler job now.
 	SessionActionRunSchedulerJob SessionActionType = "run_scheduler_job"
-	// SessionActionSendMessage sends a message to the session the action is in,
-	// as if the person had typed it.
+	// SessionActionSendMessage sent a message to the session the action is in,
+	// as if the person had typed it. No longer offered since 2026-09-28:
+	// agents used it for answer choices, which is the question feature's job
+	// (AskUserQuestion draws each option as a one-click answer), so it only
+	// repeated the question. Kept so the records made before then still read.
 	SessionActionSendMessage SessionActionType = "send_message"
 	// SessionActionForkAndSend forks the session and sends a message to the
 	// fork, leaving the original session alone.
@@ -27,11 +30,12 @@ const (
 	SessionActionNewSessionAndSend SessionActionType = "new_session_and_send"
 )
 
-// SessionActionTypes is every action type, in the order a client lists them.
-var SessionActionTypes = []SessionActionType{
+// OfferableSessionActionTypes is every action type an agent may offer now,
+// in the order a client lists them. Each one makes the server do something;
+// none answers a question.
+var OfferableSessionActionTypes = []SessionActionType{
 	SessionActionDeploy,
 	SessionActionRunSchedulerJob,
-	SessionActionSendMessage,
 	SessionActionForkAndSend,
 	SessionActionNewSessionAndSend,
 }
@@ -55,7 +59,9 @@ const (
 
 // SessionActionOffer is what an agent sends to put a button in its session:
 // POST /sessions/{id}/actions. Type decides which one of RepoID,
-// SchedulerJobID and Message is required; the others must be empty.
+// SchedulerJobID and Message is required; the others must be empty. The
+// agent then writes the action's id in its reply, and the chat draws the
+// button there.
 type SessionActionOffer struct {
 	// Label is the button's text: what the action does, in the agent's words.
 	Label string            `json:"label"`
@@ -64,8 +70,7 @@ type SessionActionOffer struct {
 	RepoID int64 `json:"repo_id,omitempty"`
 	// SchedulerJobID is the scheduler's id of the job to run.
 	SchedulerJobID int64 `json:"scheduler_job_id,omitempty"`
-	// Message is the text to send, for send_message, fork_and_send and
-	// new_session_and_send.
+	// Message is the text to send, for fork_and_send and new_session_and_send.
 	Message string `json:"message,omitempty"`
 }
 

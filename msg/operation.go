@@ -364,6 +364,11 @@ type ClassificationTaxonomy struct {
 // ClassificationAxis is one independent question asked of every item, such
 // as category, action or urgency.
 type ClassificationAxis struct {
+	// ID is the owning store's stable id for the axis (kanban-store's
+	// classification_axis_000001). It never changes when the axis is renamed,
+	// so a decision recorded against it keeps meaning the same axis. An inline
+	// taxonomy on a classification.run may leave it empty.
+	ID          string                `json:"id,omitempty"`
 	Name        string                `json:"name"`
 	Description string                `json:"description,omitempty"`
 	Values      []ClassificationValue `json:"values"`
@@ -372,23 +377,35 @@ type ClassificationAxis struct {
 	// Required means every item must get a value on this axis; an item that
 	// does not is marked for review rather than guessed.
 	Required bool `json:"required,omitempty"`
+	// Archived keeps a retired axis in the taxonomy so the decisions recorded
+	// against it still resolve. A classifier is never asked about it; see
+	// Selectable.
+	Archived bool `json:"archived,omitempty"`
 }
 
 // ClassificationValue is one value an axis may take. Description is what
 // the model is told it means, so write it for the model.
 type ClassificationValue struct {
+	// ID is the owning store's stable id for the value
+	// (classification_value_000001), kept through renames like the axis's.
+	ID          string `json:"id,omitempty"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+	// Archived keeps a retired value resolvable in history; it cannot be
+	// chosen for new work.
+	Archived bool `json:"archived,omitempty"`
 }
 
-// Validate refuses a taxonomy a classifier could not use: no axes, an axis
-// with no values, or a repeated or blank name.
+// Validate refuses a taxonomy a classifier could not use: no axis that is not
+// archived, an axis that is not archived with no value that is not archived,
+// or a repeated or blank name. Names are unique among archived entries too, so
+// a result keyed by name never means two things.
 func (taxonomy *ClassificationTaxonomy) Validate() error {
 	if strings.TrimSpace(taxonomy.Name) == "" {
 		return errors.New("taxonomy needs a name")
 	}
-	if len(taxonomy.Axes) == 0 {
-		return errors.New("taxonomy needs at least one axis")
+	if len(taxonomy.Selectable().Axes) == 0 {
+		return errors.New("taxonomy needs at least one axis that is not archived")
 	}
 	axisNames := map[string]bool{}
 	for axisIndex, axis := range taxonomy.Axes {
@@ -401,6 +418,9 @@ func (taxonomy *ClassificationTaxonomy) Validate() error {
 		axisNames[axis.Name] = true
 		if len(axis.Values) == 0 {
 			return fmt.Errorf("axis %q has no values", axis.Name)
+		}
+		if !axis.Archived && !hasSelectableValue(axis) {
+			return fmt.Errorf("axis %q has no value that is not archived; archive the axis instead", axis.Name)
 		}
 		valueNames := map[string]bool{}
 		for valueIndex, value := range axis.Values {
@@ -443,10 +463,11 @@ type ClassificationItem struct {
 // ClassificationRunResult is the Result of a succeeded classification.run.
 type ClassificationRunResult struct {
 	// Taxonomy is the taxonomy the items were classified against, as it was
-	// when the operation ran; a board's may have changed since.
+	// when the operation ran, without archived entries; a board's may have
+	// changed since.
 	Taxonomy ClassificationTaxonomy `json:"taxonomy"`
 	// TaxonomySource is the board the taxonomy came from, with the board's
-	// updated_at as its version. Nil for an inline taxonomy.
+	// taxonomy revision as its version. Nil for an inline taxonomy.
 	TaxonomySource *OperationReference        `json:"taxonomy_source,omitempty"`
 	Items          []ClassificationItemResult `json:"items"`
 }

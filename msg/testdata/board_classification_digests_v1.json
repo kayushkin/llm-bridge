@@ -1,0 +1,69 @@
+{
+  "taxonomy": {
+    "name": "support mail",
+    "domain": "support mail to a logistics company",
+    "axes": [
+      {
+        "id": "classification_axis_000001",
+        "name": "category",
+        "description": "what the sender wants",
+        "values": [
+          {"id": "classification_value_000001", "name": "billing", "description": "invoices, charges, refunds"},
+          {"id": "classification_value_000002", "name": "tracking", "description": "where a shipment is"},
+          {"id": "classification_value_000003", "name": "ünïcode ✓", "description": "a value whose name is not ASCII"}
+        ]
+      },
+      {
+        "id": "classification_axis_000002",
+        "name": "urgency",
+        "required": true,
+        "values": [
+          {"id": "classification_value_000004", "name": "low"},
+          {"id": "classification_value_000005", "name": "high"}
+        ]
+      }
+    ]
+  },
+  "taxonomy_digest": "classification-taxonomy-v1:sha256:8b32f76cebd984ece597d98e46205587fe572752548e1ffbad5b6ef445149efc",
+  "archived_taxonomy_digest": "classification-taxonomy-v1:sha256:9b71adf71d3d7da87bdae8fc8e43c00329f0f5d4c2fcebe7df365ef8acbed17a",
+  "source": {
+    "source_revision": "2026-09-27T10:00:00.123456Z",
+    "subject": "Where is shipment 4471?",
+    "body": "Hello,\n\nThe order placed on the 3rd has not arrived. — Grüße",
+    "sender": "customer@example.com",
+    "recipients": ["support@example.com", "billing@example.com"],
+    "received_at": "2026-09-27T09:58:00Z"
+  },
+  "source_digest": "classification-source-v1:sha256:73b7f0204ee67fa274120cd61515266443eb2872fbe6e226436204b14ffb530f",
+  "publication": {
+    "board_id": "5d1c0a4e-0000-4000-8000-000000000001",
+    "card_id": "8a2f9c10-0000-4000-8000-000000000002",
+    "operation_id": "op_000000000001",
+    "checkpoint_id": "checkpoint_0001",
+    "attempt_number": 1,
+    "initiating_principal_id": "principal_000001",
+    "source": {
+      "source_revision": "2026-09-27T10:00:00.123456Z",
+      "subject": "Where is shipment 4471?",
+      "body": "Hello,\n\nThe order placed on the 3rd has not arrived. — Grüße",
+      "sender": "customer@example.com",
+      "recipients": ["support@example.com", "billing@example.com"],
+      "received_at": "2026-09-27T09:58:00Z"
+    },
+    "source_digest": "classification-source-v1:sha256:73b7f0204ee67fa274120cd61515266443eb2872fbe6e226436204b14ffb530f",
+    "taxonomy_revision": 3,
+    "taxonomy_digest": "classification-taxonomy-v1:sha256:8b32f76cebd984ece597d98e46205587fe572752548e1ffbad5b6ef445149efc",
+    "policy_revision": 2,
+    "prompt_revision": "classification-prompt-v1",
+    "model": {"requested_model": "efficient", "resolved_model_id": "gpt-6-luna", "provider": "openai", "answered_by_model": "gpt-6-luna"},
+    "origin": "model",
+    "selections": {
+      "classification_axis_000001": ["classification_value_000002"],
+      "classification_axis_000002": ["classification_value_000005"]
+    },
+    "rationale": "asks where a shipment is",
+    "model_reported_confidence": 0.8,
+    "completed_at": "2026-09-27T10:01:00Z"
+  },
+  "publication_key": "classification-publication-v1:sha256:73676474dd1d2f2ef1a906816b3c7f9a03209daede68a86fb29583a60293d8fa"
+}

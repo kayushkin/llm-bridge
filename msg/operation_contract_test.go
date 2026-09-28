@@ -63,6 +63,12 @@ var operationContractTypes = []any{
 	OrganizationBudget{},
 	LLMCompletionInput{},
 	LLMCompletionResult{},
+	ClassificationAxisPolicy{},
+	BoardClassificationPolicy{},
+	BoardClassification{},
+	ClassificationSourceSnapshot{},
+	ClassificationModelEvidence{},
+	BoardClassificationDecisionPublication{},
 }
 
 var typeScriptFieldPattern = regexp.MustCompile(`(?m)^  ([a-z_]+)\??:`)
@@ -158,6 +164,15 @@ func TestTaxonomyValidation(t *testing.T) {
 		"no values":       func(t *ClassificationTaxonomy) { t.Axes[0].Values = nil },
 		"value repeated":  func(t *ClassificationTaxonomy) { t.Axes[0].Values[1].Name = "billing" },
 		"untrimmed value": func(t *ClassificationTaxonomy) { t.Axes[0].Values[0].Name = "billing " },
+		"every axis archived": func(t *ClassificationTaxonomy) {
+			t.Axes[0].Archived, t.Axes[1].Archived = true, true
+		},
+		"live axis with every value archived": func(t *ClassificationTaxonomy) {
+			t.Axes[0].Values[0].Archived, t.Axes[0].Values[1].Archived = true, true
+		},
+		"live value named like an archived one": func(t *ClassificationTaxonomy) {
+			t.Axes[0].Values[0].Archived, t.Axes[0].Values[1].Name = true, "billing"
+		},
 	} {
 		copied := valid
 		copied.Axes = []ClassificationAxis{valid.Axes[0], valid.Axes[1]}

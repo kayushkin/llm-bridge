@@ -217,6 +217,11 @@ const (
 	// the agent, at the point in the conversation it was shared. Emitted by
 	// llm-bridge-server, never by a harness. See SessionFile.
 	EventSessionFile EventType = "session_file"
+	// EventSessionAction carries a session action's whole record each time it
+	// changes: when the agent offers it, when a person confirms it, and when
+	// its run ends. Emitted by llm-bridge-server, never by a harness. See
+	// SessionAction.
+	EventSessionAction EventType = "session_action"
 	// EventSessionStatus carries the session's whole current status —
 	// state, tools in flight, running subagents — each time any of it
 	// changes. Derived by llm-bridge-server. See SessionStatus.

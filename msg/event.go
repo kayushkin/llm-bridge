@@ -89,6 +89,8 @@ type Event struct {
 	Status *SessionStatus `json:"status,omitempty"`
 	// SessionFile is the body of an EventSessionFile.
 	SessionFile *SessionFile `json:"session_file,omitempty"`
+	// SessionAction is the body of an EventSessionAction.
+	SessionAction *SessionAction `json:"session_action,omitempty"`
 
 	// DerivedFrom lists the upstream event ids this event was synthesized
 	// from, when llm-bridge-server (or a harness) emits a convenience event

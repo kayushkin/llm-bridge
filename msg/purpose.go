@@ -215,6 +215,12 @@ var purposeSpecs = []PurposeSpec{
 		Summary: "Decomposes a goal card into sub-cards.",
 	},
 	{
+		Name:    PurposeSessionAction,
+		Type:    SessionTypeAutonomous,
+		Origins: []string{"llm-bridge-server"},
+		Summary: "Background agent a chat button started; its final reply shows under the button.",
+	},
+	{
 		Name: PurposeSubagent,
 		Type: SessionTypeSystem,
 		// Discovery belongs here for the same reason it belongs on
@@ -253,6 +259,7 @@ const (
 	PurposeRenamer          = "renamer"
 	PurposeScheduledTask    = "scheduled-task"
 	PurposeScoper           = "scoper"
+	PurposeSessionAction    = "session-action"
 	PurposeSubagent         = "subagent"
 	PurposeWorkflowSubagent = "workflow-subagent"
 )

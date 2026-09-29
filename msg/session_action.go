@@ -28,6 +28,17 @@ const (
 	// harness, instance, agent, principal and working directory, but none of its
 	// history, and sends it a message.
 	SessionActionNewSessionAndSend SessionActionType = "new_session_and_send"
+	// SessionActionRunCommand runs a shell command the agent wrote, in a
+	// directory, and shows its output under the button. A reviewer model reads
+	// the command when it is offered; a command it rejects cannot be run.
+	SessionActionRunCommand SessionActionType = "run_command"
+	// SessionActionModelCall asks a model one question, with no tools, and
+	// shows its answer under the button.
+	SessionActionModelCall SessionActionType = "model_call"
+	// SessionActionBackgroundAgent starts a session set up like this one, with
+	// a spend ceiling, sends it a task, and shows its final reply under the
+	// button while the session itself stays open to look at.
+	SessionActionBackgroundAgent SessionActionType = "background_agent"
 )
 
 // OfferableSessionActionTypes is every action type an agent may offer now,
@@ -36,8 +47,49 @@ const (
 var OfferableSessionActionTypes = []SessionActionType{
 	SessionActionDeploy,
 	SessionActionRunSchedulerJob,
+	SessionActionRunCommand,
+	SessionActionModelCall,
+	SessionActionBackgroundAgent,
 	SessionActionForkAndSend,
 	SessionActionNewSessionAndSend,
+}
+
+// SessionActionResultFormat says how the chat draws an action's output.
+type SessionActionResultFormat string
+
+const (
+	// SessionActionResultText is drawn as it came, in a fixed-width font.
+	SessionActionResultText SessionActionResultFormat = "text"
+	// SessionActionResultMarkdown is drawn as markdown: lists, tables, links,
+	// and record ids as chips.
+	SessionActionResultMarkdown SessionActionResultFormat = "markdown"
+)
+
+// SessionActionReviewVerdict is what the reviewer model made of a command.
+type SessionActionReviewVerdict string
+
+const (
+	// SessionActionReviewApprove: the command does what its label says and
+	// nothing it does is hard to undo.
+	SessionActionReviewApprove SessionActionReviewVerdict = "approve"
+	// SessionActionReviewCaution: it does what its label says, but it changes
+	// something that matters — pushes, deploys, deletes, sends, spends. The
+	// person should read it before confirming.
+	SessionActionReviewCaution SessionActionReviewVerdict = "caution"
+	// SessionActionReviewReject: it does not do what its label says, or it
+	// could do harm the label does not admit. It cannot be run.
+	SessionActionReviewReject SessionActionReviewVerdict = "reject"
+)
+
+// SessionActionReview is the reviewer model's reading of a command, made when
+// the action was offered.
+type SessionActionReview struct {
+	Verdict SessionActionReviewVerdict `json:"verdict"`
+	// Reasons is the reviewer's explanation, in a few sentences.
+	Reasons string `json:"reasons"`
+	// Model is the model that reviewed it, as model-store resolved it.
+	Model      string    `json:"model"`
+	ReviewedAt time.Time `json:"reviewed_at"`
 }
 
 // SessionActionState is where a session action is in its one run.
@@ -70,8 +122,24 @@ type SessionActionOffer struct {
 	RepoID int64 `json:"repo_id,omitempty"`
 	// SchedulerJobID is the scheduler's id of the job to run.
 	SchedulerJobID int64 `json:"scheduler_job_id,omitempty"`
-	// Message is the text to send, for fork_and_send and new_session_and_send.
+	// Message is the text to send, for fork_and_send, new_session_and_send and
+	// background_agent, and the question for model_call.
 	Message string `json:"message,omitempty"`
+	// ShellCommand is the command run_command runs with bash -l -c.
+	ShellCommand string `json:"shell_command,omitempty"`
+	// WorkingDirectory is where run_command runs; empty means the session's
+	// own working directory.
+	WorkingDirectory string `json:"working_directory,omitempty"`
+	// ResultFormat is how the chat draws run_command's output; empty is text.
+	// model_call and background_agent answers are always markdown.
+	ResultFormat SessionActionResultFormat `json:"result_format,omitempty"`
+	// Model names the model for model_call (required) or background_agent
+	// (empty keeps this session's): a model-store id, alias or role.
+	Model string `json:"model,omitempty"`
+	// MaximumCostUSD is the most a model_call or background_agent may spend,
+	// at list price. Required for both; the agent that offers the button sets
+	// it, and the button shows it.
+	MaximumCostUSD float64 `json:"maximum_cost_usd,omitempty"`
 }
 
 // SessionAction is one button in a session and the record of its run. Every
@@ -100,7 +168,12 @@ type SessionAction struct {
 	Output string `json:"output,omitempty"`
 	// Error says why a failed run failed.
 	Error string `json:"error,omitempty"`
-	// ResultSessionID is the session a fork_and_send or new_session_and_send
-	// run created.
+	// ResultSessionID is the session a fork_and_send, new_session_and_send or
+	// background_agent run created, set as soon as it exists.
 	ResultSessionID string `json:"result_session_id,omitempty"`
+	// Review is the reviewer model's reading of a run_command, made when it
+	// was offered.
+	Review *SessionActionReview `json:"review,omitempty"`
+	// CostUSD is what a model_call spent, at list price.
+	CostUSD float64 `json:"cost_usd,omitempty"`
 }

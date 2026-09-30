@@ -16,8 +16,19 @@ type OneShotRequest struct {
 	// SystemPrompt is an optional system message.
 	SystemPrompt string `json:"system_prompt,omitempty"`
 
-	// Model overrides the harness instance's default model.
+	// Model overrides the harness instance's default model. A request to the
+	// server's POST /oneshot names ModelRole instead and leaves this empty.
 	Model string `json:"model,omitempty"`
+
+	// ModelRole names a model-store role ("balanced") for a request the server
+	// routes itself (POST /oneshot): it tries the role's models in order,
+	// each on the instance configured for that model's provider, until one
+	// answers. Set this or Model, never both.
+	ModelRole string `json:"model_role,omitempty"`
+
+	// Caller names the feature making the call ("email-classifier"), so logs
+	// and usage can say what the calls were for. Free text, for display only.
+	Caller string `json:"caller,omitempty"`
 
 	// Schema, when non-empty, is a JSON Schema (raw bytes) the response must
 	// conform to. The bridge is expected to hard-force a tool call so that
@@ -50,4 +61,23 @@ type OneShotResponse struct {
 
 	// Model is the resolved model identifier the provider used.
 	Model string `json:"model,omitempty"`
+
+	// InstanceID is the harness instance that answered. Set by the server's
+	// POST /oneshot, which picks it.
+	InstanceID string `json:"instance_id,omitempty"`
+
+	// Attempts lists, in order, every model the server's POST /oneshot tried
+	// or skipped before the one that answered, and why. Empty when the first
+	// model answered.
+	Attempts []OneShotAttempt `json:"attempts,omitempty"`
+}
+
+// OneShotAttempt is one model the server tried, or skipped, for a role.
+type OneShotAttempt struct {
+	Model      string `json:"model"`
+	InstanceID string `json:"instance_id,omitempty"`
+	// Skipped says why the model was not called ("anthropic seven_day limit at
+	// 100%"); Error says why a call failed. Exactly one is set.
+	Skipped string `json:"skipped,omitempty"`
+	Error   string `json:"error,omitempty"`
 }

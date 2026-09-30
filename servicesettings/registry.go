@@ -415,6 +415,11 @@ func (r *Registry) String(key string) string {
 	return r.text(key, msg.ServiceSettingValueTypeString)
 }
 
+// ModelRole returns the model-store role name in force, empty when none is.
+func (r *Registry) ModelRole(key string) string {
+	return r.text(key, msg.ServiceSettingValueTypeModelRole)
+}
+
 // Integer returns the value in force, zero when none is.
 func (r *Registry) Integer(key string) int {
 	text := r.text(key, msg.ServiceSettingValueTypeInteger)
@@ -490,6 +495,12 @@ func checkValue(valueType msg.ServiceSettingValueType, text string) error {
 	switch valueType {
 	case msg.ServiceSettingValueTypeString, msg.ServiceSettingValueTypeStringList:
 		return nil
+	case msg.ServiceSettingValueTypeModelRole:
+		// Which roles exist is model-store's to say; the service's validator
+		// asks it. Here only the shape is checked.
+		if strings.ContainsAny(text, " ,/") {
+			return fmt.Errorf("%q is not a model role name such as balanced", text)
+		}
 	case msg.ServiceSettingValueTypeInteger:
 		if _, err := strconv.Atoi(text); err != nil {
 			return fmt.Errorf("%q is not a whole number", text)

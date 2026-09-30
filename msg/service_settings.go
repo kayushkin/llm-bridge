@@ -70,6 +70,11 @@ const (
 	ServiceSettingValueTypeStringList ServiceSettingValueType = "string_list"
 	// Comma-separated key:value pairs: "herald:Reminders,dispatcher:Work".
 	ServiceSettingValueTypeStringMap ServiceSettingValueType = "string_map"
+	// The name of a model-store role: "balanced". The role, not a model id,
+	// is what a service stores, so a caller follows model-store when a role's
+	// models change. model-store owns the set of roles; a service checks a new
+	// value against it with a validator (servicesettings.SetValidator).
+	ServiceSettingValueTypeModelRole ServiceSettingValueType = "model_role"
 )
 
 // ServiceSetting is one setting and the value in force.

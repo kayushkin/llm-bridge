@@ -664,6 +664,12 @@ type CreateSessionRequest struct {
 	// when the harness process is spawned, so changing it afterwards would
 	// silently do nothing until the session was restarted.
 	WorkingDir string `json:"working_dir,omitempty"`
+	// ManagerSessionID names the bridge session that started this one, so the
+	// new session sits under it in the session tree. Optional. The server
+	// refuses an id it has no session for (400 unknown_manager_session) and
+	// takes RootSessionID and Depth from that session. An agent running in a
+	// bridge session finds its own id in LLM_BRIDGE_SESSION_ID.
+	ManagerSessionID string `json:"manager_session_id,omitempty"`
 }
 
 // SendMessageRequest is the request body for POST /sessions/{id}/send.

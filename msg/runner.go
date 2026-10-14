@@ -80,12 +80,31 @@ type RunnerHello struct {
 	WorkingDir         string             `json:"working_dir"`         // default cwd for spawned subprocesses
 	AvailableHarnesses []HarnessAvailable `json:"available_harnesses"` // detected harness binaries on this machine
 	RunnerVersion      string             `json:"runner_version"`      // build-stamped version
+	// ComputerUse is set when this runner installed a computer-use tool it
+	// can hand to a session; nil when it has none (no screen it can reach,
+	// or the install failed, which the runner logs).
+	ComputerUse *ComputerUseTool `json:"computer_use,omitempty"`
 }
+
+// ComputerUseTool is a runner's computer-use MCP server: the command a
+// harness on that machine runs to get the "computer" tool. On WSL it is the
+// Windows build, under the Windows user's local app data, run through WSL's
+// interop.
+type ComputerUseTool struct {
+	Command string `json:"command"`           // absolute path on the runner's machine
+	Version string `json:"version,omitempty"` // the tool's build stamp
+}
+
+// ComputerUseMCPServerName is the name a session's MCP config gives the
+// computer-use server, so its tool is mcp__llm-bridge-computer-use__computer.
+// Not "computer-use": Claude Code reserves that name and drops a server
+// called it with only a debug-log warning (2.1.300, measured 2026-10-14).
+const ComputerUseMCPServerName = "llm-bridge-computer-use"
 
 // HarnessAvailable reports a harness binary present on the runner machine.
 type HarnessAvailable struct {
 	Harness Harness `json:"harness"`
-	Binary  string  `json:"binary"`  // absolute path
+	Binary  string  `json:"binary"` // absolute path
 	Version string  `json:"version,omitempty"`
 }
 
@@ -96,8 +115,8 @@ type HarnessAvailable struct {
 // should overwrite their saved config from this value so subsequent
 // connects don't keep reporting the old name.
 type RunnerWelcome struct {
-	MachineID        string    `json:"machine_id"`         // server-assigned, stable across reconnects
-	MachineName      string    `json:"machine_name"`       // authoritative current name
+	MachineID        string    `json:"machine_id"`   // server-assigned, stable across reconnects
+	MachineName      string    `json:"machine_name"` // authoritative current name
 	ServerVersion    string    `json:"server_version"`
 	PingIntervalSecs int       `json:"ping_interval_secs"` // app-level ping cadence the runner should follow
 	AcceptedAt       time.Time `json:"accepted_at"`
@@ -106,7 +125,7 @@ type RunnerWelcome struct {
 // RunnerError reports a fatal error before the connection is closed.
 // Code is a stable machine-readable token; Message is human prose.
 type RunnerError struct {
-	Code    string `json:"code"`    // "auth_failed", "duplicate_machine", "internal", …
+	Code    string `json:"code"` // "auth_failed", "duplicate_machine", "internal", …
 	Message string `json:"message"`
 }
 
@@ -122,12 +141,15 @@ type RunnerError struct {
 // This is how "create an instance on a remote machine" actually
 // deploys the harness's full stack to that machine.
 type RunnerSpawn struct {
-	Harness     Harness           `json:"harness"`
-	BinaryPath  string            `json:"binary_path,omitempty"`  // optional override; runner falls back to PATH lookup
-	WorkingDir  string            `json:"working_dir,omitempty"`  // overrides Hello.WorkingDir for this session
-	StartParams json.RawMessage   `json:"start_params"`           // verbatim JSON-RPC params for "start"
-	Env         []string          `json:"env,omitempty"`          // extra env vars for the wrapper, "KEY=VALUE" form
-	Provision   []HarnessService  `json:"provision,omitempty"`    // backend services the runner should ensure are running
+	Harness     Harness          `json:"harness"`
+	BinaryPath  string           `json:"binary_path,omitempty"` // optional override; runner falls back to PATH lookup
+	WorkingDir  string           `json:"working_dir,omitempty"` // overrides Hello.WorkingDir for this session
+	StartParams json.RawMessage  `json:"start_params"`          // verbatim JSON-RPC params for "start"
+	Env         []string         `json:"env,omitempty"`         // extra env vars for the wrapper, "KEY=VALUE" form
+	Provision   []HarnessService `json:"provision,omitempty"`   // backend services the runner should ensure are running
+	// ComputerUse says the session was given the runner's computer-use tool,
+	// so the runner makes the tool current before starting the harness.
+	ComputerUse bool `json:"computer_use,omitempty"`
 }
 
 // HarnessService describes one long-lived backend daemon a harness needs
@@ -135,13 +157,13 @@ type RunnerSpawn struct {
 // per-harness deployment manifest, with credential values already
 // resolved into Env so the runner doesn't need bridge-side state.
 type HarnessService struct {
-	Name      string   `json:"name"`                  // unique key, e.g. "inber-server"; runners dedupe by this across spawns
-	BinaryURL string   `json:"binary_url"`            // canonical /api/runner/binary?name=…&os=…&arch=… URL
-	BinaryPath string  `json:"binary_path,omitempty"` // absolute path on the runner; defaults to ~/.local/bin/<name>
-	Args      []string `json:"args,omitempty"`        // command-line args passed to the binary
-	Env       []string `json:"env,omitempty"`         // env vars (KEY=VALUE), including resolved credential values
-	HealthURL string   `json:"health_url"`            // GET probe to wait for after start (e.g. http://localhost:8200/health)
-	Stdout    string   `json:"stdout,omitempty"`      // optional log file path; defaults to ~/.cache/llm-bridge-runner/<name>.log
+	Name       string   `json:"name"`                  // unique key, e.g. "inber-server"; runners dedupe by this across spawns
+	BinaryURL  string   `json:"binary_url"`            // canonical /api/runner/binary?name=…&os=…&arch=… URL
+	BinaryPath string   `json:"binary_path,omitempty"` // absolute path on the runner; defaults to ~/.local/bin/<name>
+	Args       []string `json:"args,omitempty"`        // command-line args passed to the binary
+	Env        []string `json:"env,omitempty"`         // env vars (KEY=VALUE), including resolved credential values
+	HealthURL  string   `json:"health_url"`            // GET probe to wait for after start (e.g. http://localhost:8200/health)
+	Stdout     string   `json:"stdout,omitempty"`      // optional log file path; defaults to ~/.cache/llm-bridge-runner/<name>.log
 }
 
 // RunnerStdin carries one line (no trailing newline) of NDJSON to be
@@ -212,13 +234,13 @@ const (
 // ExpectedPriorSHA empty = the runner has never seen this file (first push).
 // In that case any pre-existing content at InstallPath is treated as drift.
 type RunnerSeedDelta struct {
-	Source        SeedSource `json:"source"`
-	Op            SeedOp     `json:"op"`
-	TrackedID     int64      `json:"tracked_id"`             // ID in the source store
-	VersionID     int64      `json:"version_id,omitempty"`   // version to fetch on upsert
-	InstallPath   string     `json:"install_path"`           // $HOME-relative
-	NewSHA        string     `json:"new_sha,omitempty"`      // sha of the new content (upsert only)
-	ExpectedPriorSHA string  `json:"expected_prior_sha,omitempty"` // last-pushed sha bridge thinks runner has
+	Source           SeedSource `json:"source"`
+	Op               SeedOp     `json:"op"`
+	TrackedID        int64      `json:"tracked_id"`                   // ID in the source store
+	VersionID        int64      `json:"version_id,omitempty"`         // version to fetch on upsert
+	InstallPath      string     `json:"install_path"`                 // $HOME-relative
+	NewSHA           string     `json:"new_sha,omitempty"`            // sha of the new content (upsert only)
+	ExpectedPriorSHA string     `json:"expected_prior_sha,omitempty"` // last-pushed sha bridge thinks runner has
 }
 
 // RunnerSeedSnapshot tells the runner to do a full manifest reconcile against

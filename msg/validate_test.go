@@ -300,11 +300,11 @@ func TestValidateResponse_AllStopReasons(t *testing.T) {
 
 func TestValidateEvent_Valid(t *testing.T) {
 	e := &Event{
-		Type:      EventResult,
-		Harness:   HarnessClaudeCode,
+		Type:            EventResult,
+		Harness:         HarnessClaudeCode,
 		BridgeSessionID: "sess_1",
-		Timestamp: time.Now(),
-		Result:    &ResultEvent{Text: "done"},
+		Timestamp:       time.Now(),
+		Result:          &ResultEvent{Text: "done"},
 	}
 	if err := ValidateEvent(e); err != nil {
 		t.Errorf("expected valid, got: %v", err)

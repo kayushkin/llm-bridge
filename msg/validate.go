@@ -58,11 +58,11 @@ const (
 	ErrMissingSessionID       = "missing_session_id"
 	ErrMissingBridgeSessionID = "missing_bridge_session_id"
 	ErrMissingHarness         = "missing_harness"
-	ErrInvalidEventType    = "invalid_event_type"
-	ErrNoEventPayload      = "no_event_payload"
-	ErrMultiplePayloads    = "multiple_payloads"
-	ErrInvalidSessionState = "invalid_session_state"
-	ErrMissingTimestamp    = "missing_timestamp"
+	ErrInvalidEventType       = "invalid_event_type"
+	ErrNoEventPayload         = "no_event_payload"
+	ErrMultiplePayloads       = "multiple_payloads"
+	ErrInvalidSessionState    = "invalid_session_state"
+	ErrMissingTimestamp       = "missing_timestamp"
 )
 
 // --- Conversation/Response validation ---
@@ -324,8 +324,8 @@ func validateMessage(m *Message, path string) []ValidationFailure {
 
 		if block.Thinking != nil && block.Thinking.Signature == "" && block.Thinking.Text != "" {
 			failures = append(failures, ValidationFailure{
-				Path: fmt.Sprintf("%s.content[%d].thinking.signature", path, i),
-				Code: ErrThinkingNoSignature,
+				Path:    fmt.Sprintf("%s.content[%d].thinking.signature", path, i),
+				Code:    ErrThinkingNoSignature,
 				Message: "thinking block has text but no signature (may break Anthropic round-trip)",
 			})
 		}
@@ -359,8 +359,8 @@ func validateToolConsistency(messages []Message) []ValidationFailure {
 				}
 				if id != "" && !toolUseIDs[id] {
 					failures = append(failures, ValidationFailure{
-						Path: fmt.Sprintf("messages[%d].content[%d].tool_result.tool_use_id", i, j),
-						Code: ErrOrphanedToolResult,
+						Path:    fmt.Sprintf("messages[%d].content[%d].tool_result.tool_use_id", i, j),
+						Code:    ErrOrphanedToolResult,
 						Message: fmt.Sprintf("tool result references unknown tool use %q", id),
 					})
 				}
@@ -384,8 +384,8 @@ func validateAlternation(messages []Message) []ValidationFailure {
 		}
 		if prevRole != "" && role == prevRole {
 			failures = append(failures, ValidationFailure{
-				Path: fmt.Sprintf("messages[%d].role", i),
-				Code: ErrAlternationViolation,
+				Path:    fmt.Sprintf("messages[%d].role", i),
+				Code:    ErrAlternationViolation,
 				Message: fmt.Sprintf("consecutive %s messages violate alternation (Anthropic requires user/assistant alternation)", role),
 			})
 		}

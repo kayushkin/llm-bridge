@@ -33,8 +33,8 @@ type StoredSession struct {
 	BridgeSessionID string `json:"bridge_session_id,omitempty"`
 
 	Harness   Harness   `json:"harness"`
-	Project   string    `json:"project,omitempty"`    // project directory or context
-	Prompt    string    `json:"prompt,omitempty"`     // initial prompt snippet
+	Project   string    `json:"project,omitempty"` // project directory or context
+	Prompt    string    `json:"prompt,omitempty"`  // initial prompt snippet
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`           // file modification time
 	Path      string    `json:"path"`                 // on-disk path to session file

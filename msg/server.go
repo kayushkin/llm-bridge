@@ -136,9 +136,9 @@ type ManagedSession struct {
 	// Status is the session's whole current status, of which State is one
 	// field, with the event row id it is current as of. Nil only on a row
 	// written before the status existed. See SessionStatus.
-	Status *SessionStatus `json:"status,omitempty"`
-	PID              int     `json:"pid,omitempty"`
-	AgentID          string  `json:"agent_id,omitempty"`
+	Status  *SessionStatus `json:"status,omitempty"`
+	PID     int            `json:"pid,omitempty"`
+	AgentID string         `json:"agent_id,omitempty"`
 	// PrincipalID is the principal-store id (principal_000001, human or
 	// group) this session was started as. Optional: a session with none
 	// behaves as every session did before the field existed. With one, the

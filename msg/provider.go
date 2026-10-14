@@ -193,14 +193,14 @@ const (
 	// don't appear in turn-result aggregations. Harnesses that have access
 	// to per-call telemetry (currently Claude Code via OpenTelemetry)
 	// populate this; others may not.
-	EventAPICall      EventType = "api_call"
+	EventAPICall EventType = "api_call"
 	// Convenience events — derived centrally by llm-bridge-server from
 	// the raw event stream. Distinct from EventSessionState (the harness
 	// lifecycle) because agent_state is the coarser UI projection. See
 	// msg/CONVENIENCE-EVENTS.md.
-	EventAgentState     EventType = "agent_state"
-	EventUsageTotal     EventType = "usage_total"
-	EventTurnComplete   EventType = "turn_complete"
+	EventAgentState   EventType = "agent_state"
+	EventUsageTotal   EventType = "usage_total"
+	EventTurnComplete EventType = "turn_complete"
 	// EventAPISpendTotal is the running per-API-call spend total, derived
 	// by llm-bridge-server from the EventAPICall stream. Distinct from
 	// EventUsageTotal: that one sums per-turn EventResult.Usage (the

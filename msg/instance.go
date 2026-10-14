@@ -16,22 +16,26 @@ const (
 // claude_code and codex on the same laptop). Created either explicitly
 // (local/ssh) or auto-created when an llm-bridge-runner enrolls.
 type Machine struct {
-	ID                string    `json:"id"`                              // m_<id>
-	Name              string    `json:"name"`                            // unique, human label: "linode", "wsl-claude"
-	Emoji             string    `json:"emoji,omitempty"`                 // optional UI accent: 🏠 🖥 ☁ etc.
-	Hostname          string    `json:"hostname,omitempty"`              // network address (Tailscale name, IP, …); empty for runner
-	OS                string    `json:"os,omitempty"`                    // GOOS reported by runner, or set on create
-	Arch              string    `json:"arch,omitempty"`                  // GOARCH
+	ID                string    `json:"id"`                 // m_<id>
+	Name              string    `json:"name"`               // unique, human label: "linode", "wsl-claude"
+	Emoji             string    `json:"emoji,omitempty"`    // optional UI accent: 🏠 🖥 ☁ etc.
+	Hostname          string    `json:"hostname,omitempty"` // network address (Tailscale name, IP, …); empty for runner
+	OS                string    `json:"os,omitempty"`       // GOOS reported by runner, or set on create
+	Arch              string    `json:"arch,omitempty"`     // GOARCH
 	Transport         Transport `json:"transport"`
 	SSHUser           string    `json:"ssh_user,omitempty"`
 	SSHKeyPath        string    `json:"ssh_key_path,omitempty"`
 	SSHPort           int       `json:"ssh_port,omitempty"` // default 22
 	DefaultWorkingDir string    `json:"default_working_dir,omitempty"`
-	User              string    `json:"user,omitempty"`     // runner-side OS user (display only)
+	User              string    `json:"user,omitempty"` // runner-side OS user (display only)
 	Notes             string    `json:"notes,omitempty"`
-	LastSeenAt        time.Time `json:"last_seen_at,omitempty"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	// ComputerUseAllowed is the owner's switch: a session on this machine may
+	// ask for its runner's computer-use tool only while it is on. Off by
+	// default, because the tool drives the machine's screen, mouse and keyboard.
+	ComputerUseAllowed bool      `json:"computer_use_allowed"`
+	LastSeenAt         time.Time `json:"last_seen_at,omitempty"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 // Instance represents a configured harness deployment on a machine. The
@@ -74,9 +78,9 @@ type InstanceStatus struct {
 // a Machine without prior server-side configuration. Minted by an admin
 // (CLI or API), redeemed by the runner via POST /api/runner/enroll.
 type RunnerEnrollment struct {
-	ID                string    `json:"id"`                              // enr_<id>
+	ID                string    `json:"id"` // enr_<id>
 	ExpiresAt         time.Time `json:"expires_at"`
-	UsedAt            time.Time `json:"used_at,omitempty"`               // zero if unused
-	ConsumedMachineID string    `json:"consumed_machine_id,omitempty"`   // set when redeemed
+	UsedAt            time.Time `json:"used_at,omitempty"`             // zero if unused
+	ConsumedMachineID string    `json:"consumed_machine_id,omitempty"` // set when redeemed
 	CreatedAt         time.Time `json:"created_at"`
 }

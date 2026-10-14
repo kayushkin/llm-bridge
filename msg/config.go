@@ -24,13 +24,13 @@ type ResponseFormat struct {
 
 // AnthropicConfig holds Anthropic-specific request parameters.
 type AnthropicConfig struct {
-	ThinkingBudget   int              `json:"thinking_budget,omitempty"`
-	ThinkingDisplay  string           `json:"thinking_display,omitempty"`
-	Effort           string           `json:"effort,omitempty"`
-	ContainerID      string           `json:"container_id,omitempty"`
-	ServiceTier      string           `json:"service_tier,omitempty"`
-	InferenceGeo     string           `json:"inference_geo,omitempty"`
-	AssistantPrefill []ContentBlock   `json:"assistant_prefill,omitempty"`
+	ThinkingBudget   int               `json:"thinking_budget,omitempty"`
+	ThinkingDisplay  string            `json:"thinking_display,omitempty"`
+	Effort           string            `json:"effort,omitempty"`
+	ContainerID      string            `json:"container_id,omitempty"`
+	ServiceTier      string            `json:"service_tier,omitempty"`
+	InferenceGeo     string            `json:"inference_geo,omitempty"`
+	AssistantPrefill []ContentBlock    `json:"assistant_prefill,omitempty"`
 	Metadata         map[string]string `json:"metadata,omitempty"`
 
 	Overflow map[string]json.RawMessage `json:"_overflow,omitempty"`
@@ -38,16 +38,16 @@ type AnthropicConfig struct {
 
 // OpenAIConfig holds OpenAI-specific request parameters.
 type OpenAIConfig struct {
-	Prediction         string `json:"prediction,omitempty"`
-	LogProbs           bool   `json:"logprobs,omitempty"`
-	TopLogProbs        int    `json:"top_logprobs,omitempty"`
-	N                  int    `json:"n,omitempty"`
+	Prediction         string  `json:"prediction,omitempty"`
+	LogProbs           bool    `json:"logprobs,omitempty"`
+	TopLogProbs        int     `json:"top_logprobs,omitempty"`
+	N                  int     `json:"n,omitempty"`
 	FrequencyPenalty   float64 `json:"frequency_penalty,omitempty"`
 	PresencePenalty    float64 `json:"presence_penalty,omitempty"`
-	Seed               *int   `json:"seed,omitempty"`
-	StreamIncludeUsage bool   `json:"stream_include_usage,omitempty"`
-	Store              bool   `json:"store,omitempty"`
-	PreviousResponseID string `json:"previous_response_id,omitempty"`
+	Seed               *int    `json:"seed,omitempty"`
+	StreamIncludeUsage bool    `json:"stream_include_usage,omitempty"`
+	Store              bool    `json:"store,omitempty"`
+	PreviousResponseID string  `json:"previous_response_id,omitempty"`
 
 	Overflow map[string]json.RawMessage `json:"_overflow,omitempty"`
 }

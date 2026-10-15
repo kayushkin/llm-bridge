@@ -140,6 +140,35 @@ type SessionActionOffer struct {
 	// at list price. Required for both; the agent that offers the button sets
 	// it, and the button shows it.
 	MaximumCostUSD float64 `json:"maximum_cost_usd,omitempty"`
+	// Inputs are text boxes a run_command button shows. What the person types
+	// reaches the command only as environment variables, never in its text.
+	Inputs []SessionActionInput `json:"inputs,omitempty"`
+}
+
+// SessionActionInputEnvironmentPrefix starts the environment variable an
+// input's value reaches the command in: input PASSWORD is $BRIDGE_INPUT_PASSWORD.
+const SessionActionInputEnvironmentPrefix = "BRIDGE_INPUT_"
+
+// SessionActionInput is one text box on a button. The value typed into it is
+// sent with the confirm and handed to the command as an environment variable;
+// llm-bridge-server stores it nowhere and writes it into no log or event, so
+// a password typed here goes from the person to the command and no further.
+type SessionActionInput struct {
+	// Name is upper case, digits and underscores, starting with a letter, at
+	// most 32 characters; the value arrives as $BRIDGE_INPUT_<Name>.
+	Name string `json:"name"`
+	// Label is the text beside the box.
+	Label string `json:"label"`
+	// Secret draws the box as a password field, and the server blanks the
+	// value wherever it appears in the command's output.
+	Secret bool `json:"secret,omitempty"`
+}
+
+// SessionActionRunRequest is the body of a confirm,
+// POST /sessions/{id}/actions/{action_id}/run: a value for each of the
+// offer's inputs, by name. A button with no inputs needs no body.
+type SessionActionRunRequest struct {
+	Inputs map[string]string `json:"inputs,omitempty"`
 }
 
 // SessionAction is one button in a session and the record of its run. Every

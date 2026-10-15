@@ -39,6 +39,13 @@ const (
 	// a spend ceiling, sends it a task, and shows its final reply under the
 	// button while the session itself stays open to look at.
 	SessionActionBackgroundAgent SessionActionType = "background_agent"
+	// SessionActionSendToSession sends a message to another session, named by
+	// TargetSessionID, as if the person had typed it there. It lets an agent
+	// that manages other sessions offer the next step in one of them.
+	SessionActionSendToSession SessionActionType = "send_to_session"
+	// SessionActionStopSession stops another session, named by
+	// TargetSessionID: kills its harness process and marks it aborted.
+	SessionActionStopSession SessionActionType = "stop_session"
 )
 
 // OfferableSessionActionTypes is every action type an agent may offer now,
@@ -52,6 +59,8 @@ var OfferableSessionActionTypes = []SessionActionType{
 	SessionActionBackgroundAgent,
 	SessionActionForkAndSend,
 	SessionActionNewSessionAndSend,
+	SessionActionSendToSession,
+	SessionActionStopSession,
 }
 
 // SessionActionResultFormat says how the chat draws an action's output.
@@ -110,8 +119,8 @@ const (
 )
 
 // SessionActionOffer is what an agent sends to put a button in its session:
-// POST /sessions/{id}/actions. Type decides which one of RepoID,
-// SchedulerJobID and Message is required; the others must be empty. The
+// POST /sessions/{id}/actions. Type decides which fields are required and
+// which are allowed; a field the type does not use must be empty. The
 // agent then writes the action's id in its reply, and the chat draws the
 // button there.
 type SessionActionOffer struct {
@@ -122,9 +131,13 @@ type SessionActionOffer struct {
 	RepoID int64 `json:"repo_id,omitempty"`
 	// SchedulerJobID is the scheduler's id of the job to run.
 	SchedulerJobID int64 `json:"scheduler_job_id,omitempty"`
-	// Message is the text to send, for fork_and_send, new_session_and_send and
-	// background_agent, and the question for model_call.
+	// Message is the text to send, for fork_and_send, new_session_and_send,
+	// send_to_session and background_agent, and the question for model_call.
 	Message string `json:"message,omitempty"`
+	// TargetSessionID is llm-bridge-server's id of the session a
+	// send_to_session or stop_session acts on. It cannot be the session the
+	// button is offered in.
+	TargetSessionID string `json:"target_session_id,omitempty"`
 	// ShellCommand is the command run_command runs with bash -l -c.
 	ShellCommand string `json:"shell_command,omitempty"`
 	// WorkingDirectory is where run_command runs; empty means the session's
@@ -140,8 +153,11 @@ type SessionActionOffer struct {
 	// at list price. Required for both; the agent that offers the button sets
 	// it, and the button shows it.
 	MaximumCostUSD float64 `json:"maximum_cost_usd,omitempty"`
-	// Inputs are text boxes a run_command button shows. What the person types
-	// reaches the command only as environment variables, never in its text.
+	// Inputs are text boxes a run_command or send_to_session button shows.
+	// What the person types reaches a command only as environment variables,
+	// never in its text; a send_to_session message names each input as
+	// $BRIDGE_INPUT_<Name>, and the typed value takes its place in the message
+	// sent.
 	Inputs []SessionActionInput `json:"inputs,omitempty"`
 }
 
@@ -160,7 +176,9 @@ type SessionActionInput struct {
 	// Label is the text beside the box.
 	Label string `json:"label"`
 	// Secret draws the box as a password field, and the server blanks the
-	// value wherever it appears in the command's output.
+	// value wherever it appears in the command's output. Only run_command
+	// takes one: a send_to_session value is written into the target's
+	// conversation, so it can be no secret.
 	Secret bool `json:"secret,omitempty"`
 }
 

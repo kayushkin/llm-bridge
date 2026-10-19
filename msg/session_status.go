@@ -20,6 +20,15 @@ import "time"
 type SessionStatus struct {
 	State SessionState `json:"state"`
 
+	// Reason says why State last changed, from the SessionStateReasons
+	// vocabulary. Empty on a status written before reasons were recorded.
+	Reason SessionStateReason `json:"reason,omitempty"`
+
+	// ReasonDetail is the cause in words, when whatever decided the state had
+	// one to give: the error that stopped a spawn under ReasonSpawnFailed.
+	// Empty otherwise, and cleared by the next change of State.
+	ReasonDetail string `json:"reason_detail,omitempty"`
+
 	// Generating says what the model is emitting while State is
 	// model_generating: GeneratingThinking or GeneratingText. Empty in every
 	// other state, and empty under model_generating until the first delta of
@@ -108,7 +117,8 @@ const SystemStatusCompacting = "compacting"
 // derivation emits a new status only when this is false, so a consumer is not
 // told twice what it already knows.
 func (s SessionStatus) Equal(o SessionStatus) bool {
-	if s.State != o.State || s.Generating != o.Generating ||
+	if s.State != o.State || s.Reason != o.Reason || s.ReasonDetail != o.ReasonDetail ||
+		s.Generating != o.Generating ||
 		!s.TurnStartedAt.Equal(o.TurnStartedAt) || !s.ChangedAt.Equal(o.ChangedAt) ||
 		len(s.Tools) != len(o.Tools) || len(s.Subagents) != len(o.Subagents) {
 		return false

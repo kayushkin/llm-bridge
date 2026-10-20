@@ -224,3 +224,24 @@ func TestPurposeSurfacesQuestions(t *testing.T) {
 		}
 	}
 }
+
+func TestPurposeTitledFromTranscript(t *testing.T) {
+	cases := []struct {
+		purpose string
+		want    bool
+	}{
+		{PurposeChat, true},
+		{PurposeHerald, true},
+		{PurposeAutoworker, false},
+		{PurposeDelegate, false},
+		{PurposeSubagent, false},
+		{PurposeRenamer, false},
+		{"", false},
+		{"never-registered", false},
+	}
+	for _, c := range cases {
+		if got := PurposeTitledFromTranscript(c.purpose); got != c.want {
+			t.Errorf("PurposeTitledFromTranscript(%q) = %v, want %v", c.purpose, got, c.want)
+		}
+	}
+}

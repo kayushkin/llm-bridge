@@ -67,6 +67,14 @@ type PurposeSpec struct {
 	// Whether a question is surfaced is decided here, per purpose; what
 	// happens to it afterwards is the server's business.
 	SurfacesQuestions bool
+
+	// TitledFromTranscript says whether the server replaces a session's
+	// first-message name with a short title a model writes from its turns.
+	// It is for sessions a person reads in the sidebar as a conversation: a
+	// chat, a herald. An autonomous run started from one prompt — a backlog
+	// worker, a delegate — already carries that prompt as its name, and
+	// titling every one would cost a model call per run for nothing.
+	TitledFromTranscript bool
 }
 
 // purposeSpecs is the registry. Keep it sorted by name.
@@ -83,6 +91,8 @@ var purposeSpecs = []PurposeSpec{
 		Type:    SessionTypeInteractive,
 		Origins: []string{"frontend", "frontend-dash", "llm-bridge-tui"},
 		Summary: "A human talking to a harness through a frontend.",
+
+		TitledFromTranscript: true,
 	},
 	{
 		Name:    PurposeClassifier,
@@ -162,6 +172,8 @@ var purposeSpecs = []PurposeSpec{
 		Type:    SessionTypeHerald,
 		Origins: []string{"ask"},
 		Summary: "Question or alert an agent is relaying to the user.",
+
+		TitledFromTranscript: true,
 	},
 	{
 		Name:         "kanban-dispatcher",
@@ -302,6 +314,14 @@ func CanonicalPurpose(name string) string {
 func PurposeSurfacesQuestions(name string) bool {
 	p, ok := purposeByName[CanonicalPurpose(name)]
 	return ok && p.SurfacesQuestions
+}
+
+// PurposeTitledFromTranscript reports whether a session with this purpose
+// gets a title written from its transcript. Superseded spellings answer as
+// their replacement. Unknown purposes answer false.
+func PurposeTitledFromTranscript(name string) bool {
+	p, ok := purposeByName[CanonicalPurpose(name)]
+	return ok && p.TitledFromTranscript
 }
 
 // KnownPurposes returns every registered spec, sorted by name. Superseded

@@ -179,7 +179,8 @@ func SessionActionReportsSuccessByDefault(actionType SessionActionType) bool {
 }
 
 // A bridge report is a message the server, not the person, sends into a
-// session: a button's outcome, or how a deploy the session started ended.
+// session: a button's outcome, how a deploy the session started ended, or that
+// the harness was restarted under the session.
 // It travels as a user message, because that is the only way to start the
 // agent's turn, so the message carries its own mark: its whole text is one
 // <bridge-report kind="…">…</bridge-report> block, the same way Claude Code
@@ -188,6 +189,7 @@ func SessionActionReportsSuccessByDefault(actionType SessionActionType) bool {
 const (
 	BridgeReportKindSessionAction = "session-action"
 	BridgeReportKindDeploy        = "deploy"
+	BridgeReportKindRestart       = "restart"
 )
 
 // WrapBridgeReport marks text as a bridge report of the given kind.

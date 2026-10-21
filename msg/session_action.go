@@ -159,6 +159,40 @@ type SessionActionOffer struct {
 	// $BRIDGE_INPUT_<Name>, and the typed value takes its place in the message
 	// sent.
 	Inputs []SessionActionInput `json:"inputs,omitempty"`
+	// ReportSuccess says whether the agent is told when a person's press of
+	// the button succeeds. A failure, or an outcome nobody saw, is always
+	// reported. Left empty, it takes SessionActionReportsSuccessByDefault for
+	// the type, and the server stores the value it settled on.
+	ReportSuccess *bool `json:"report_success,omitempty"`
+}
+
+// SessionActionReportsSuccessByDefault says whether a button of this type
+// tells its agent about a successful press when the offer leaves
+// ReportSuccess empty. A run_command or run_scheduler_job press is almost
+// always a step the agent waits on (12 of the 13 successful run_command
+// presses up to 2026-10-21 were), so it reports. Every other type shows its
+// result under the button or works in another session, and none of the 12
+// successful presses of those types gave the agent anything to act on. A
+// deploy never reports here: deploy-gate tells the session that started it.
+func SessionActionReportsSuccessByDefault(actionType SessionActionType) bool {
+	return actionType == SessionActionRunCommand || actionType == SessionActionRunSchedulerJob
+}
+
+// A bridge report is a message the server, not the person, sends into a
+// session: a button's outcome, or how a deploy the session started ended.
+// It travels as a user message, because that is the only way to start the
+// agent's turn, so the message carries its own mark: its whole text is one
+// <bridge-report kind="…">…</bridge-report> block, the same way Claude Code
+// marks its own <task-notification> messages. Chat clients draw it as a
+// folded notice rather than as something the person wrote.
+const (
+	BridgeReportKindSessionAction = "session-action"
+	BridgeReportKindDeploy        = "deploy"
+)
+
+// WrapBridgeReport marks text as a bridge report of the given kind.
+func WrapBridgeReport(kind, text string) string {
+	return `<bridge-report kind="` + kind + `">` + "\n" + text + "\n</bridge-report>"
 }
 
 // SessionActionInputEnvironmentPrefix starts the environment variable an

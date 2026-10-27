@@ -90,8 +90,17 @@ type PeerConnection struct {
 	CreatedBy       string     `json:"created_by"`
 	CreatedAt       time.Time  `json:"created_at"`
 	RemovedAt       *time.Time `json:"removed_at,omitempty"`
-	RemovedBy       string     `json:"removed_by,omitempty"`
-	RemoveReason    string     `json:"remove_reason,omitempty"`
+	// RemovedBy is the administrator here who removed the connection, empty
+	// when the other server removed it and said so (RemovedByOtherServer).
+	RemovedBy    string `json:"removed_by,omitempty"`
+	RemoveReason string `json:"remove_reason,omitempty"`
+	// RemovedByOtherServer is set when the other server removed the
+	// connection and told this one over it.
+	RemovedByOtherServer bool `json:"removed_by_other_server,omitempty"`
+	// RemovalNotice says whether this server told the other one it removed
+	// the connection, or why it could not. The connection is removed here
+	// either way.
+	RemovalNotice string `json:"removal_notice,omitempty"`
 }
 
 // PeerConnectionView is a connection with what is true of it now: whether its
@@ -259,4 +268,40 @@ type PeerGrantSelf struct {
 	PeerPrincipalID string `json:"peer_principal_id"`
 	Level           string `json:"level"`
 	IsAdministrator bool   `json:"is_administrator"`
+}
+
+// PeerConnectionRemovedNotice is the body of POST /peer/connection/removed,
+// server to server: the other server removed the connection, and this one
+// marks it removed too rather than finding out from refused calls.
+type PeerConnectionRemovedNotice struct {
+	Reason string `json:"reason"`
+}
+
+// PeerUserMapping says which of this server's principals a user of a
+// connected server acts as when that server names the user on a request
+// (phase 2 of design note d107154a). The request is then allowed only what
+// both the peer principal's grants and LocalPrincipalID's grants allow. It is
+// keyed on ids: the peer principal this server made for the other server, and
+// the other server's own id for its user.
+type PeerUserMapping struct {
+	ID string `json:"id"`
+	// PeerPrincipalID is this server's principal for the other server.
+	PeerPrincipalID string `json:"peer_principal_id"`
+	// RemotePrincipalID is the other server's principal-store id for its
+	// user. It is only ever compared, never looked up here.
+	RemotePrincipalID string `json:"remote_principal_id"`
+	// LocalPrincipalID is this server's principal the user acts as.
+	LocalPrincipalID string     `json:"local_principal_id"`
+	CreatedBy        string     `json:"created_by"`
+	CreatedAt        time.Time  `json:"created_at"`
+	RemovedAt        *time.Time `json:"removed_at,omitempty"`
+	RemovedBy        string     `json:"removed_by,omitempty"`
+	RemoveReason     string     `json:"remove_reason,omitempty"`
+}
+
+// PeerUserMappingRequest is the body of POST /peer-user-mappings.
+type PeerUserMappingRequest struct {
+	PeerPrincipalID   string `json:"peer_principal_id"`
+	RemotePrincipalID string `json:"remote_principal_id"`
+	LocalPrincipalID  string `json:"local_principal_id"`
 }

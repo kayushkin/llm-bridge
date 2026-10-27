@@ -78,8 +78,11 @@ type PeerConnection struct {
 	// RemoteBaseURL is the other server's https address, empty when it has
 	// none (the dialing side of a dial_out connection, seen from the side it
 	// dials).
-	RemoteBaseURL      string `json:"remote_base_url,omitempty"`
-	RemoteConnectionID string `json:"remote_connection_id"`
+	RemoteBaseURL string `json:"remote_base_url,omitempty"`
+	// RemoteConnectionID is the other side's id for the connection. Only the
+	// initiating side knows it, from the accepting side's answer; the
+	// accepting side is never told the initiating side's.
+	RemoteConnectionID string `json:"remote_connection_id,omitempty"`
 	// PeerPrincipalID is the principal this server made for the other server
 	// when it first granted it access, empty until then. It is this server's
 	// principal-store's id.
@@ -130,8 +133,6 @@ type PeerConnectCall struct {
 	// BaseURL is the initiating server's own https address, empty when it has
 	// none and will dial out.
 	BaseURL string `json:"base_url,omitempty"`
-	// ConnectionID is the initiating server's id for the connection.
-	ConnectionID string `json:"connection_id"`
 	// Credential is what the accepting server presents to the initiating one
 	// on connection calls. The initiating server keeps only its hash.
 	Credential string `json:"credential"`

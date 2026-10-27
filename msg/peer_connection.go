@@ -71,7 +71,8 @@ type PeerConnectionInviteCreated struct {
 // other side's.
 type PeerConnection struct {
 	ID string `json:"id"`
-	// DisplayName is what this server's administrator calls the other server.
+	// DisplayName is the label typed when the connection was made. It is only
+	// a fallback: the other server's own name is OtherServerName on the view.
 	DisplayName string             `json:"display_name"`
 	Transport   PeerTransport      `json:"transport"`
 	Role        PeerConnectionRole `json:"role"`
@@ -115,6 +116,13 @@ type PeerConnectionView struct {
 	AccessGiven *PeerGrant `json:"access_given,omitempty"`
 	// AccessHeld is the live access the other server gave this one, if any.
 	AccessHeld *PeerAccess `json:"access_held,omitempty"`
+	// OtherServerName is the name the other server last reported for itself
+	// (its server.name setting), empty when it reported none or has not said.
+	// Show it, and fall back to Connection.DisplayName only when it is empty.
+	OtherServerName string `json:"other_server_name"`
+	// OtherServerNameReportedAt is when the other server last reported a
+	// name, empty when it never has.
+	OtherServerNameReportedAt *time.Time `json:"other_server_name_reported_at,omitempty"`
 }
 
 // PeerConnectRequest is the body of POST /peer-connections, on the server
@@ -123,10 +131,13 @@ type PeerConnectRequest struct {
 	// BaseURL is the other server's https address.
 	BaseURL    string `json:"base_url"`
 	Passphrase string `json:"passphrase"`
-	// DisplayName is what this server will call the other one.
-	DisplayName string `json:"display_name"`
-	// NameForThisServer is what the other server will call this one.
-	NameForThisServer string `json:"name_for_this_server"`
+	// DisplayName is a fallback label for the other server, shown only while
+	// it reports no name of its own. Optional when it has one.
+	DisplayName string `json:"display_name,omitempty"`
+	// NameForThisServer is a fallback label the other server shows for this
+	// one while this one reports no name. Optional when this server has a
+	// server.name.
+	NameForThisServer string `json:"name_for_this_server,omitempty"`
 	// ThisServerBaseURL is this server's own https address, when it has one.
 	// With it both servers call each other directly; without it this server
 	// dials out and keeps a socket open.
@@ -137,8 +148,12 @@ type PeerConnectRequest struct {
 // /peer/connect. It is server-to-server and never comes from a person.
 type PeerConnectCall struct {
 	Passphrase string `json:"passphrase"`
-	// ServerName is what the accepting server will call the initiating one.
+	// ServerName is the fallback label the accepting server shows for the
+	// initiating one while it reports no name.
 	ServerName string `json:"server_name"`
+	// OwnServerName is the initiating server's own name, its server.name
+	// setting, empty when it has none.
+	OwnServerName string `json:"own_server_name,omitempty"`
 	// BaseURL is the initiating server's own https address, empty when it has
 	// none and will dial out.
 	BaseURL string `json:"base_url,omitempty"`
@@ -156,6 +171,15 @@ type PeerConnectAnswer struct {
 	// on connection calls and to open the socket. The accepting server keeps
 	// only its hash. It gives no access of its own.
 	Credential string `json:"credential"`
+	// OwnServerName is the accepting server's own name, its server.name
+	// setting, empty when it has none.
+	OwnServerName string `json:"own_server_name,omitempty"`
+}
+
+// PeerServerName answers GET /peer/server-name, a connection call: the
+// answering server's own name, empty when it has none.
+type PeerServerName struct {
+	Name string `json:"name"`
 }
 
 // PeerAccessLevelNone and PeerAccessLevelAdministrator are the two levels

@@ -305,3 +305,11 @@ type PeerUserMappingRequest struct {
 	RemotePrincipalID string `json:"remote_principal_id"`
 	LocalPrincipalID  string `json:"local_principal_id"`
 }
+
+// PeerReasonRequest is the body of the routes that end something and keep
+// why: POST /peer-connections/{id}/remove, POST
+// /peer-connections/{id}/revoke-grant and POST
+// /peer-user-mappings/{id}/remove. The reason stays on the row.
+type PeerReasonRequest struct {
+	Reason string `json:"reason"`
+}

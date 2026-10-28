@@ -22,6 +22,14 @@ var codexInjectedTextPrefixes = []string{
 	"<recommended_plugins",
 }
 
+// CodexInjectedTextPrefixes returns a copy of how each message Codex injects
+// begins, for a reader that must recognise them where it cannot call
+// IsCodexInjectedText on each text: log-store builds its search's exclusion
+// from it, so a search does not match the instructions Codex loaded.
+func CodexInjectedTextPrefixes() []string {
+	return append([]string(nil), codexInjectedTextPrefixes...)
+}
+
 // IsCodexInjectedText reports whether a user-role message, or a title taken
 // from one, is text Codex injected rather than something a person wrote.
 // Leading whitespace is ignored.

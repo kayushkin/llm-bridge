@@ -30,3 +30,19 @@ func TestIsCodexInjectedTextRecognisesWhatCodexWritesAsUserMessages(t *testing.T
 		}
 	}
 }
+
+func TestCodexInjectedTextPrefixesIsACopyEveryEntryOfWhichIsRecognised(t *testing.T) {
+	prefixes := CodexInjectedTextPrefixes()
+	if len(prefixes) == 0 {
+		t.Fatal("no prefixes")
+	}
+	for _, prefix := range prefixes {
+		if !IsCodexInjectedText(prefix + " rest") {
+			t.Errorf("%q is listed but not recognised", prefix)
+		}
+	}
+	prefixes[0] = "changed"
+	if CodexInjectedTextPrefixes()[0] == "changed" {
+		t.Error("the caller's slice aliases the package's list")
+	}
+}

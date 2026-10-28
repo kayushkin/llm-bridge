@@ -37,6 +37,19 @@ type OneShotRequest struct {
 
 	// MaxTokens caps the model's response. 0 = harness default.
 	MaxTokens int `json:"max_tokens,omitempty"`
+
+	// Images are pictures sent with the prompt, ahead of it, for a model
+	// that can see. A harness that cannot send them refuses the request
+	// rather than answer without them, so a router tries the next model.
+	Images []OneShotImage `json:"images,omitempty"`
+}
+
+// OneShotImage is one picture in a OneShotRequest.
+type OneShotImage struct {
+	// MediaType is image/jpeg, image/png, image/gif or image/webp.
+	MediaType string `json:"media_type"`
+	// DataBase64 is the image's bytes, base64.
+	DataBase64 string `json:"data_base64"`
 }
 
 // OneShotResponse is the result of a OneShotRequest.

@@ -28,9 +28,13 @@ type OperationType string
 const (
 	OperationTypeLLMCompletion     OperationType = "llm.completion"
 	OperationTypeClassificationRun OperationType = "classification.run"
-	OperationTypeTicketAction      OperationType = "ticket.action"
-	OperationTypeDatabricksQuery   OperationType = "databricks.query"
-	OperationTypeMailAction        OperationType = "mail.action"
+	// OperationTypeBoardClassificationRun classifies one kanban card with its
+	// board's own taxonomy and policy, read as the operation's principal, and
+	// publishes the decision to the board.
+	OperationTypeBoardClassificationRun OperationType = "board_classification.run"
+	OperationTypeTicketAction           OperationType = "ticket.action"
+	OperationTypeDatabricksQuery        OperationType = "databricks.query"
+	OperationTypeMailAction             OperationType = "mail.action"
 )
 
 // OperationState is where an operation is in its life. queued and running are
@@ -439,6 +443,17 @@ func (taxonomy *ClassificationTaxonomy) Validate() error {
 // ClassificationRunInput is the Input of a classification.run operation.
 // Name the taxonomy in exactly one way: inline in Taxonomy, or by the
 // kanban-store board that keeps it in TaxonomyBoardID.
+// BoardClassificationRunInput is the input of
+// OperationTypeBoardClassificationRun: the card to classify, on the board
+// whose taxonomy and policy decide its labels.
+type BoardClassificationRunInput struct {
+	BoardID string `json:"board_id"`
+	CardID  string `json:"card_id"`
+	// Model asks for a model by model-store id. Empty takes the bridge's
+	// configured completion model.
+	Model string `json:"model,omitempty"`
+}
+
 type ClassificationRunInput struct {
 	Taxonomy *ClassificationTaxonomy `json:"taxonomy,omitempty"`
 	// TaxonomyBoardID is a kanban-store board id. The board's taxonomy is

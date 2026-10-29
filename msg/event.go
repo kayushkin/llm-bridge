@@ -355,6 +355,17 @@ type SystemEvent struct {
 	// Empty means no session, which is a real answer and not a gap to paper
 	// over: a backgrounded shell task never gets one (see TaskTypeIsAgent).
 	SubagentSessionID string `json:"subagent_session_id,omitempty"`
+	// SubagentHarnessSessionID is the harness's own session id for the
+	// subagent this task spawned, on "task_started", when the harness gives a
+	// subagent a session of its own: Codex runs each spawned agent as a thread
+	// with its own id and rollout file. The server keys the subagent's session
+	// row on it, so the row it mints at the announcement and the one discovery
+	// finds from the rollout are one row.
+	//
+	// Empty when the harness has no such id. Claude Code is that case: its
+	// subagents share the parent's session, and the server keys their rows on
+	// "agent-<task id>", the name of the transcript Claude Code writes.
+	SubagentHarnessSessionID string `json:"subagent_harness_session_id,omitempty"`
 	// TaskStatus is the task's lifecycle status, normalized across the
 	// subtypes that report it. Terminal values are TaskStatusCompleted,
 	// TaskStatusFailed and TaskStatusCancelled; TaskStatusInProgress is not

@@ -27,10 +27,14 @@ const (
 	// PeerMessageKindStatus reports how a request or notice went. It needs no
 	// approval.
 	PeerMessageKindStatus PeerMessageKind = "status"
+	// PeerMessageKindPatch offers a change to one repo as `git format-patch`
+	// files, attached to the message. On approval a session lands it on the
+	// receiving server.
+	PeerMessageKindPatch PeerMessageKind = "patch"
 )
 
 // PeerMessageKinds is every kind, for validation.
-var PeerMessageKinds = []PeerMessageKind{PeerMessageKindRequest, PeerMessageKindNotice, PeerMessageKindStatus}
+var PeerMessageKinds = []PeerMessageKind{PeerMessageKindRequest, PeerMessageKindNotice, PeerMessageKindStatus, PeerMessageKindPatch}
 
 // PeerMessageDirection says which way a message went, from the point of view
 // of the server holding the record.
@@ -86,17 +90,84 @@ var PeerMessageStatusResults = []PeerMessageStatusResult{PeerMessageStatusSuccee
 //   - notice: Summary (what changed) and Commits (what is ready to take);
 //   - status: Result, Detail (a decline's reason, the approved session's final
 //     reply, or the update's own report) and, after an update, Versions (the
-//     commits it reached).
+//     commits it reached);
+//   - patch: Repo (which repo it changes), BaseCommit (the commit it was made
+//     against) and Summary; the patch files themselves are attachments.
 //
-// A field another kind carries is refused, not ignored.
+// A field another kind carries is refused, not ignored. Any kind may carry
+// attachments; a patch needs at least one.
 type PeerMessageBody struct {
-	Title    string                  `json:"title,omitempty"`
-	Prompt   string                  `json:"prompt,omitempty"`
-	Summary  string                  `json:"summary,omitempty"`
-	Commits  []PeerRepoCommit        `json:"commits,omitempty"`
-	Result   PeerMessageStatusResult `json:"result,omitempty"`
-	Detail   string                  `json:"detail,omitempty"`
-	Versions []PeerRepoCommit        `json:"versions,omitempty"`
+	Title      string                  `json:"title,omitempty"`
+	Prompt     string                  `json:"prompt,omitempty"`
+	Summary    string                  `json:"summary,omitempty"`
+	Commits    []PeerRepoCommit        `json:"commits,omitempty"`
+	Result     PeerMessageStatusResult `json:"result,omitempty"`
+	Detail     string                  `json:"detail,omitempty"`
+	Versions   []PeerRepoCommit        `json:"versions,omitempty"`
+	Repo       string                  `json:"repo,omitempty"`
+	BaseCommit string                  `json:"base_commit,omitempty"`
+}
+
+// PeerMessageAttachmentState is where an attachment's bytes stand on the
+// server holding the record. An outgoing one is stored (its sender keeps the
+// bytes for the receiver to fetch); an incoming one is pending until its bytes
+// arrive and match their size and SHA-256, then fetched, or failed after the
+// fetch gave up.
+type PeerMessageAttachmentState string
+
+const (
+	PeerMessageAttachmentStored  PeerMessageAttachmentState = "stored"
+	PeerMessageAttachmentPending PeerMessageAttachmentState = "pending"
+	PeerMessageAttachmentFetched PeerMessageAttachmentState = "fetched"
+	PeerMessageAttachmentFailed  PeerMessageAttachmentState = "failed"
+)
+
+// PeerMessageAttachmentDescription is an attachment as the sender describes
+// it on the wire: ID is the sender's own id for it, which the receiver uses
+// to fetch the bytes.
+type PeerMessageAttachmentDescription struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	MediaType string `json:"media_type"`
+	Size      int64  `json:"size"`
+	SHA256    string `json:"sha256"`
+}
+
+// PeerMessageAttachment is one file a message carries, as the server holding
+// it records it. ID is this server's own id (peer_attachment_000001);
+// RemoteAttachmentID is the sender's, on an incoming one. The bytes never
+// travel inside a message: the receiver fetches them over the connection
+// after the message arrives, and keeps them only once their size and SHA-256
+// match what the sender described. A server serves the bytes only as a
+// download (application/octet-stream), never as a page.
+type PeerMessageAttachment struct {
+	ID                 string                     `json:"id"`
+	MessageID          string                     `json:"message_id,omitempty"`
+	Name               string                     `json:"name"`
+	MediaType          string                     `json:"media_type"`
+	Size               int64                      `json:"size"`
+	SHA256             string                     `json:"sha256"`
+	State              PeerMessageAttachmentState `json:"state"`
+	RemoteAttachmentID string                     `json:"remote_attachment_id,omitempty"`
+	Attempts           int                        `json:"attempts,omitempty"`
+	LastError          string                     `json:"last_error,omitempty"`
+	FetchedAt          *time.Time                 `json:"fetched_at,omitempty"`
+	CreatedAt          time.Time                  `json:"created_at"`
+}
+
+// PeerPatchFileChange is one file a patch changes, as the receiving server
+// read it from the verified patch files: never the sender's own account of it.
+type PeerPatchFileChange struct {
+	Path       string `json:"path"`
+	Insertions int    `json:"insertions"`
+	Deletions  int    `json:"deletions"`
+}
+
+// PeerPatchSummary is what the receiving server read from a patch's verified
+// files: each commit's subject and the files they change.
+type PeerPatchSummary struct {
+	Subjects []string              `json:"subjects"`
+	Files    []PeerPatchFileChange `json:"files"`
 }
 
 // PeerMessage is one message as the server holding it records it.
@@ -145,6 +216,11 @@ type PeerMessage struct {
 	// SignalID is the signal that put an incoming message in front of an
 	// administrator.
 	SignalID string `json:"signal_id,omitempty"`
+	// Attachments are the files the message carries.
+	Attachments []PeerMessageAttachment `json:"attachments,omitempty"`
+	// Patch is what an incoming patch's verified files change, read by this
+	// server once every attachment is fetched.
+	Patch *PeerPatchSummary `json:"patch,omitempty"`
 }
 
 // PeerMessageOperation is the update an approved notice ran: the command was
@@ -161,21 +237,26 @@ type PeerMessageOperation struct {
 
 // PeerMessageCreateRequest is POST /peer-connections/{id}/messages. InReplyTo
 // is the id, on this server, of the message this one answers.
+//
+// AttachmentIDs are files uploaded first with POST /peer-message-attachments
+// by the same sender and not yet sent with another message.
 type PeerMessageCreateRequest struct {
-	Kind      PeerMessageKind `json:"kind"`
-	Body      PeerMessageBody `json:"body"`
-	InReplyTo string          `json:"in_reply_to,omitempty"`
+	Kind          PeerMessageKind `json:"kind"`
+	Body          PeerMessageBody `json:"body"`
+	InReplyTo     string          `json:"in_reply_to,omitempty"`
+	AttachmentIDs []string        `json:"attachment_ids,omitempty"`
 }
 
 // PeerMessageDelivery is POST /peer/messages, the connection call that hands
 // a message to the other server. ID is the sender's id; InReplyTo is the
 // receiver's own id of the message it answers.
 type PeerMessageDelivery struct {
-	ID        string          `json:"id"`
-	Kind      PeerMessageKind `json:"kind"`
-	Body      PeerMessageBody `json:"body"`
-	InReplyTo string          `json:"in_reply_to,omitempty"`
-	CreatedAt time.Time       `json:"created_at"`
+	ID          string                             `json:"id"`
+	Kind        PeerMessageKind                    `json:"kind"`
+	Body        PeerMessageBody                    `json:"body"`
+	InReplyTo   string                             `json:"in_reply_to,omitempty"`
+	CreatedAt   time.Time                          `json:"created_at"`
+	Attachments []PeerMessageAttachmentDescription `json:"attachments,omitempty"`
 }
 
 // PeerMessageAcknowledgement is the receiver's answer to a delivery: its own

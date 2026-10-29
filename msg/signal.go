@@ -107,6 +107,12 @@ const (
 	// SignalSourceDerived means a classifier pass over a turn-end produced
 	// the signal from free text.
 	SignalSourceDerived SignalSource = "derived"
+	// SignalSourcePeerMessage means a message from a connected bridge server
+	// produced the signal: a request or notice waiting for an administrator's
+	// approval, or a status the other server reported. Such a signal belongs
+	// to no session (SessionID is empty) and RequestID is the message's id on
+	// this server.
+	SignalSourcePeerMessage SignalSource = "peer_message"
 )
 
 // SignalSurface is where a signal renders. It is a projection of

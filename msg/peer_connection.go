@@ -112,6 +112,20 @@ type PeerConnectionView struct {
 	// SocketConnected is set on a dial_out connection when its WebSocket is
 	// open now. It is always false on a direct one, which has no socket.
 	SocketConnected bool `json:"socket_connected"`
+	// Answering is set only while the socket is open: whether the other
+	// server's bridge answered its last probe, a real request sent over the
+	// socket about once a minute. A socket can stay open, its pings answered,
+	// while the bridge behind it serves nothing; then this is false and
+	// proxied calls fail at once with 503 peer_not_answering.
+	Answering *bool `json:"answering,omitempty"`
+	// LastAnsweredAt is when the other server last answered a probe or any
+	// request over the socket.
+	LastAnsweredAt *time.Time `json:"last_answered_at,omitempty"`
+	// NotAnsweringSince is when it stopped answering, while Answering is false.
+	NotAnsweringSince *time.Time `json:"not_answering_since,omitempty"`
+	// LastProbeFailure is why the last failed probe failed, while Answering
+	// is false.
+	LastProbeFailure string `json:"last_probe_failure,omitempty"`
 	// AccessGiven is this server's live grant to the other server, if any.
 	AccessGiven *PeerGrant `json:"access_given,omitempty"`
 	// AccessHeld is the live access the other server gave this one, if any.

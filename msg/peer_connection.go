@@ -120,6 +120,10 @@ type PeerConnectionView struct {
 	// (its server.name setting), empty when it reported none or has not said.
 	// Show it, and fall back to Connection.DisplayName only when it is empty.
 	OtherServerName string `json:"other_server_name"`
+	// OtherServerID is the id the other server last reported for itself,
+	// empty while it has not said (a server too old to). Tell servers apart
+	// by it, never by name.
+	OtherServerID string `json:"other_server_id"`
 	// OtherServerNameReportedAt is when the other server last reported a
 	// name, empty when it never has.
 	OtherServerNameReportedAt *time.Time `json:"other_server_name_reported_at,omitempty"`
@@ -176,9 +180,11 @@ type PeerConnectAnswer struct {
 	OwnServerName string `json:"own_server_name,omitempty"`
 }
 
-// PeerServerName answers GET /peer/server-name, a connection call: the
-// answering server's own name, empty when it has none.
-type PeerServerName struct {
+// PeerServerIdentity answers GET /peer/server-name, a connection call: the
+// answering server's own id, and its name, empty when it has none. The route
+// keeps its old path so that servers built before ids still answer it.
+type PeerServerIdentity struct {
+	ID   string `json:"id,omitempty"`
 	Name string `json:"name"`
 }
 

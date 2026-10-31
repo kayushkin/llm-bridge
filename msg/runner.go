@@ -42,6 +42,12 @@ const (
 	// Seeding (no SessionID; carry context/skill files from the bridge to the runner).
 	RunnerMsgSeedDelta    RunnerMessageType = "seed_delta"    // server → runner, single-file delta (push)
 	RunnerMsgSeedSnapshot RunnerMessageType = "seed_snapshot" // server → runner, full manifest snapshot (after scan)
+
+	// RunnerMsgClaudeOAuthRecovery starts or supplies the one-time code for a
+	// Claude subscription login on the runner's own machine. It deliberately
+	// lives outside a harness session: an expired Claude login cannot start a
+	// Claude Code process to repair itself.
+	RunnerMsgClaudeOAuthRecovery RunnerMessageType = "claude_oauth_recovery"
 )
 
 // RunnerMessage is the envelope for every frame exchanged on the runner WS.
@@ -61,8 +67,22 @@ type RunnerMessage struct {
 	Signal *RunnerSignal `json:"signal,omitempty"`
 	Exit   *RunnerExit   `json:"exit,omitempty"`
 
-	SeedDelta    *RunnerSeedDelta    `json:"seed_delta,omitempty"`
-	SeedSnapshot *RunnerSeedSnapshot `json:"seed_snapshot,omitempty"`
+	SeedDelta           *RunnerSeedDelta           `json:"seed_delta,omitempty"`
+	SeedSnapshot        *RunnerSeedSnapshot        `json:"seed_snapshot,omitempty"`
+	ClaudeOAuthRecovery *RunnerClaudeOAuthRecovery `json:"claude_oauth_recovery,omitempty"`
+}
+
+// RunnerClaudeOAuthRecovery carries one step of a Claude Code subscription
+// login. Start asks the runner to launch `claude auth login --claudeai`;
+// Ready returns the authorization URL; Code gives the runner the one-time
+// code; Succeeded and Failed settle the request. RecoveryID correlates all
+// messages and is minted by the bridge, never by a runner.
+type RunnerClaudeOAuthRecovery struct {
+	RecoveryID       string `json:"recovery_id"`
+	Action           string `json:"action"` // start, ready, code, succeeded, failed
+	AuthorizationURL string `json:"authorization_url,omitempty"`
+	Code             string `json:"code,omitempty"`
+	Message          string `json:"message,omitempty"`
 }
 
 // RunnerHello is sent by the runner immediately after the WS upgrade.

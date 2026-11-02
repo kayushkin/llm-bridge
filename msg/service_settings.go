@@ -7,7 +7,7 @@ package msg
 //
 // Two kinds of setting are kept apart on purpose. Deploy configuration —
 // addresses, paths, secrets — belongs to the environment a process is started
-// in: it is shown and never edited through the service. Behaviour settings are
+// in: it is shown and never edited through the service. Behavior settings are
 // stored by the service that owns them, read when they are used, and changed
 // with PUT /settings/{key}, with no restart.
 type ServiceSettings struct {
@@ -34,10 +34,17 @@ const (
 	// ServiceSettingKindSecret is a credential. Its value is never served:
 	// only whether it is set.
 	ServiceSettingKindSecret ServiceSettingKind = "secret"
-	// ServiceSettingKindBehaviour changes what the service does: a model, an
+	// ServiceSettingKindBehavior changes what the service does: a model, an
 	// instance, a timeout, a limit.
-	ServiceSettingKindBehaviour ServiceSettingKind = "behaviour"
+	ServiceSettingKindBehavior ServiceSettingKind = "behavior"
 )
+
+// ServiceSettingKindBehaviour is the old British name of
+// ServiceSettingKindBehavior, kept only while the services that import this
+// module move to the new name.
+//
+// Deprecated: use ServiceSettingKindBehavior.
+const ServiceSettingKindBehaviour = ServiceSettingKindBehavior
 
 // ServiceSettingSource says where the value in force came from.
 type ServiceSettingSource string
@@ -121,7 +128,7 @@ type ServiceSettingSourceDefinition struct {
 // ServiceSettingKinds is the served kind vocabulary.
 func ServiceSettingKinds() []ServiceSettingKindDefinition {
 	return []ServiceSettingKindDefinition{
-		{ServiceSettingKindBehaviour, "Changes what the service does. Stored by the service when editable, and applied without a restart."},
+		{ServiceSettingKindBehavior, "Changes what the service does. Stored by the service when editable, and applied without a restart."},
 		{ServiceSettingKindWiring, "The address of something else. Set where the process is started; shown here, never edited here."},
 		{ServiceSettingKindPath, "A file or directory on the host. Set where the process is started."},
 		{ServiceSettingKindSecret, "A credential. Only whether it is set is shown; the value never leaves the process."},

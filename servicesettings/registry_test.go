@@ -18,10 +18,10 @@ func sampleDefinitions() []Definition {
 		{Key: "listen_address", EnvironmentVariable: "SAMPLE_LISTEN_ADDR", Kind: msg.ServiceSettingKindWiring, ValueType: msg.ServiceSettingValueTypeString, Description: "where it listens", Default: ":9000"},
 		{Key: "owner_url", EnvironmentVariable: "SAMPLE_OWNER_URL", Kind: msg.ServiceSettingKindWiring, ValueType: msg.ServiceSettingValueTypeString, Description: "the store every caller is read from", Required: true},
 		{Key: "service_token", EnvironmentVariable: "SAMPLE_SERVICE_TOKEN", Kind: msg.ServiceSettingKindSecret, ValueType: msg.ServiceSettingValueTypeString, Description: "what internal callers present"},
-		{Key: "classifier.model", EnvironmentVariable: "SAMPLE_CLASSIFIER_MODEL", Kind: msg.ServiceSettingKindBehaviour, ValueType: msg.ServiceSettingValueTypeString, Description: "the model the classifier asks for", Default: "small-model", Editable: true},
-		{Key: "classifier.timeout", EnvironmentVariable: "SAMPLE_CLASSIFIER_TIMEOUT", Kind: msg.ServiceSettingKindBehaviour, ValueType: msg.ServiceSettingValueTypeDuration, Description: "how long one call may take", Default: "20s", Editable: true},
-		{Key: "classifier.max_characters", EnvironmentVariable: "SAMPLE_CLASSIFIER_MAX_CHARS", Kind: msg.ServiceSettingKindBehaviour, ValueType: msg.ServiceSettingValueTypeInteger, Description: "how much text is sent", Default: "6000"},
-		{Key: "classifier.ceiling_usd", EnvironmentVariable: "SAMPLE_CLASSIFIER_CEILING_USD", Kind: msg.ServiceSettingKindBehaviour, ValueType: msg.ServiceSettingValueTypeDecimal, Description: "the most one call may spend", Default: "0.25"},
+		{Key: "classifier.model", EnvironmentVariable: "SAMPLE_CLASSIFIER_MODEL", Kind: msg.ServiceSettingKindBehavior, ValueType: msg.ServiceSettingValueTypeString, Description: "the model the classifier asks for", Default: "small-model", Editable: true},
+		{Key: "classifier.timeout", EnvironmentVariable: "SAMPLE_CLASSIFIER_TIMEOUT", Kind: msg.ServiceSettingKindBehavior, ValueType: msg.ServiceSettingValueTypeDuration, Description: "how long one call may take", Default: "20s", Editable: true},
+		{Key: "classifier.max_characters", EnvironmentVariable: "SAMPLE_CLASSIFIER_MAX_CHARS", Kind: msg.ServiceSettingKindBehavior, ValueType: msg.ServiceSettingValueTypeInteger, Description: "how much text is sent", Default: "6000"},
+		{Key: "classifier.ceiling_usd", EnvironmentVariable: "SAMPLE_CLASSIFIER_CEILING_USD", Kind: msg.ServiceSettingKindBehavior, ValueType: msg.ServiceSettingValueTypeDecimal, Description: "the most one call may spend", Default: "0.25"},
 	}
 }
 
@@ -126,9 +126,9 @@ func TestARequiredSettingIsCheckedByTheServerAndNotByEveryCommandOfTheBinary(t *
 
 func TestADeclarationFaultIsRefused(t *testing.T) {
 	cases := map[string]Definition{
-		"only a behaviour setting is stored": {Key: "a", EnvironmentVariable: "SAMPLE_A", Kind: msg.ServiceSettingKindWiring, ValueType: msg.ServiceSettingValueTypeString, Editable: true},
+		"only a behavior setting is stored": {Key: "a", EnvironmentVariable: "SAMPLE_A", Kind: msg.ServiceSettingKindWiring, ValueType: msg.ServiceSettingValueTypeString, Editable: true},
 		"is a secret and declares a default": {Key: "a", EnvironmentVariable: "SAMPLE_A", Kind: msg.ServiceSettingKindSecret, ValueType: msg.ServiceSettingValueTypeString, Default: "hunter2"},
-		"its default":                        {Key: "a", EnvironmentVariable: "SAMPLE_A", Kind: msg.ServiceSettingKindBehaviour, ValueType: msg.ServiceSettingValueTypeInteger, Default: "many"},
+		"its default":                        {Key: "a", EnvironmentVariable: "SAMPLE_A", Kind: msg.ServiceSettingKindBehavior, ValueType: msg.ServiceSettingValueTypeInteger, Default: "many"},
 	}
 	for want, definition := range cases {
 		_, err := New("sample", nil, []Definition{definition}, MapEnvironment(nil))

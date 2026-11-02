@@ -5,7 +5,7 @@
 //
 // A setting is declared once, as a Definition. Deploy configuration — wiring,
 // paths, secrets — is read from the environment when the Registry is built and
-// never changes. A behaviour setting declared Editable is stored by the service
+// never changes. A behavior setting declared Editable is stored by the service
 // (AttachStoredValues): the environment seeds the record once, and from then on
 // the record is the only source, changed with Set and read at the time of use.
 package servicesettings
@@ -37,8 +37,8 @@ type Definition struct {
 	Default string
 	// Required makes an unset setting with no default a startup error.
 	Required bool
-	// Editable marks a behaviour setting the service stores and changes at
-	// runtime. Only a behaviour setting may be editable.
+	// Editable marks a behavior setting the service stores and changes at
+	// runtime. Only a behavior setting may be editable.
 	Editable bool
 }
 
@@ -128,7 +128,7 @@ func MapEnvironment(variables map[string]string) Environment {
 // one pass:
 //
 //   - a declaration fault (duplicate key or variable, an editable setting that
-//     is not a behaviour setting, a secret with a default, a default that does
+//     is not a behavior setting, a secret with a default, a default that does
 //     not parse);
 //   - a set variable whose value does not parse as its type;
 //   - a set variable that starts with one of ownedPrefixes and is declared by
@@ -161,8 +161,8 @@ func New(service string, ownedPrefixes []string, definitions []Definition, envir
 		}
 		registry.byKey[definition.Key] = definition
 		declaredVariables[definition.EnvironmentVariable] = definition.Key
-		if definition.Editable && definition.Kind != msg.ServiceSettingKindBehaviour {
-			faults = append(faults, fmt.Sprintf("setting %s is declared editable and is a %s setting; only a behaviour setting is stored by the service", definition.Key, definition.Kind))
+		if definition.Editable && definition.Kind != msg.ServiceSettingKindBehavior {
+			faults = append(faults, fmt.Sprintf("setting %s is declared editable and is a %s setting; only a behavior setting is stored by the service", definition.Key, definition.Kind))
 		}
 		if definition.Kind == msg.ServiceSettingKindSecret && definition.Default != "" {
 			faults = append(faults, fmt.Sprintf("setting %s is a secret and declares a default", definition.Key))

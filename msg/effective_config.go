@@ -109,7 +109,7 @@ const (
 	// Settings page's per-harness section.
 	EffectiveLayerHarnessDefault EffectiveConfigLayer = "harness_default"
 	// EffectiveLayerGlobal: a bridge-prefs field that applies everywhere —
-	// permission_mode, default_principal_id.
+	// permission_mode.
 	EffectiveLayerGlobal EffectiveConfigLayer = "global"
 	// EffectiveLayerRegistry: model-store's default role, the floor under the
 	// model.
@@ -138,7 +138,7 @@ var EffectiveConfigLayers = []EffectiveConfigLayerDefinition{
 	{EffectiveLayerGrant, "The principal's grants in grant-store, narrowing what is offered or gating where it runs."},
 	{EffectiveLayerInstance, "The instance's tool opt-ins in tool-store."},
 	{EffectiveLayerHarnessDefault, "bridge-prefs.defaults for the harness — the Settings page's per-harness section."},
-	{EffectiveLayerGlobal, "A bridge-prefs field that applies everywhere: permission_mode, default_principal_id."},
+	{EffectiveLayerGlobal, "A bridge-prefs field that applies everywhere: permission_mode."},
 	{EffectiveLayerRegistry, "model-store's default role, the floor under the model."},
 	{EffectiveLayerToolStore, "tool-store's master switch: a harness tool disabled there is off in every session of that harness."},
 	{EffectiveLayerNone, "Nothing decides it; the harness does what it does."},

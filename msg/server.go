@@ -390,13 +390,6 @@ type BridgePrefs struct {
 	LastInstance   map[string]string          `json:"last_instance,omitempty"`
 	Defaults       map[string]HarnessDefaults `json:"defaults,omitempty"`
 
-	// DefaultPrincipalID is the principal-store id new sessions are started
-	// as when the caller names none: the chat's pending pane and the kanban
-	// dispatcher both send it as CreateSessionRequest.PrincipalID. Empty means
-	// sessions are created with no principal, which is how every session
-	// behaved before the field existed. Set on the Settings page.
-	DefaultPrincipalID string `json:"default_principal_id,omitempty"`
-
 	// PermissionMode is the global default mode applied to new sessions and
 	// to legacy sessions that haven't been migrated to a per-session value.
 	// One of PermissionModeAsk / PermissionModeAuto / PermissionModeBypass;
@@ -620,7 +613,9 @@ type CreateSessionRequest struct {
 	DisplayName string  `json:"display_name,omitempty"`
 	AgentID     string  `json:"agent_id,omitempty"`
 	// PrincipalID names who the session is started as: a principal-store id
-	// (principal_000001), human or group. Optional. The server checks it
+	// (principal_000001), human or group. Optional: left out, the session
+	// runs as the principal the caller acts as, and with none only when the
+	// caller is the internal service acting as itself. The server checks it
 	// with principal-store — an id it does not know is 400 unknown_principal
 	// — and stores it as ManagedSession.PrincipalID, which is what the spawn
 	// reads grant-store's effective set for.

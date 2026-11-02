@@ -39,13 +39,6 @@ const (
 	ServiceSettingKindBehavior ServiceSettingKind = "behavior"
 )
 
-// ServiceSettingKindBehaviour is the old British name of
-// ServiceSettingKindBehavior, kept only while the services that import this
-// module move to the new name.
-//
-// Deprecated: use ServiceSettingKindBehavior.
-const ServiceSettingKindBehaviour = ServiceSettingKindBehavior
-
 // ServiceSettingSource says where the value in force came from.
 type ServiceSettingSource string
 

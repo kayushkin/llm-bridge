@@ -236,7 +236,7 @@ var purposeSpecs = []PurposeSpec{
 		Name: PurposeSubagent,
 		Type: SessionTypeSystem,
 		// Discovery belongs here for the same reason it belongs on
-		// conformance: a subagent is recognisable from the on-disk rollout
+		// conformance: a subagent is recognizable from the on-disk rollout
 		// layout, so one that ran before the bridge saw its parent is
 		// imported with this purpose and an origin of "discovery".
 		Origins: []string{"llm-bridge-claudecode", "llm-bridge-codex", OriginDiscovery},

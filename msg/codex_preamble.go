@@ -11,7 +11,7 @@ import "strings"
 //
 // codexInjectedTextPrefixes lists how each such message begins. The harness
 // wrapper reads it to skip them when it takes a session's prompt, and
-// llm-bridge-server reads it to recognise a stored title that came from one,
+// llm-bridge-server reads it to recognize a stored title that came from one,
 // so the two never disagree about what counts as Codex's own text.
 var codexInjectedTextPrefixes = []string{
 	"<environment_context>",
@@ -23,7 +23,7 @@ var codexInjectedTextPrefixes = []string{
 }
 
 // CodexInjectedTextPrefixes returns a copy of how each message Codex injects
-// begins, for a reader that must recognise them where it cannot call
+// begins, for a reader that must recognize them where it cannot call
 // IsCodexInjectedText on each text: log-store builds its search's exclusion
 // from it, so a search does not match the instructions Codex loaded.
 func CodexInjectedTextPrefixes() []string {

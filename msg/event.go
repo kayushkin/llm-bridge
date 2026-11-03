@@ -181,7 +181,7 @@ type ResultEvent struct {
 	// result by tool_use_id, and emits it centrally for every harness as
 	// TurnCompleteEvent.ToolCalls.
 	//
-	// Whether to delete this field in favour of that one, or keep both
+	// Whether to delete this field in favor of that one, or keep both
 	// and define what each means, is an open question — noteboard card
 	// d1f0aa38. This comment only stops the field reading as populated.
 	ToolEvents []ToolSummary `json:"tool_events,omitempty"`

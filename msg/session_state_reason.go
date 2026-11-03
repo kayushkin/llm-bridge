@@ -105,7 +105,7 @@ func SessionStateReasons() []SessionStateReasonDescription {
 		{ReasonWatchdogNoProcess, "the session read as working but had no process, so the server reset it to resume it"},
 		{ReasonTaskCompleted, "the parent reported this subagent's task completed"},
 		{ReasonTaskFailed, "the parent reported this subagent's task failed"},
-		{ReasonTaskCancelled, "the parent reported this subagent's task cancelled"},
+		{ReasonTaskCancelled, "the parent reported this subagent's task canceled"},
 		{ReasonParentProcessExited, "the process this subagent ran inside is gone, and its task never reported an end"},
 		{ReasonStartupReconcile, "the server restarted while the session was working, and reset it"},
 	}

@@ -2,7 +2,7 @@ package msg
 
 import "testing"
 
-func TestIsCodexInjectedTextRecognisesWhatCodexWritesAsUserMessages(t *testing.T) {
+func TestIsCodexInjectedTextRecognizesWhatCodexWritesAsUserMessages(t *testing.T) {
 	injected := []string{
 		"<environment_context>\n  <cwd>/work</cwd>\n</environment_context>",
 		"# AGENTS.md instructions for /work\n\n<INSTRUCTIONS>\n# Directives",
@@ -31,14 +31,14 @@ func TestIsCodexInjectedTextRecognisesWhatCodexWritesAsUserMessages(t *testing.T
 	}
 }
 
-func TestCodexInjectedTextPrefixesIsACopyEveryEntryOfWhichIsRecognised(t *testing.T) {
+func TestCodexInjectedTextPrefixesIsACopyEveryEntryOfWhichIsRecognized(t *testing.T) {
 	prefixes := CodexInjectedTextPrefixes()
 	if len(prefixes) == 0 {
 		t.Fatal("no prefixes")
 	}
 	for _, prefix := range prefixes {
 		if !IsCodexInjectedText(prefix + " rest") {
-			t.Errorf("%q is listed but not recognised", prefix)
+			t.Errorf("%q is listed but not recognized", prefix)
 		}
 	}
 	prefixes[0] = "changed"

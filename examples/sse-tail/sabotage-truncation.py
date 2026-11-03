@@ -15,7 +15,7 @@ UNNOTICED   the suite stayed green. For a known-negative row that is the
             required result; for a real mutation it is a coverage gap.
 VOID        the package did not build, so the run measured nothing. Never a
             pass: a compile error hides whether any test would have caught the
-            behaviour.
+            behavior.
 
 Run from the directory holding main.go:  python3 sabotage-truncation.py
 """
@@ -69,7 +69,7 @@ class Mutation:
     """One defect put back into the source.
 
     `real` rows are defects the suite must catch. `real=False` rows are
-    known-negatives: behaviour-preserving rewrites that must go UNNOTICED. A
+    known-negatives: behavior-preserving rewrites that must go UNNOTICED. A
     scorer with no known-negatives cannot tell a suite that detects the defect
     from one that fails whenever the source changes at all.
     """
@@ -134,7 +134,7 @@ MUTATIONS = [
         "if maxBytes < 1 {",
         False,
         "Identical for every integer. Must stay UNNOTICED, or the suite is "
-        "reacting to the source changing rather than to behaviour changing.",
+        "reacting to the source changing rather than to behavior changing.",
     ),
     Mutation(
         "KNOWN NEGATIVE: fits-in-budget check rewritten",

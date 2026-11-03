@@ -125,7 +125,7 @@ coverage they lack.
 ### What we would actually be offering, if anything
 
 One thing, and it is narrow but real: **ccusage reads logs after the fact; llm-bridge
-already holds a normalised, cross-agent record.** `~/.config/log-store/events.db` on this
+already holds a normalized, cross-agent record.** `~/.config/log-store/events.db` on this
 host is a live 3.4 GB SQLite database of canonical `msg.Event` rows carrying model, token
 counts and cost per session, across every harness. That is a *source*, in exactly the
 sense their adapters mean the word.
@@ -196,7 +196,7 @@ to hunt for is unchanged, and the shortlist below is ranked on it.
 
 ### Candidates measured (merged-PR window 2026-05-09 → 2026-08-07)
 
-| repo | ★ | merged/90d | authors | licence | verdict |
+| repo | ★ | merged/90d | authors | license | verdict |
 |---|---:|---:|---:|---|---|
 | slopus/happy | 23,205 | 39 | 6 | MIT | **GOOD** |
 | dexloom/vibe-kanban-indie | 51 | 12 | 2 | Apache-2.0 | **GOOD** |
@@ -207,8 +207,8 @@ to hunt for is unchanged, and the shortlist below is ranked on it.
 | smtg-ai/claude-squad | 8,247 | 8 | 6 | AGPL + CLA | POOR |
 | BloopAI/vibe-kanban | 27,693 | **0** | 0 | Apache-2.0 | DEAD |
 
-Excluded on licence or velocity: `golutra/golutra` (0 merges/90d, no detectable licence),
-`dcouple/Pane` (no detectable licence), `Enderfga/claw-orchestrator` (3 merges/90d),
+Excluded on license or velocity: `golutra/golutra` (0 merges/90d, no detectable license),
+`dcouple/Pane` (no detectable license), `Enderfga/claw-orchestrator` (3 merges/90d),
 `mco-org/mco` (23 merges/90d, 21 by one author), `TechDufus/openkanban` (0 merges/90d),
 `kagan-sh/kagan-legacy` (3 merges/90d, "legacy" in the name).
 
@@ -307,7 +307,7 @@ llm-bridge is **Apache-2.0**. Compatibility with the three locked targets:
 - **vibe-kanban (Apache-2.0)** — same as ours. Trivial.
 - **claude-squad (AGPL-3.0)** — fine for what we're doing. Our PR contribution becomes AGPL (theirs to keep). llm-bridge stays Apache-2.0 because they're consuming it as a network service / library, not the other way around. Two cautions: (a) never paste claude-squad code into our Apache-2.0 repos; (b) check their CONTRIBUTING.md for a CLA before opening a PR.
 
-  > ⚠️ **Caution (b) resolved on 2026-08-07, and the answer is worse than "there is a CLA".** `CLA.md` grants the maintainers a **perpetual, irrevocable** licence to relicense contributions "under any license terms", with an explicit Relicensing Rights clause, enforced automatically by `contributor-assistant` on `pull_request_target`. Contributing there means signing away any say in how the contribution is later licensed. Moot while the target is ruled out on architecture, but it is the kind of term that should be read before any future AGPL target too.
+  > ⚠️ **Caution (b) resolved on 2026-08-07, and the answer is worse than "there is a CLA".** `CLA.md` grants the maintainers a **perpetual, irrevocable** license to relicense contributions "under any license terms", with an explicit Relicensing Rights clause, enforced automatically by `contributor-assistant` on `pull_request_target`. Contributing there means signing away any say in how the contribution is later licensed. Moot while the target is ruled out on architecture, but it is the kind of term that should be read before any future AGPL target too.
 
 ## Selection criteria (for posterity / future waves)
 

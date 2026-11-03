@@ -28,7 +28,7 @@ const (
 	// ModelRoleDefault is the everyday model: much cheaper than best, better
 	// than balanced. It is the tier used when no other layer overrides.
 	ModelRoleDefault ModelRole = "default"
-	// ModelRoleBalanced sits between default and efficient: judgement that
+	// ModelRoleBalanced sits between default and efficient: judgment that
 	// runs at volume, where efficient answers too carelessly.
 	ModelRoleBalanced ModelRole = "balanced"
 	// ModelRoleEfficient is cheap enough to run at volume — titles,

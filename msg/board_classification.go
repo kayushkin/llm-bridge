@@ -35,7 +35,7 @@ func hasSelectableValue(axis ClassificationAxis) bool {
 
 // Selectable is the taxonomy as a classifier is given it: archived axes and
 // archived values left out. The archived ones stay in the stored taxonomy so
-// that history resolves; nothing new may be labelled with them.
+// that history resolves; nothing new may be labeled with them.
 func (taxonomy ClassificationTaxonomy) Selectable() ClassificationTaxonomy {
 	out := ClassificationTaxonomy{Name: taxonomy.Name, Domain: taxonomy.Domain, Axes: []ClassificationAxis{}}
 	for _, axis := range taxonomy.Axes {

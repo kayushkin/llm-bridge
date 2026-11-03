@@ -4,9 +4,9 @@ Measured 2026-08-07 (nightly worker). Decision todo: `48504ba6-67ea-4ab7-90b4-b0
 Source of the question: `RELEASE-TARGETS.md` §"The finding that may outrank this whole
 document: ACP", from the Tier B re-validation sweep (llm-bridge `16274fa`).
 
-**Nothing here decides anything.** That todo reserves four judgements for the owner. It also
+**Nothing here decides anything.** That todo reserves four judgments for the owner. It also
 names two things as *not verified and needed before any build*, and both are measurement
-rather than judgement:
+rather than judgment:
 
 > ⚠️ Not verified by this pass and needed before any build: the ACP spec version each of the
 > four projects implements, and whether they agree.
@@ -50,7 +50,7 @@ Points worth carrying into the decision:
 
 - **The guaranteed-handled set is four variants**: `agent_message_chunk`,
   `agent_thought_chunk`, `tool_call`, `tool_call_update`. Plus `session/request_permission`,
-  the one reverse method all four honour. The union across the four is 13 variants plus three
+  the one reverse method all four honor. The union across the four is 13 variants plus three
   non-spec legacy shapes only happy understands.
 - **Two consumers hard-fail on frames that are standard today.** vibe-kanban's pinned schema
   knows 8 discriminators against v1's 11; `usage_update` and `config_option_update` fail
@@ -193,7 +193,7 @@ reach two of four consumers each, and none of the three reaches vibe-kanban.
 - `plan` is unemittable from `msg.PlanEvent`; `stopReason` is underivable from the harness
   path; `session_state` and the cache-token counters have no carrier at all.
 
-**Not settled, and deliberately untouched** — the four judgements in `48504ba6` (does
+**Not settled, and deliberately untouched** — the four judgments in `48504ba6` (does
 llm-bridge expose ACP at all; where it lives; is it worth it when two consumers are
 competitors), plus the permission-direction fork this measurement added as a fifth.
 
@@ -202,7 +202,7 @@ strategic pitch was *"one surface, many consumers"*, priced against per-target i
 PRs of 200–4,000 lines. What crosses an ACP surface to all four is a text, thought and tool
 stream. What does not cross is normalized session state, per-turn and cache token accounting,
 spend, hooks, subagent demux and session lineage — which is most of what this project adds
-over driving a harness directly. Whether that is the right trade is exactly the judgement
+over driving a harness directly. Whether that is the right trade is exactly the judgment
 being reserved.
 
 ---

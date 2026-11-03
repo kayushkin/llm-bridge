@@ -53,7 +53,7 @@ reader keeps whichever copy has the higher revision.
   and no answer said whether it landed. The bridge never retries an unknown
   operation on its own. A person, or a later reconciliation, decides.
 - **cancelled** means the caller asked it to stop. A queued operation is
-  cancelled at once. A running one is told to stop and reaches `cancelled` when
+  canceled at once. A running one is told to stop and reaches `cancelled` when
   its executor returns; if its executor finishes first, it keeps that state.
 
 ## Who may start what

@@ -241,7 +241,7 @@ type OrganizationBudget struct {
 	UpdatedBy string `json:"updated_by,omitempty"`
 }
 
-// OperationError explains a failed, conflicted, unknown or cancelled
+// OperationError explains a failed, conflicted, unknown or canceled
 // operation. Code is stable and machine-readable; Message is for a person.
 type OperationError struct {
 	Code    string `json:"code"`
@@ -351,7 +351,7 @@ type OperationTypeDescription struct {
 	TimeoutSeconds int `json:"timeout_seconds"`
 }
 
-// ClassificationTaxonomy is what items may be labelled with: one or more
+// ClassificationTaxonomy is what items may be labeled with: one or more
 // independent axes, each with its own values. It varies by board — kanban-store
 // keeps one on each board that is classified — and a classification.run may
 // also carry one inline.

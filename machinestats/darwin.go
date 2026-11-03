@@ -57,7 +57,7 @@ func readDarwinSysctl(ctx context.Context, stats *msg.MachineStats) {
 		if err != nil {
 			recordError(stats, "uptime", err)
 		} else {
-			stats.BootedAt = bootedAt
+			stats.BootedAt = &bootedAt
 			stats.UptimeSeconds = int64(stats.CollectedAt.Sub(bootedAt).Seconds())
 		}
 	}

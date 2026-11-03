@@ -29,11 +29,11 @@ type MachineStats struct {
 	CollectedAt time.Time          `json:"collected_at"`
 	Source      MachineStatsSource `json:"source"`
 
-	Hostname        string    `json:"hostname,omitempty"`
-	OperatingSystem string    `json:"operating_system,omitempty"` // "Ubuntu 24.04.1 LTS", "macOS 15.1", "Microsoft Windows 11 Pro"
-	KernelVersion   string    `json:"kernel_version,omitempty"`
-	BootedAt        time.Time `json:"booted_at,omitempty"`
-	UptimeSeconds   int64     `json:"uptime_seconds,omitempty"`
+	Hostname        string     `json:"hostname,omitempty"`
+	OperatingSystem string     `json:"operating_system,omitempty"` // "Ubuntu 24.04.1 LTS", "macOS 15.1", "Microsoft Windows 11 Pro"
+	KernelVersion   string     `json:"kernel_version,omitempty"`
+	BootedAt        *time.Time `json:"booted_at,omitempty"`
+	UptimeSeconds   int64      `json:"uptime_seconds,omitempty"`
 
 	CPUModel        string `json:"cpu_model,omitempty"`
 	CPULogicalCores int    `json:"cpu_logical_cores,omitempty"`

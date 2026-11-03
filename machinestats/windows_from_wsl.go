@@ -109,7 +109,8 @@ func applyWindowsStats(windows *windowsStats, stats *msg.MachineStats) {
 	if bootedAt, err := time.Parse(time.RFC3339Nano, windows.BootedAt); err != nil {
 		recordError(stats, "uptime", fmt.Errorf("parse boot time %q: %w", windows.BootedAt, err))
 	} else {
-		stats.BootedAt = bootedAt.UTC().Truncate(time.Second)
+		bootedAt = bootedAt.UTC().Truncate(time.Second)
+		stats.BootedAt = &bootedAt
 		stats.UptimeSeconds = int64(stats.CollectedAt.Sub(bootedAt).Seconds())
 	}
 

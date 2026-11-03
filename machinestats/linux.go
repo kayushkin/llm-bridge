@@ -81,7 +81,8 @@ func readLinuxUptime(stats *msg.MachineStats) {
 		return
 	}
 	stats.UptimeSeconds = int64(seconds)
-	stats.BootedAt = stats.CollectedAt.Add(-time.Duration(seconds * float64(time.Second))).Truncate(time.Second)
+	bootedAt := stats.CollectedAt.Add(-time.Duration(seconds * float64(time.Second))).Truncate(time.Second)
+	stats.BootedAt = &bootedAt
 }
 
 // readLinuxCPU reads the CPU model, core count, load average and use. Use is

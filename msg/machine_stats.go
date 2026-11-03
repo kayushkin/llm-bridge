@@ -48,9 +48,25 @@ type MachineStats struct {
 	MemoryAvailableBytes uint64 `json:"memory_available_bytes,omitempty"`
 	SwapTotalBytes       uint64 `json:"swap_total_bytes,omitempty"`
 	SwapUsedBytes        uint64 `json:"swap_used_bytes,omitempty"`
+	// MemoryCachedBytes is file cache the OS hands back on demand; it is part
+	// of MemoryAvailableBytes, not of MemoryUsedBytes.
+	MemoryCachedBytes uint64 `json:"memory_cached_bytes,omitempty"`
+	// MemoryCompressedBytes is RAM the compressor holds (macOS), part of
+	// MemoryUsedBytes.
+	MemoryCompressedBytes uint64 `json:"memory_compressed_bytes,omitempty"`
+	// MemoryCommittedBytes and MemoryCommitLimitBytes are Windows' commit
+	// charge: memory promised to programs, against RAM plus the page file.
+	// Near the limit, programs fail to get memory.
+	MemoryCommittedBytes   uint64 `json:"memory_committed_bytes,omitempty"`
+	MemoryCommitLimitBytes uint64 `json:"memory_commit_limit_bytes,omitempty"`
+	// MemoryFreeUnderPressurePercent is macOS' own measure of how much memory
+	// it could free (kern.memorystatus_level): low means real pressure, even
+	// when nearly all memory reads as used.
+	MemoryFreeUnderPressurePercent *float64 `json:"memory_free_under_pressure_percent,omitempty"`
 
 	Drives    []MachineDrive   `json:"drives,omitempty"`
 	Batteries []MachineBattery `json:"batteries,omitempty"`
+	GPUs      []MachineGPU     `json:"gpus,omitempty"`
 
 	// CollectionErrors names each part that could not be read, so a gap in the
 	// numbers is explained rather than silent.
@@ -90,6 +106,16 @@ type MachineBattery struct {
 	// HealthPercent is full-charge capacity over design capacity.
 	HealthPercent *float64 `json:"health_percent,omitempty"`
 	CycleCount    *int64   `json:"cycle_count,omitempty"`
+}
+
+// MachineGPU is one graphics processor. A field the driver does not report
+// is nil.
+type MachineGPU struct {
+	Name               string   `json:"name"`
+	UsagePercent       *float64 `json:"usage_percent,omitempty"`
+	MemoryUsedBytes    *uint64  `json:"memory_used_bytes,omitempty"`
+	MemoryTotalBytes   *uint64  `json:"memory_total_bytes,omitempty"`
+	TemperatureCelsius *float64 `json:"temperature_celsius,omitempty"`
 }
 
 // RunnerMachineStats is the payload of a RunnerMsgMachineStats frame. The

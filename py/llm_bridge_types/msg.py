@@ -1105,8 +1105,14 @@ class MachineStats:
     memory_available_bytes: uint64 | None = None
     swap_total_bytes: uint64 | None = None
     swap_used_bytes: uint64 | None = None
+    memory_cached_bytes: uint64 | None = None
+    memory_compressed_bytes: uint64 | None = None
+    memory_committed_bytes: uint64 | None = None
+    memory_commit_limit_bytes: uint64 | None = None
+    memory_free_under_pressure_percent: float | None = None
     drives: list[MachineDrive] | None = None
     batteries: list[MachineBattery] | None = None
+    gpus: list[MachineGPU] | None = None
     collection_errors: list[str] | None = None
 
 
@@ -1140,6 +1146,16 @@ class MachineBattery:
     seconds_remaining: int | None = None
     health_percent: float | None = None
     cycle_count: int | None = None
+
+
+@dataclass(kw_only=True)
+class MachineGPU:
+    """MachineGPU is one graphics processor. A field the driver does not report is nil."""
+    name: str
+    usage_percent: float | None = None
+    memory_used_bytes: uint64 | None = None
+    memory_total_bytes: uint64 | None = None
+    temperature_celsius: float | None = None
 
 
 @dataclass(kw_only=True)

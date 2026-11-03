@@ -1989,8 +1989,32 @@ export interface MachineStats {
   memory_available_bytes?: number /* uint64 */;
   swap_total_bytes?: number /* uint64 */;
   swap_used_bytes?: number /* uint64 */;
+  /**
+   * MemoryCachedBytes is file cache the OS hands back on demand; it is part
+   * of MemoryAvailableBytes, not of MemoryUsedBytes.
+   */
+  memory_cached_bytes?: number /* uint64 */;
+  /**
+   * MemoryCompressedBytes is RAM the compressor holds (macOS), part of
+   * MemoryUsedBytes.
+   */
+  memory_compressed_bytes?: number /* uint64 */;
+  /**
+   * MemoryCommittedBytes and MemoryCommitLimitBytes are Windows' commit
+   * charge: memory promised to programs, against RAM plus the page file.
+   * Near the limit, programs fail to get memory.
+   */
+  memory_committed_bytes?: number /* uint64 */;
+  memory_commit_limit_bytes?: number /* uint64 */;
+  /**
+   * MemoryFreeUnderPressurePercent is macOS' own measure of how much memory
+   * it could free (kern.memorystatus_level): low means real pressure, even
+   * when nearly all memory reads as used.
+   */
+  memory_free_under_pressure_percent?: number /* float64 */;
   drives?: MachineDrive[];
   batteries?: MachineBattery[];
+  gpus?: MachineGPU[];
   /**
    * CollectionErrors names each part that could not be read, so a gap in the
    * numbers is explained rather than silent.
@@ -2035,6 +2059,17 @@ export interface MachineBattery {
    */
   health_percent?: number /* float64 */;
   cycle_count?: number /* int64 */;
+}
+/**
+ * MachineGPU is one graphics processor. A field the driver does not report
+ * is nil.
+ */
+export interface MachineGPU {
+  name: string;
+  usage_percent?: number /* float64 */;
+  memory_used_bytes?: number /* uint64 */;
+  memory_total_bytes?: number /* uint64 */;
+  temperature_celsius?: number /* float64 */;
 }
 /**
  * RunnerMachineStats is the payload of a RunnerMsgMachineStats frame. The

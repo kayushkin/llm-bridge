@@ -48,6 +48,10 @@ const (
 	// lives outside a harness session: an expired Claude login cannot start a
 	// Claude Code process to repair itself.
 	RunnerMsgClaudeOAuthRecovery RunnerMessageType = "claude_oauth_recovery"
+
+	// RunnerMsgMachineStats carries a reading of the runner's machine: CPU,
+	// memory, drives, batteries, uptime. Runner → server, once a minute.
+	RunnerMsgMachineStats RunnerMessageType = "machine_stats"
 )
 
 // RunnerMessage is the envelope for every frame exchanged on the runner WS.
@@ -70,6 +74,7 @@ type RunnerMessage struct {
 	SeedDelta           *RunnerSeedDelta           `json:"seed_delta,omitempty"`
 	SeedSnapshot        *RunnerSeedSnapshot        `json:"seed_snapshot,omitempty"`
 	ClaudeOAuthRecovery *RunnerClaudeOAuthRecovery `json:"claude_oauth_recovery,omitempty"`
+	MachineStats        *RunnerMachineStats        `json:"machine_stats,omitempty"`
 }
 
 // RunnerClaudeOAuthRecovery carries one step of a Claude Code subscription

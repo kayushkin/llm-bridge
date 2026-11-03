@@ -188,3 +188,24 @@ func TestApplyWindowsStatsFromRealOutput(t *testing.T) {
 		t.Fatalf("drives %+v batteries %+v swap %d", stats.Drives, stats.Batteries, stats.SwapUsedBytes)
 	}
 }
+
+// TestSelectLinuxDriveMountsInWSL keeps only the virtual disk of a WSL
+// virtual machine, from mounts a WSL 2 Ubuntu listed: Windows' drives (9p),
+// WSL's own overlays, snaps and the disk's second mount points are left out.
+func TestSelectLinuxDriveMountsInWSL(t *testing.T) {
+	procMounts := `none /usr/lib/modules/5.15.167.4-microsoft-standard-WSL2 overlay rw 0 0
+drivers /usr/lib/wsl/drivers 9p ro 0 0
+/dev/sdc / ext4 rw 0 0
+/dev/sdc /mnt/wslg/distro ext4 ro 0 0
+none /usr/lib/wsl/lib overlay rw 0 0
+rootfs /init rootfs ro 0 0
+C:\134 /mnt/c 9p rw 0 0
+D:\134 /mnt/d 9p rw 0 0
+/dev/sdc /snap ext4 rw 0 0
+snapfuse /snap/bare/5 fuse.snapfuse ro 0 0
+`
+	mounts := selectLinuxDriveMounts(procMounts)
+	if len(mounts) != 1 || mounts[0].mountPoint != "/" || mounts[0].device != "/dev/sdc" {
+		t.Fatalf("got %+v, want only / on /dev/sdc", mounts)
+	}
+}

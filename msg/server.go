@@ -684,6 +684,23 @@ type SendMessageRequest struct {
 	ClientRequestID string         `json:"client_request_id,omitempty"`
 }
 
+// SendMessageResponse is the answer to POST /sessions/{id}/send. Status is
+// SendStatusSent when the message went to the harness, with MessageID the id
+// of its user_message event, or SendStatusHeld when the server held it because
+// it is about to restart (see SystemSubtypeMessageHeldForRestart), with
+// HeldMessageID naming the held message.
+type SendMessageResponse struct {
+	Status        string `json:"status"`
+	MessageID     string `json:"message_id,omitempty"`
+	HeldMessageID string `json:"held_message_id,omitempty"`
+}
+
+// The values of SendMessageResponse.Status.
+const (
+	SendStatusSent = "sent"
+	SendStatusHeld = "held"
+)
+
 // ForkSessionRequest is the request body for POST /sessions/{id}/fork.
 //
 // Type / Purpose / Origin default to the parent session's values when omitted;

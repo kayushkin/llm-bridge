@@ -408,7 +408,28 @@ type SystemEvent struct {
 	RateLimitStatus   string `json:"rate_limit_status,omitempty"`
 	RateLimitType     string `json:"rate_limit_type,omitempty"`
 	RateLimitResetsAt int64  `json:"rate_limit_resets_at,omitempty"`
+
+	// HeldMessageID names a message the server held instead of sending,
+	// because it was about to restart, on the three held-message subtypes
+	// (SystemSubtypeMessageHeldForRestart and the two that close it). The
+	// server mints it; a client pairs the frames by it. On the held frame,
+	// Message is the held text.
+	HeldMessageID string `json:"held_message_id,omitempty"`
 }
+
+// The three SystemEvent subtypes of a message the server held because it was
+// about to restart. A server that is waiting for running work to finish
+// before a restart starts no new turns: it keeps each message sent in that
+// time, says so with SystemSubtypeMessageHeldForRestart, and sends the message
+// once the wait ends, here or from the restarted server.
+// SystemSubtypeHeldMessageDelivered follows when the message was sent, after
+// its own user_message event; SystemSubtypeHeldMessageDeliveryFailed when the
+// send was refused, with the reason in Message.
+const (
+	SystemSubtypeMessageHeldForRestart     = "message_held_for_restart"
+	SystemSubtypeHeldMessageDelivered      = "held_message_delivered"
+	SystemSubtypeHeldMessageDeliveryFailed = "held_message_delivery_failed"
+)
 
 // SystemSubtypeBackgroundTasksChanged is the SystemEvent subtype on which a
 // harness reports its full list of running background tasks — see

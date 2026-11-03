@@ -23,8 +23,19 @@ func (c *Collector) collectPlatform(ctx context.Context, stats *msg.MachineStats
 		stats.Source = msg.MachineStatsSourceWindowsFromWSL
 		collectWindowsFromWSL(ctx, stats)
 		readNVIDIAGPUs(ctx, stats)
+		wsl := msg.MachineStats{CollectedAt: stats.CollectedAt}
+		c.collectLinux(ctx, &wsl)
+		stats.WSL = &wsl
 		return
 	}
+	c.collectLinux(ctx, stats)
+	readNVIDIAGPUs(ctx, stats)
+}
+
+// collectLinux reads the Linux this runs in. In WSL that is the virtual
+// machine, whose drives are its own virtual disk: Windows' drives, mounted
+// under /mnt by drvfs, have no /dev device and are left to the Windows reading.
+func (c *Collector) collectLinux(ctx context.Context, stats *msg.MachineStats) {
 	stats.Source = msg.MachineStatsSourceLinux
 	hostname(stats)
 	readLinuxOperatingSystem(stats)
@@ -33,7 +44,6 @@ func (c *Collector) collectPlatform(ctx context.Context, stats *msg.MachineStats
 	readLinuxMemory(stats)
 	readLinuxDrives(ctx, stats)
 	readLinuxBatteries(stats)
-	readNVIDIAGPUs(ctx, stats)
 }
 
 // runningInWSLWithInterop reports whether this is WSL and Windows programs

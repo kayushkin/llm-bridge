@@ -68,6 +68,11 @@ type MachineStats struct {
 	Batteries []MachineBattery `json:"batteries,omitempty"`
 	GPUs      []MachineGPU     `json:"gpus,omitempty"`
 
+	// WSL is a reading of the WSL Linux virtual machine a runner in WSL runs
+	// in, beside the Windows reading this one holds: its own OS and kernel,
+	// CPU, memory limit, swap, uptime and virtual disk. Nil elsewhere.
+	WSL *MachineStats `json:"wsl,omitempty"`
+
 	// CollectionErrors names each part that could not be read, so a gap in the
 	// numbers is explained rather than silent.
 	CollectionErrors []string `json:"collection_errors,omitempty"`

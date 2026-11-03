@@ -71,3 +71,38 @@ devfs                 210       210         0   100%    /dev
 		t.Fatalf("health %v cycles %v", health, cycles)
 	}
 }
+
+// TestParseDarwinOutputsFromRealMachine feeds output an Apple silicon laptop
+// on macOS 15 printed.
+func TestParseDarwinOutputsFromRealMachine(t *testing.T) {
+	diskFree := `Filesystem     1024-blocks     Used Available Capacity  Mounted on
+/dev/disk3s3s1   239362496 10998572 199124480     6%    /
+/dev/disk3s6     239362496       20 199124480     1%    /System/Volumes/VM
+/dev/disk3s4     239362496  6934744 199124480     4%    /System/Volumes/Preboot
+/dev/disk1s2        512000     6164    493232     2%    /System/Volumes/xarts
+/dev/disk3s1     239362496 21105640 199124480    10%    /System/Volumes/Data
+`
+	drives, err := parseDarwinDiskFree(diskFree)
+	if err != nil || len(drives) != 1 || drives[0].MountPoint != "/" || drives[0].UsedBytes != (239362496-199124480)*1024 {
+		t.Fatalf("drives %+v %v", drives, err)
+	}
+	batteries, err := parseDarwinPowerManagementBatteries("Now drawing from 'Battery Power'\n -InternalBattery-0 (id=6357091)\t9%; discharging; 7:15 remaining present: true\n\tBattery Warning: Early\n")
+	if err != nil || len(batteries) != 1 || batteries[0].ChargePercent != 9 || *batteries[0].SecondsRemaining != 7*3600+15*60 {
+		t.Fatalf("batteries %+v %v", batteries, err)
+	}
+	health, cycles := parseDarwinBatteryRegistry("      \"MaxCapacity\" = 100\n      \"DesignCapacity\" = 4563\n      \"CycleCount\" = 30\n      \"AppleRawMaxCapacity\" = 4460\n")
+	if health == nil || math.Abs(*health-97.74) > 0.01 || *cycles != 30 {
+		t.Fatalf("health %v cycles %v", health, cycles)
+	}
+	total, used, err := parseDarwinSwapUsage("total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)")
+	if err != nil || total != 0 || used != 0 {
+		t.Fatalf("swap %d %d %v", total, used, err)
+	}
+	if matches := darwinCPUIdlePattern.FindAllStringSubmatch("CPU usage: 7.25% user, 13.70% sys, 79.3% idle \nCPU usage: 4.67% user, 3.47% sys, 91.84% idle \n", -1); len(matches) != 2 || matches[1][1] != "91.84" {
+		t.Fatalf("cpu %v", matches)
+	}
+	bootedAt, err := parseDarwinBootTime("{ sec = 1792523986, usec = 438043 } Tue Oct 20 12:19:46 2026")
+	if err != nil || bootedAt.Unix() != 1792523986 {
+		t.Fatalf("boot %v %v", bootedAt, err)
+	}
+}

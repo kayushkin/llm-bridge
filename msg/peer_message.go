@@ -221,6 +221,13 @@ type PeerMessage struct {
 	// Patch is what an incoming patch's verified files change, read by this
 	// server once every attachment is fetched.
 	Patch *PeerPatchSummary `json:"patch,omitempty"`
+	// Supersedes are the earlier messages, ids on this server, that this one
+	// replaces. SupersededBy is the later message, an id on this server, that
+	// replaced this one: an incoming one still pending when it was replaced is
+	// declined by the server itself, and an outgoing one still queued is never
+	// sent.
+	Supersedes   []string `json:"supersedes,omitempty"`
+	SupersededBy string   `json:"superseded_by,omitempty"`
 }
 
 // PeerMessageOperation is the update an approved notice ran: the command was
@@ -245,6 +252,10 @@ type PeerMessageCreateRequest struct {
 	Body          PeerMessageBody `json:"body"`
 	InReplyTo     string          `json:"in_reply_to,omitempty"`
 	AttachmentIDs []string        `json:"attachment_ids,omitempty"`
+	// Supersedes names this server's own earlier outgoing requests, notices or
+	// patches on the same connection that this message replaces. Only a
+	// request, notice or patch may supersede.
+	Supersedes []string `json:"supersedes,omitempty"`
 }
 
 // PeerMessageDelivery is POST /peer/messages, the connection call that hands
@@ -257,6 +268,10 @@ type PeerMessageDelivery struct {
 	InReplyTo   string                             `json:"in_reply_to,omitempty"`
 	CreatedAt   time.Time                          `json:"created_at"`
 	Attachments []PeerMessageAttachmentDescription `json:"attachments,omitempty"`
+	// Supersedes are the receiver's own ids of the earlier messages this one
+	// replaces. It is sent only when not empty, so a server too old to know
+	// the field still takes every message that supersedes nothing.
+	Supersedes []string `json:"supersedes,omitempty"`
 }
 
 // PeerMessageAcknowledgement is the receiver's answer to a delivery: its own

@@ -1,0 +1,73 @@
+package machinestats
+
+import (
+	"math"
+	"testing"
+
+	"github.com/kayushkin/llm-bridge/msg"
+)
+
+func TestParseDarwinOutputs(t *testing.T) {
+	bootedAt, err := parseDarwinBootTime("{ sec = 1762000000, usec = 5 } Sat Nov  1 12:26:40 2025")
+	if err != nil || bootedAt.Unix() != 1762000000 {
+		t.Fatalf("boot %v %v", bootedAt, err)
+	}
+
+	total, used, err := parseDarwinSwapUsage("total = 2048.00M  used = 1024.50M  free = 1023.50M  (encrypted)")
+	if err != nil || total != 2048<<20 || used != uint64(1024.5*(1<<20)) {
+		t.Fatalf("swap %d %d %v", total, used, err)
+	}
+
+	vmStat := `Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                               10000.
+Pages active:                            100000.
+Pages inactive:                           90000.
+Pages wired down:                         50000.
+Pages occupied by compressor:             20000.
+`
+	memoryUsed, err := parseDarwinMemoryUsed(vmStat)
+	if err != nil || memoryUsed != (100000+50000+20000)*16384 {
+		t.Fatalf("memory %d %v", memoryUsed, err)
+	}
+
+	diskFree := `Filesystem   1024-blocks      Used Available Capacity  Mounted on
+/dev/disk3s1s1  482797652  10000000  200000000     5%    /
+devfs                 210       210         0   100%    /dev
+/dev/disk3s5    482797652 250000000  200000000    56%    /System/Volumes/Data
+/dev/disk5s1    976000000 500000000  476000000    52%    /Volumes/Backup Drive
+`
+	drives, err := parseDarwinDiskFree(diskFree)
+	if err != nil || len(drives) != 2 {
+		t.Fatalf("drives %+v %v", drives, err)
+	}
+	if drives[0].MountPoint != "/" || drives[0].UsedBytes != (482797652-200000000)*1024 {
+		t.Fatalf("startup drive %+v", drives[0])
+	}
+	if drives[1].MountPoint != "/Volumes/Backup Drive" || drives[1].Label != "Backup Drive" {
+		t.Fatalf("external drive %+v", drives[1])
+	}
+
+	batteries, err := parseDarwinPowerManagementBatteries("Now drawing from 'Battery Power'\n -InternalBattery-0 (id=4653155)\t85%; discharging; 4:12 remaining present: true\n")
+	if err != nil || len(batteries) != 1 {
+		t.Fatalf("batteries %+v %v", batteries, err)
+	}
+	if battery := batteries[0]; battery.Name != "InternalBattery-0" || battery.ChargePercent != 85 || battery.State != msg.MachineBatteryDischarging || *battery.SecondsRemaining != 4*3600+12*60 {
+		t.Fatalf("battery %+v", battery)
+	}
+	batteries, _ = parseDarwinPowerManagementBatteries(" -InternalBattery-0 (id=1)\t100%; AC attached; not charging present: true\n")
+	if batteries[0].State != msg.MachineBatteryNotCharging || batteries[0].SecondsRemaining != nil {
+		t.Fatalf("battery on mains %+v", batteries[0])
+	}
+	batteries, _ = parseDarwinPowerManagementBatteries(" -InternalBattery-0 (id=1)\t40%; charging; (no estimate) present: true\n")
+	if batteries[0].State != msg.MachineBatteryCharging || batteries[0].SecondsRemaining != nil {
+		t.Fatalf("battery charging %+v", batteries[0])
+	}
+
+	health, cycles := parseDarwinBatteryRegistry(`  "MaxCapacity" = 100
+  "AppleRawMaxCapacity" = 4500
+  "DesignCapacity" = 5000
+  "CycleCount" = 321`)
+	if health == nil || math.Abs(*health-90) > 0.001 || cycles == nil || *cycles != 321 {
+		t.Fatalf("health %v cycles %v", health, cycles)
+	}
+}

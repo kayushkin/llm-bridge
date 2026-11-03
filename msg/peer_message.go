@@ -205,9 +205,19 @@ type PeerMessage struct {
 	DecidedBy      string     `json:"decided_by,omitempty"`
 	DecidedAt      *time.Time `json:"decided_at,omitempty"`
 	DecisionReason string     `json:"decision_reason,omitempty"`
-	// SessionID is the session an approved request started (or the
-	// orchestrator's home session it was handed to).
+	// SessionID is the session an approved request or patch started. On a
+	// server with an orchestrator it stays empty until the orchestrator
+	// places the message on an instance.
 	SessionID string `json:"session_id,omitempty"`
+	// PlacementSessionID is the orchestrator session an approved request or
+	// patch was handed to, to choose the instance it starts on; only that
+	// session's agent, or an administrator, may place it. PlacedBy (an
+	// administrator, or `session:<id>`), PlacedAt and PlacementReason record
+	// the choice once it is made.
+	PlacementSessionID string     `json:"placement_session_id,omitempty"`
+	PlacedBy           string     `json:"placed_by,omitempty"`
+	PlacedAt           *time.Time `json:"placed_at,omitempty"`
+	PlacementReason    string     `json:"placement_reason,omitempty"`
 	// Operation is the update an approved notice ran.
 	Operation *PeerMessageOperation `json:"operation,omitempty"`
 	// StatusMessageID is the outgoing status this server sent in answer to
@@ -280,15 +290,23 @@ type PeerMessageAcknowledgement struct {
 	ID string `json:"id"`
 }
 
-// PeerMessageHandoffOrchestrator hands an approved request to the
-// orchestrator instead of starting a session on an instance.
-const PeerMessageHandoffOrchestrator = "orchestrator"
-
-// PeerMessageApproveRequest is POST /peer-messages/{id}/approve. A request
-// takes InstanceID or Handoff; a notice takes neither.
+// PeerMessageApproveRequest is POST /peer-messages/{id}/approve. On a server
+// whose orchestrator.url is set, a request or patch takes no InstanceID: the
+// orchestrator chooses the instance (PeerMessagePlaceRequest). On a server
+// with no orchestrator, a request or patch takes InstanceID. A notice never
+// takes one.
 type PeerMessageApproveRequest struct {
 	InstanceID string `json:"instance_id,omitempty"`
-	Handoff    string `json:"handoff,omitempty"`
+}
+
+// PeerMessagePlaceRequest is POST /peer-messages/{id}/place: the orchestrator
+// session an approved request or patch was handed to names the instance its
+// session starts on, and says why. A patch may start only on an instance of
+// a machine whose transport is local, since its files and the repo it lands
+// in are on this server.
+type PeerMessagePlaceRequest struct {
+	InstanceID string `json:"instance_id"`
+	Reason     string `json:"reason"`
 }
 
 // PeerMessageDeclineRequest is POST /peer-messages/{id}/decline.

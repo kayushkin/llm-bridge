@@ -22,6 +22,7 @@ func (c *Collector) collectPlatform(ctx context.Context, stats *msg.MachineStats
 	readDarwinCPUUsage(ctx, stats)
 	readDarwinDrives(ctx, stats)
 	readDarwinBatteries(ctx, stats)
+	readDarwinGPUs(ctx, stats)
 }
 
 func readDarwinOperatingSystem(ctx context.Context, stats *msg.MachineStats) {
@@ -105,20 +106,39 @@ func readDarwinMemory(ctx context.Context, stats *msg.MachineStats) {
 		recordError(stats, "memory", err)
 		return
 	}
-	used, err := parseDarwinMemoryUsed(output)
+	memory, err := parseDarwinMemory(output)
 	if err != nil {
 		recordError(stats, "memory", err)
 		return
 	}
-	stats.MemoryUsedBytes = used
-	if stats.MemoryTotalBytes > used {
-		stats.MemoryAvailableBytes = stats.MemoryTotalBytes - used
+	stats.MemoryUsedBytes = memory.used
+	stats.MemoryCompressedBytes = memory.compressed
+	if stats.MemoryTotalBytes > memory.used {
+		stats.MemoryAvailableBytes = stats.MemoryTotalBytes - memory.used
+		stats.MemoryCachedBytes = min(memory.cached, stats.MemoryAvailableBytes)
 	}
+	level, err := runCommand(ctx, "", "sysctl", "-n", "kern.memorystatus_level")
+	if err != nil {
+		recordError(stats, "memory pressure", err)
+		return
+	}
+	percent, err := strconv.ParseFloat(strings.TrimSpace(level), 64)
+	if err != nil {
+		recordError(stats, "memory pressure", err)
+		return
+	}
+	stats.MemoryFreeUnderPressurePercent = float64Pointer(percent)
 }
 
-// parseDarwinMemoryUsed reads vm_stat and counts memory as Activity Monitor
-// does for "Memory Used": app memory (active pages), wired pages, and pages
-// held by the compressor.
+func readDarwinGPUs(ctx context.Context, stats *msg.MachineStats) {
+	output, err := runCommand(ctx, "", "ioreg", "-r", "-d", "1", "-c", "IOAccelerator")
+	if err != nil {
+		recordError(stats, "gpu", err)
+		return
+	}
+	stats.GPUs = parseDarwinGPUs(output)
+}
+
 // readDarwinCPUUsage asks top for two samples a second apart and keeps the
 // second; the first covers the time since boot.
 func readDarwinCPUUsage(ctx context.Context, stats *msg.MachineStats) {

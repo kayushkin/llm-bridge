@@ -27,6 +27,7 @@ $batteries = @(Get-CimInstance Win32_Battery | ForEach-Object {
 $fullCapacities = @(try { Get-CimInstance -Namespace root\wmi BatteryFullChargedCapacity | ForEach-Object { $_.FullChargedCapacity } } catch { })
 $designCapacities = @(try { Get-CimInstance -Namespace root\wmi BatteryStaticData | ForEach-Object { $_.DesignedCapacity } } catch { })
 $cycleCounts = @(try { Get-CimInstance -Namespace root\wmi BatteryCycleCount | ForEach-Object { $_.CycleCount } } catch { })
+$memory = Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory
 $pageFiles = @(Get-CimInstance Win32_PageFileUsage | ForEach-Object {
   [pscustomobject]@{ allocated_megabytes = $_.AllocatedBaseSize; used_megabytes = $_.CurrentUsage } })
 [pscustomobject]@{
@@ -43,6 +44,9 @@ $pageFiles = @(Get-CimInstance Win32_PageFileUsage | ForEach-Object {
   designed_capacities = $designCapacities
   cycle_counts = $cycleCounts
   page_files = $pageFiles
+  committed_bytes = [uint64]$memory.CommittedBytes
+  commit_limit_bytes = [uint64]$memory.CommitLimit
+  standby_cache_bytes = [uint64]($memory.StandbyCacheCoreBytes + $memory.StandbyCacheNormalPriorityBytes + $memory.StandbyCacheReserveBytes)
 } | ConvertTo-Json -Depth 4 -Compress
 `
 
@@ -76,6 +80,9 @@ type windowsStats struct {
 	FullChargedCapacities []int64 `json:"full_charged_capacities"`
 	DesignedCapacities    []int64 `json:"designed_capacities"`
 	CycleCounts           []int64 `json:"cycle_counts"`
+	CommittedBytes        uint64  `json:"committed_bytes"`
+	CommitLimitBytes      uint64  `json:"commit_limit_bytes"`
+	StandbyCacheBytes     uint64  `json:"standby_cache_bytes"`
 	PageFiles             []struct {
 		AllocatedMegabytes uint64 `json:"allocated_megabytes"`
 		UsedMegabytes      uint64 `json:"used_megabytes"`
@@ -135,6 +142,11 @@ func applyWindowsStats(windows *windowsStats, stats *msg.MachineStats) {
 	stats.MemoryTotalBytes = windows.TotalVisibleMemoryKilobytes * 1024
 	stats.MemoryAvailableBytes = windows.FreePhysicalMemoryKilobytes * 1024
 	stats.MemoryUsedBytes = stats.MemoryTotalBytes - stats.MemoryAvailableBytes
+	// Standby pages are file cache Windows hands back on demand; they are
+	// part of what Windows counts as free.
+	stats.MemoryCachedBytes = min(windows.StandbyCacheBytes, stats.MemoryAvailableBytes)
+	stats.MemoryCommittedBytes = windows.CommittedBytes
+	stats.MemoryCommitLimitBytes = windows.CommitLimitBytes
 	for _, pageFile := range windows.PageFiles {
 		stats.SwapTotalBytes += pageFile.AllocatedMegabytes * 1024 * 1024
 		stats.SwapUsedBytes += pageFile.UsedMegabytes * 1024 * 1024

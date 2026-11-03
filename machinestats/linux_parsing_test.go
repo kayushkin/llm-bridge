@@ -168,7 +168,7 @@ func writeFile(path, value string) error { return os.WriteFile(path, []byte(valu
 // TestApplyWindowsStatsFromRealOutput feeds windowsStatsScript's output as a
 // Windows 11 desktop with no battery printed it (hostname changed).
 func TestApplyWindowsStatsFromRealOutput(t *testing.T) {
-	output := `{"hostname":"DESKTOP","caption":"Microsoft Windows 11 Pro","version":"10.0.26200","booted_at":"2026-10-14T08:34:20.7490020Z","total_visible_memory_kilobytes":33466364,"free_physical_memory_kilobytes":3857848,"processors":[{"name":"Example 8-Core Processor","logical_processors":16,"load_percentage":11}],"disks":[{"device_id":"C:","volume_name":"","file_system":"NTFS","size":3999674658816,"free_space":372711669760},{"device_id":"G:","volume_name":"Cloud Drive","file_system":"FAT32","size":2199023255552,"free_space":354076086272}],"batteries":[],"full_charged_capacities":[],"designed_capacities":[],"cycle_counts":[],"page_files":[{"allocated_megabytes":16727,"used_megabytes":2150}]}`
+	output := `{"hostname":"DESKTOP","caption":"Microsoft Windows 11 Pro","version":"10.0.26200","booted_at":"2026-10-14T08:34:20.7490020Z","total_visible_memory_kilobytes":33466364,"free_physical_memory_kilobytes":3857848,"processors":[{"name":"Example 8-Core Processor","logical_processors":16,"load_percentage":11}],"disks":[{"device_id":"C:","volume_name":"","file_system":"NTFS","size":3999674658816,"free_space":372711669760},{"device_id":"G:","volume_name":"Cloud Drive","file_system":"FAT32","size":2199023255552,"free_space":354076086272}],"batteries":[],"full_charged_capacities":[],"designed_capacities":[],"cycle_counts":[],"page_files":[{"allocated_megabytes":16727,"used_megabytes":2150}],"committed_bytes":47449538560,"commit_limit_bytes":51809349632,"standby_cache_bytes":3795271680}`
 	var windows windowsStats
 	if err := json.Unmarshal([]byte(output), &windows); err != nil {
 		t.Fatal(err)
@@ -180,6 +180,9 @@ func TestApplyWindowsStatsFromRealOutput(t *testing.T) {
 	}
 	if stats.BootedAt == nil || stats.BootedAt.Format(time.RFC3339) != "2026-10-14T08:34:20Z" || *stats.CPUUsagePercent != 11 || stats.CPULogicalCores != 16 {
 		t.Fatalf("stats %+v", stats)
+	}
+	if stats.MemoryCommittedBytes != 47449538560 || stats.MemoryCommitLimitBytes != 51809349632 || stats.MemoryCachedBytes != 3795271680 {
+		t.Fatalf("memory detail %+v", stats)
 	}
 	if len(stats.Drives) != 2 || stats.Drives[1].Label != "Cloud Drive" || len(stats.Batteries) != 0 || stats.SwapUsedBytes != 2150<<20 {
 		t.Fatalf("drives %+v batteries %+v swap %d", stats.Drives, stats.Batteries, stats.SwapUsedBytes)

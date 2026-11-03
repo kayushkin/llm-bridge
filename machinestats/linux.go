@@ -22,6 +22,7 @@ func (c *Collector) collectPlatform(ctx context.Context, stats *msg.MachineStats
 	if runningInWSLWithInterop() {
 		stats.Source = msg.MachineStatsSourceWindowsFromWSL
 		collectWindowsFromWSL(ctx, stats)
+		readNVIDIAGPUs(ctx, stats)
 		return
 	}
 	stats.Source = msg.MachineStatsSourceLinux
@@ -32,6 +33,7 @@ func (c *Collector) collectPlatform(ctx context.Context, stats *msg.MachineStats
 	readLinuxMemory(stats)
 	readLinuxDrives(ctx, stats)
 	readLinuxBatteries(stats)
+	readNVIDIAGPUs(ctx, stats)
 }
 
 // runningInWSLWithInterop reports whether this is WSL and Windows programs
@@ -209,6 +211,9 @@ func readLinuxMemory(stats *msg.MachineStats) {
 	stats.MemoryUsedBytes = values["MemTotal"] - values["MemAvailable"]
 	stats.SwapTotalBytes = values["SwapTotal"]
 	stats.SwapUsedBytes = values["SwapTotal"] - values["SwapFree"]
+	// Page cache, buffers and reclaimable slab: what MemAvailable counts as
+	// free to hand back.
+	stats.MemoryCachedBytes = min(values["Cached"]+values["Buffers"]+values["SReclaimable"], stats.MemoryAvailableBytes)
 }
 
 // parseLinuxMemoryInformation returns /proc/meminfo's values in bytes.

@@ -23,11 +23,16 @@ Pages free:                               10000.
 Pages active:                            100000.
 Pages inactive:                           90000.
 Pages wired down:                         50000.
+Pages purgeable:                           2000.
+File-backed pages:                        30000.
 Pages occupied by compressor:             20000.
 `
-	memoryUsed, err := parseDarwinMemoryUsed(vmStat)
-	if err != nil || memoryUsed != (100000+50000+20000)*16384 {
-		t.Fatalf("memory %d %v", memoryUsed, err)
+	memory, err := parseDarwinMemory(vmStat)
+	if err != nil || memory.used != (100000+50000+20000)*16384 || memory.compressed != 20000*16384 || memory.cached != (30000+2000)*16384 {
+		t.Fatalf("memory %+v %v", memory, err)
+	}
+	if _, err := parseDarwinMemory("Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages active: 1.\n"); err == nil {
+		t.Fatal("expected an error when vm_stat lacks a line")
 	}
 
 	diskFree := `Filesystem   1024-blocks      Used Available Capacity  Mounted on
@@ -104,5 +109,34 @@ func TestParseDarwinOutputsFromRealMachine(t *testing.T) {
 	bootedAt, err := parseDarwinBootTime("{ sec = 1792523986, usec = 438043 } Tue Oct 20 12:19:46 2026")
 	if err != nil || bootedAt.Unix() != 1792523986 {
 		t.Fatalf("boot %v %v", bootedAt, err)
+	}
+}
+
+func TestParseDarwinGPUsFromRealMachine(t *testing.T) {
+	ioreg := `      "PerformanceStatistics" = {"In use system memory (driver)"=0,"Alloc system memory"=1095106560,"Tiler Utilization %"=18,"Renderer Utilization %"=17,"Device Utilization %"=18,"In use system memory"=219185152}
+      "model" = "Apple M2"`
+	gpus := parseDarwinGPUs(ioreg)
+	if len(gpus) != 1 || gpus[0].Name != "Apple M2" || *gpus[0].UsagePercent != 18 || *gpus[0].MemoryUsedBytes != 219185152 || gpus[0].MemoryTotalBytes != nil {
+		t.Fatalf("gpus %+v", gpus)
+	}
+	if len(parseDarwinGPUs("")) != 0 {
+		t.Fatal("no accelerator, no GPU")
+	}
+}
+
+func TestParseNVIDIAGPUs(t *testing.T) {
+	gpus, err := parseNVIDIAGPUs("NVIDIA GeForce RTX 3080 Ti, 0, 3484, 12288, 31\nExample GPU, [N/A], 10, 100, [N/A]\n")
+	if err != nil || len(gpus) != 2 {
+		t.Fatalf("gpus %+v %v", gpus, err)
+	}
+	first := gpus[0]
+	if first.Name != "NVIDIA GeForce RTX 3080 Ti" || *first.UsagePercent != 0 || *first.MemoryUsedBytes != 3484<<20 || *first.MemoryTotalBytes != 12288<<20 || *first.TemperatureCelsius != 31 {
+		t.Fatalf("first %+v", first)
+	}
+	if gpus[1].UsagePercent != nil || gpus[1].TemperatureCelsius != nil {
+		t.Fatalf("[N/A] must be nil: %+v", gpus[1])
+	}
+	if _, err := parseNVIDIAGPUs("only, three, fields"); err == nil {
+		t.Fatal("expected an error for a short line")
 	}
 }

@@ -53,14 +53,23 @@ func parseDarwinSwapUsage(value string) (total, used uint64, err error) {
 
 var darwinPageSizePattern = regexp.MustCompile(`page size of (\d+) bytes`)
 
-func parseDarwinMemoryUsed(vmStat string) (uint64, error) {
+// darwinMemory is what vm_stat says about memory, in bytes.
+type darwinMemory struct {
+	used, compressed, cached uint64
+}
+
+// parseDarwinMemory reads vm_stat. Used counts as Activity Monitor's "Memory
+// Used" does: active pages, wired pages and pages held by the compressor.
+// Compressed is the compressor's share of that. Cached is file-backed and
+// purgeable pages, which the system hands back on demand.
+func parseDarwinMemory(vmStat string) (darwinMemory, error) {
 	match := darwinPageSizePattern.FindStringSubmatch(vmStat)
 	if match == nil {
-		return 0, fmt.Errorf("vm_stat gave no page size")
+		return darwinMemory{}, fmt.Errorf("vm_stat gave no page size")
 	}
 	pageSize, err := strconv.ParseUint(match[1], 10, 64)
 	if err != nil {
-		return 0, err
+		return darwinMemory{}, err
 	}
 	pages := map[string]uint64{}
 	for _, line := range strings.Split(vmStat, "\n") {
@@ -74,16 +83,16 @@ func parseDarwinMemoryUsed(vmStat string) (uint64, error) {
 		}
 		pages[strings.TrimSpace(key)] = count
 	}
-	needed := []string{"Pages active", "Pages wired down", "Pages occupied by compressor"}
-	var usedPages uint64
-	for _, key := range needed {
-		count, found := pages[key]
-		if !found {
-			return 0, fmt.Errorf("vm_stat gave no %q", key)
+	for _, key := range []string{"Pages active", "Pages wired down", "Pages occupied by compressor", "File-backed pages", "Pages purgeable"} {
+		if _, found := pages[key]; !found {
+			return darwinMemory{}, fmt.Errorf("vm_stat gave no %q", key)
 		}
-		usedPages += count
 	}
-	return usedPages * pageSize, nil
+	return darwinMemory{
+		used:       (pages["Pages active"] + pages["Pages wired down"] + pages["Pages occupied by compressor"]) * pageSize,
+		compressed: pages["Pages occupied by compressor"] * pageSize,
+		cached:     (pages["File-backed pages"] + pages["Pages purgeable"]) * pageSize,
+	}, nil
 }
 
 var darwinCPUIdlePattern = regexp.MustCompile(`CPU usage: .*?([\d.]+)% idle`)
@@ -182,4 +191,38 @@ func parseDarwinBatteryRegistry(registry string) (health *float64, cycles *int64
 		cycles = int64Pointer(count)
 	}
 	return health, cycles
+}
+
+// darwinGPUModelPattern and darwinGPUStatisticsPattern read the GPU entries
+// of `ioreg -r -d 1 -c IOAccelerator`, one model line and one statistics line
+// per GPU, in order.
+var darwinGPUModelPattern = regexp.MustCompile(`"model" = "([^"]+)"`)
+var darwinGPUStatisticsPattern = regexp.MustCompile(`"PerformanceStatistics" = \{([^}]*)\}`)
+var darwinGPUStatisticPattern = regexp.MustCompile(`"([^"]+)"=(\d+)`)
+
+// parseDarwinGPUs reads each GPU's name, use and the system memory it holds.
+// Apple silicon shares memory with the CPU, so a GPU has no total of its own.
+func parseDarwinGPUs(ioreg string) []msg.MachineGPU {
+	models := darwinGPUModelPattern.FindAllStringSubmatch(ioreg, -1)
+	statistics := darwinGPUStatisticsPattern.FindAllStringSubmatch(ioreg, -1)
+	var gpus []msg.MachineGPU
+	for index, model := range models {
+		gpu := msg.MachineGPU{Name: model[1]}
+		if index < len(statistics) {
+			values := map[string]uint64{}
+			for _, pair := range darwinGPUStatisticPattern.FindAllStringSubmatch(statistics[index][1], -1) {
+				if value, err := strconv.ParseUint(pair[2], 10, 64); err == nil {
+					values[pair[1]] = value
+				}
+			}
+			if usage, found := values["Device Utilization %"]; found {
+				gpu.UsagePercent = float64Pointer(float64(usage))
+			}
+			if memoryUsed, found := values["In use system memory"]; found {
+				gpu.MemoryUsedBytes = &memoryUsed
+			}
+		}
+		gpus = append(gpus, gpu)
+	}
+	return gpus
 }

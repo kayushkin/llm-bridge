@@ -97,11 +97,25 @@ type ChatLinkMessage struct {
 	// reply.
 	DeliveryID string `json:"delivery_id,omitempty"`
 	// BridgeMessageID is the user message the session was sent (inbound).
-	BridgeMessageID string    `json:"bridge_message_id,omitempty"`
-	Attempts        int       `json:"attempts"`
-	Error           string    `json:"error,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	BridgeMessageID string `json:"bridge_message_id,omitempty"`
+	// SenderPlatformUserID is who sent an inbound message, by the platform's
+	// own user id (a Discord user id), and SenderPlatformDisplayName the name
+	// the platform showed, for display only.
+	SenderPlatformUserID      string `json:"sender_platform_user_id,omitempty"`
+	SenderPlatformDisplayName string `json:"sender_platform_display_name,omitempty"`
+	// SenderPersonID and SenderPrincipalID are who people-store says owns
+	// SenderPlatformUserID, and that person's principal; both empty when
+	// nobody does. SenderPersonDisplayName is the person's name, for display.
+	// They are read once, before the message is delivered, and
+	// SenderResolvedAt says when; zero means not read yet.
+	SenderPersonID          string    `json:"sender_person_id,omitempty"`
+	SenderPrincipalID       string    `json:"sender_principal_id,omitempty"`
+	SenderPersonDisplayName string    `json:"sender_person_display_name,omitempty"`
+	SenderResolvedAt        time.Time `json:"sender_resolved_at,omitzero"`
+	Attempts                int       `json:"attempts"`
+	Error                   string    `json:"error,omitempty"`
+	CreatedAt               time.Time `json:"created_at"`
+	UpdatedAt               time.Time `json:"updated_at"`
 	// NextAttemptAt is when a pending outbound message is tried again.
 	NextAttemptAt time.Time `json:"next_attempt_at,omitzero"`
 }

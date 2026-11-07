@@ -88,3 +88,26 @@ func TestActiveSessionStatesAgreesWithIsActive(t *testing.T) {
 		}
 	}
 }
+
+// TestAllSessionStatesHoldsEveryStateTheOtherListsName checks the full list
+// against the narrower ones, so a state added to one of those and forgotten
+// here fails.
+func TestAllSessionStatesHoldsEveryStateTheOtherListsName(t *testing.T) {
+	all := map[SessionState]bool{}
+	for _, state := range AllSessionStates() {
+		if all[state] {
+			t.Errorf("AllSessionStates lists %q twice", state)
+		}
+		all[state] = true
+	}
+	for _, state := range ActiveSessionStates() {
+		if !all[state] {
+			t.Errorf("ActiveSessionStates names %q and AllSessionStates does not", state)
+		}
+	}
+	for _, state := range []SessionState{SessionAwaitingPermission, SessionAwaitingUser, SessionWaitingApproval} {
+		if !state.IsBlockedOnUser() || !all[state] {
+			t.Errorf("blocked-on-user state %q missing from AllSessionStates", state)
+		}
+	}
+}

@@ -344,3 +344,28 @@ func ActiveSessionStates() []SessionState {
 		SessionRunning,
 	}
 }
+
+// AllSessionStates returns every SessionState the bridge can record, the
+// deprecated ones included, since old rows still carry them. A client that
+// must ask for sessions by state — every state it does not treat as finished,
+// say — derives its list from this one rather than writing its own.
+func AllSessionStates() []SessionState {
+	return []SessionState{
+		SessionStarting,
+		SessionModelGenerating,
+		SessionToolRunning,
+		SessionCompacting,
+		SessionBackgroundTasksRunning,
+		SessionAwaitingPermission,
+		SessionAwaitingUser,
+		SessionRateLimited,
+		SessionPaused,
+		SessionIdle,
+		SessionCompleted,
+		SessionError,
+		SessionAborted,
+		SessionDisconnected,
+		SessionRunning,
+		SessionWaitingApproval,
+	}
+}

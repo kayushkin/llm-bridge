@@ -83,6 +83,11 @@ type ChatLinkMessage struct {
 	Direction ChatLinkDirection    `json:"direction"`
 	State     ChatLinkMessageState `json:"state"`
 	Body      string               `json:"body"`
+	// SentBody is what the person was sent, when it is not Body: an outbound
+	// reply whose reference ids were drawn, for that person and only where
+	// they may see the record, as the record's name and a link to its page.
+	// Empty when nothing was changed or the reply has not been sent.
+	SentBody string `json:"sent_body,omitempty"`
 	// Attachments are the files an inbound message came with.
 	Attachments []ChatLinkAttachment `json:"attachments,omitempty"`
 	// PlatformMessageIDs are the platform's ids: the message the person sent,

@@ -63,6 +63,9 @@ const (
 	HarnessForgecode  Harness = "forgecode"
 	HarnessGemini     Harness = "gemini"
 	HarnessCopilotCLI Harness = "copilot_cli"
+	// HarnessDevin is Devin for Terminal, driven over its Agent Client
+	// Protocol server (`devin acp`).
+	HarnessDevin Harness = "devin"
 	// HarnessDatabricks is not an agent CLI: its wrapper calls models served
 	// on a Databricks workspace directly, for one-shot calls only.
 	HarnessDatabricks Harness = "databricks"
@@ -95,6 +98,7 @@ var AllHarnesses = []Harness{
 	HarnessForgecode,
 	HarnessGemini,
 	HarnessCopilotCLI,
+	HarnessDevin,
 	HarnessDatabricks,
 	HarnessMock,
 }
@@ -160,6 +164,8 @@ func HarnessBinaryName(h Harness) string {
 		return "llm-bridge-gemini"
 	case HarnessCopilotCLI:
 		return "llm-bridge-copilotcli"
+	case HarnessDevin:
+		return "llm-bridge-devin"
 	case HarnessDatabricks:
 		return "llm-bridge-databricks"
 	case HarnessMock:

@@ -31,6 +31,15 @@ type Event struct {
 	// and for turns where the caller didn't supply one.
 	ClientRequestID string `json:"client_request_id,omitempty"`
 
+	// SenderPrincipalID is principal-store's id of the person who wrote a
+	// user_message, set by the server from the request's caller. Empty when
+	// the caller acted as no principal (the internal service, a harness).
+	SenderPrincipalID string `json:"sender_principal_id,omitempty"`
+	// SenderDisplayName is that principal's name when the message was
+	// written, carried beside the id for display only; never look a
+	// principal up by it.
+	SenderDisplayName string `json:"sender_display_name,omitempty"`
+
 	// TurnID is the bridge-server-minted identifier for an entire turn —
 	// from a user_message through every event it produces (init,
 	// task_progress, one or more assistant message bubbles, tool calls,

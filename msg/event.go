@@ -288,15 +288,32 @@ const (
 // owns which session a file belongs to and serves the content at
 // GET /sessions/{id}/files/{file_id}/content. Path is where the agent can
 // read the same bytes on the host running the session.
+//
+// SourcePath and Generation say where the file came from. SourcePath is the
+// absolute path the sharer read the bytes from on its own machine, as the
+// session's agent stated it when sharing; the server records it and never
+// opens it. It is empty for a file a person uploaded. Generation is set only
+// for an image the bridge's image route made.
 type SessionFile struct {
-	FileID    string            `json:"file_id"`
-	SessionID string            `json:"session_id"`
-	Filename  string            `json:"filename"`
-	MediaType string            `json:"media_type"`
-	SizeBytes int64             `json:"size_bytes"`
-	SharedBy  SessionFileSharer `json:"shared_by"`
-	Path      string            `json:"path"`
-	CreatedAt time.Time         `json:"created_at"`
+	FileID     string                 `json:"file_id"`
+	SessionID  string                 `json:"session_id"`
+	Filename   string                 `json:"filename"`
+	MediaType  string                 `json:"media_type"`
+	SizeBytes  int64                  `json:"size_bytes"`
+	SharedBy   SessionFileSharer      `json:"shared_by"`
+	Path       string                 `json:"path"`
+	SourcePath string                 `json:"source_path,omitempty"`
+	Generation *SessionFileGeneration `json:"generation,omitempty"`
+	CreatedAt  time.Time              `json:"created_at"`
+}
+
+// SessionFileGeneration is how the image route made a shared image: the
+// prompt it was given, the reference images it was shown, and the harness
+// instance (image_generation.instance_id) that painted it.
+type SessionFileGeneration struct {
+	Prompt              string   `json:"prompt"`
+	ReferenceImagePaths []string `json:"reference_image_paths,omitempty"`
+	InstanceID          string   `json:"instance_id"`
 }
 
 // ThinkingEvent is a thinking/reasoning event.

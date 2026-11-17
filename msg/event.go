@@ -32,8 +32,9 @@ type Event struct {
 	ClientRequestID string `json:"client_request_id,omitempty"`
 
 	// SenderPrincipalID is principal-store's id of the person who wrote a
-	// user_message, set by the server from the request's caller. Empty when
-	// the caller acted as no principal (the internal service, a harness).
+	// user_message, or shared the file of a session_file event, set by the
+	// server from the request's caller. Empty when the caller acted as no
+	// principal (the internal service, a harness, an agent).
 	SenderPrincipalID string `json:"sender_principal_id,omitempty"`
 	// SenderDisplayName is that principal's name when the message was
 	// written, carried beside the id for display only; never look a

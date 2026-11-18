@@ -451,18 +451,19 @@ type MaterializedTool struct {
 //
 // InputTokens counts only input that was not read from the prompt cache; a
 // long session's input is almost all cache reads, which is why the cache
-// fields are here. Model is the most recent value reported across the result
-// events. It carries no cost: a session's cost is ManagedSession.SpendUSD (and
-// the summary's spendUsd), the estimate llm-bridge-server derives — summing
-// result costs here is what once recorded $267.71 for a session that cost
-// $97.60.
+// fields are here. They are left out when zero, because the answer lists
+// every session and most have none. Model is the most recent value reported
+// across the result events. It carries no cost: a session's cost is
+// ManagedSession.SpendUSD (and the summary's spendUsd), the estimate
+// llm-bridge-server derives — summing result costs here is what once
+// recorded $267.71 for a session that cost $97.60.
 type SessionAggregate struct {
 	SessionID        string                `json:"session_id"`
 	Turns            int                   `json:"turns"`
 	InputTokens      int64                 `json:"input_tokens"`
 	OutputTokens     int64                 `json:"output_tokens"`
-	CacheReadTokens  int64                 `json:"cache_read_tokens"`
-	CacheWriteTokens int64                 `json:"cache_write_tokens"`
+	CacheReadTokens  int64                 `json:"cache_read_tokens,omitempty"`
+	CacheWriteTokens int64                 `json:"cache_write_tokens,omitempty"`
 	DurationMS       int64                 `json:"duration_ms"`
 	Model            string                `json:"model,omitempty"`
 	APICallUsage     []SessionAPICallUsage `json:"api_call_usage,omitempty"`

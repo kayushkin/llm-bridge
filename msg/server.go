@@ -453,10 +453,21 @@ type MaterializedTool struct {
 // long session's input is almost all cache reads, which is why the cache
 // fields are here. They are left out when zero, because the answer lists
 // every session and most have none. Model is the most recent value reported
-// across the result events. It carries no cost: a session's cost is
-// ManagedSession.SpendUSD (and the summary's spendUsd), the estimate
-// llm-bridge-server derives — summing result costs here is what once
-// recorded $267.71 for a session that cost $97.60.
+// across the result events.
+//
+// The route answers two questions with this one shape. With no `since` it
+// lists every session with its whole-life totals. With `since` it lists only
+// the sessions that did something from that time on, and every count —
+// Turns, the token fields, DurationMS, APICallUsage — is what the session did
+// from then on, not since it began. The window is counted in whole clock
+// hours: the hour holding `since` is included whole.
+//
+// SessionCostUSD is set only on a `since` read: how much the session's cost
+// estimate (SessionCostEvent.TotalUSD, the figure ManagedSession.SpendUSD
+// holds) grew inside the window. A whole-life read carries no cost, because a
+// session's whole-life cost is ManagedSession.SpendUSD (and the summary's
+// spendUsd) — summing result costs here is what once recorded $267.71 for a
+// session that cost $97.60.
 type SessionAggregate struct {
 	SessionID        string                `json:"session_id"`
 	Turns            int                   `json:"turns"`
@@ -467,6 +478,7 @@ type SessionAggregate struct {
 	DurationMS       int64                 `json:"duration_ms"`
 	Model            string                `json:"model,omitempty"`
 	APICallUsage     []SessionAPICallUsage `json:"api_call_usage,omitempty"`
+	SessionCostUSD   float64               `json:"session_cost_usd,omitempty"`
 }
 
 // SessionAPICallUsage is one session's api_call events of one query_source,

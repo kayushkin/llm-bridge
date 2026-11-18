@@ -615,6 +615,11 @@ type UsageTotalEvent struct {
 //
 //	main, sdk                — main user-facing turn (-p / SDK mode)
 //	repl_main_thread         — main user-facing turn (TUI mode)
+//	agent:<kind>             — a subagent's call (agent:builtin:general-purpose,
+//	                           agent:builtin:fork, agent:builtin:Explore, agent:custom)
+//	compact                  — summarizing the conversation to shorten it
+//	web_search_tool,
+//	web_fetch_apply          — the model call inside a web search or web fetch
 //	generate_session_title   — Haiku side-call to mint a session title
 //	prompt_suggestion        — TUI-only side-call generating suggested next prompts
 //	auxiliary                — other side-calls

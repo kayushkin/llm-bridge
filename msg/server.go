@@ -437,18 +437,49 @@ type MaterializedTool struct {
 }
 
 // SessionAggregate is the per-session token and duration summary returned by
-// GET /api/v1/sessions/aggregates, summed from the session's result events.
-// Model is the most recent value reported across them. It carries no cost:
-// a session's cost is ManagedSession.SpendUSD (and the summary's spendUsd),
-// the estimate llm-bridge-server derives — summing result costs here is what
-// once recorded $267.71 for a session that cost $97.60.
+// GET /api/v1/sessions/aggregates.
+//
+// It reports tokens from two records, because neither covers the other:
+//
+//   - InputTokens, OutputTokens, CacheReadTokens and CacheWriteTokens are summed
+//     from the session's result events: what each finished turn of the main
+//     conversation reported. A turn that never reached a result adds nothing,
+//     and Claude Code leaves a subagent's model calls out of a turn's result.
+//   - APICallUsage is summed from the session's api_call events, one row per
+//     query_source. It counts every model call the harness reported, a
+//     subagent's included, and is empty for a harness that reports none.
+//
+// InputTokens counts only input that was not read from the prompt cache; a
+// long session's input is almost all cache reads, which is why the cache
+// fields are here. Model is the most recent value reported across the result
+// events. It carries no cost: a session's cost is ManagedSession.SpendUSD (and
+// the summary's spendUsd), the estimate llm-bridge-server derives — summing
+// result costs here is what once recorded $267.71 for a session that cost
+// $97.60.
 type SessionAggregate struct {
-	SessionID    string `json:"session_id"`
-	Turns        int    `json:"turns"`
-	InputTokens  int64  `json:"input_tokens"`
-	OutputTokens int64  `json:"output_tokens"`
-	DurationMS   int64  `json:"duration_ms"`
-	Model        string `json:"model,omitempty"`
+	SessionID        string                `json:"session_id"`
+	Turns            int                   `json:"turns"`
+	InputTokens      int64                 `json:"input_tokens"`
+	OutputTokens     int64                 `json:"output_tokens"`
+	CacheReadTokens  int64                 `json:"cache_read_tokens"`
+	CacheWriteTokens int64                 `json:"cache_write_tokens"`
+	DurationMS       int64                 `json:"duration_ms"`
+	Model            string                `json:"model,omitempty"`
+	APICallUsage     []SessionAPICallUsage `json:"api_call_usage,omitempty"`
+}
+
+// SessionAPICallUsage is one session's api_call events of one query_source,
+// summed. QuerySource is APICallEvent.QuerySource unchanged, empty when the
+// harness named none; who made the call (the main conversation, a subagent, a
+// helper) is read from it by whoever draws the numbers. CacheWriteTokens sums
+// APICallEvent.CacheCreationTokens, under the name TokenUsage gives it.
+type SessionAPICallUsage struct {
+	QuerySource      string `json:"query_source"`
+	Calls            int64  `json:"calls"`
+	InputTokens      int64  `json:"input_tokens"`
+	OutputTokens     int64  `json:"output_tokens"`
+	CacheReadTokens  int64  `json:"cache_read_tokens"`
+	CacheWriteTokens int64  `json:"cache_write_tokens"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

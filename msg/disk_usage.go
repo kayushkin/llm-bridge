@@ -88,17 +88,40 @@ type DiskUsageAnswer struct {
 
 // DiskUsageStatus is what the runner holds now.
 type DiskUsageStatus struct {
-	Drives   []DiskUsageDrive   `json:"drives"`
+	Drives []DiskUsageDrive `json:"drives"`
+	// WSLDisks are the disk files of the machine's WSL distributions, so the
+	// page can show how much of each file Linux no longer uses.
+	WSLDisks []DiskUsageWSLDisk `json:"wsl_disks,omitempty"`
 	Scans    []DiskUsageScan    `json:"scans"`
 	Deletion *DiskUsageDeletion `json:"deletion,omitempty"` // the deletion running now, or the last one since the runner started
 }
 
-// DiskUsageDrive is a fixed drive the helper can scan.
+// DiskUsageDriveKind says whose file system a drive is.
+type DiskUsageDriveKind string
+
+const (
+	// DiskUsageDriveWindows is a fixed NTFS or ReFS drive, scanned and
+	// deleted from by the Windows helper. Its paths look like `C:\Games`.
+	DiskUsageDriveWindows DiskUsageDriveKind = "windows"
+	// DiskUsageDriveWSL is the Linux file system of the WSL distribution the
+	// runner runs in, scanned and deleted from by the runner itself, as the
+	// runner's user, without leaving that file system. Its paths look like
+	// `/home/name/builds`. Space freed in it goes back to Windows only when
+	// the distribution's disk file is compacted.
+	DiskUsageDriveWSL DiskUsageDriveKind = "wsl"
+)
+
+// DiskUsageWSLDrive is the Drive of the runner's own WSL file system.
+const DiskUsageWSLDrive = "WSL"
+
+// DiskUsageDrive is a drive the runner can scan.
 type DiskUsageDrive struct {
-	Drive      string `json:"drive"` // "C:"
-	Label      string `json:"label,omitempty"`
-	TotalBytes uint64 `json:"total_bytes"`
-	FreeBytes  uint64 `json:"free_bytes"` // free to the runner's Windows user
+	Drive      string             `json:"drive"` // "C:", or DiskUsageWSLDrive
+	Kind       DiskUsageDriveKind `json:"kind"`
+	RootPath   string             `json:"root_path"` // `C:\` or "/"
+	Label      string             `json:"label,omitempty"`
+	TotalBytes uint64             `json:"total_bytes"`
+	FreeBytes  uint64             `json:"free_bytes"` // free to the runner's Windows user
 }
 
 // DiskUsageScanState is where a scan is.
@@ -140,7 +163,25 @@ const (
 	// DiskUsageEntrySmallerItems stands for the entries of a directory past
 	// the largest ones the scan keeps by name. It has no path of its own.
 	DiskUsageEntrySmallerItems DiskUsageEntryKind = "smaller_items"
+	// DiskUsageEntryMountPoint is a directory where another file system is
+	// mounted (Windows' C: at /mnt/c inside WSL, say). The scan does not go
+	// in, so it counts no bytes, and it cannot be deleted from here.
+	DiskUsageEntryMountPoint DiskUsageEntryKind = "mount_point"
 )
+
+// DiskUsageWSLDisk is one WSL distribution's disk file.
+type DiskUsageWSLDisk struct {
+	Distribution  string `json:"distribution"`   // "Ubuntu-22.04"
+	DiskFilePath  string `json:"disk_file_path"` // `C:\Users\name\…\ext4.vhdx`
+	DiskFileBytes uint64 `json:"disk_file_bytes"`
+	// RunnerRunsInIt is set for the distribution the runner runs in, the
+	// only one whose use inside is measured.
+	RunnerRunsInIt bool `json:"runner_runs_in_it,omitempty"`
+	// FilesystemUsedBytes and FilesystemTotalBytes are what Linux reports for
+	// its root file system; zero when not measured.
+	FilesystemUsedBytes  uint64 `json:"filesystem_used_bytes,omitempty"`
+	FilesystemTotalBytes uint64 `json:"filesystem_total_bytes,omitempty"`
+}
 
 // DiskUsageEntry is one file, directory or link in a scan, with the totals
 // of everything under it.

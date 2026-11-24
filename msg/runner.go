@@ -75,6 +75,7 @@ type RunnerMessage struct {
 	SeedSnapshot        *RunnerSeedSnapshot        `json:"seed_snapshot,omitempty"`
 	ClaudeOAuthRecovery *RunnerClaudeOAuthRecovery `json:"claude_oauth_recovery,omitempty"`
 	MachineStats        *RunnerMachineStats        `json:"machine_stats,omitempty"`
+	DiskUsage           *RunnerDiskUsage           `json:"disk_usage,omitempty"`
 }
 
 // RunnerClaudeOAuthRecovery carries one step of a Claude Code subscription
@@ -109,6 +110,10 @@ type RunnerHello struct {
 	// can hand to a session; nil when it has none (no screen it can reach,
 	// or the install failed, which the runner logs).
 	ComputerUse *ComputerUseTool `json:"computer_use,omitempty"`
+	// DiskUsage is set when this runner installed a disk-usage helper, so
+	// the Machines page can show what fills its drives and delete from them
+	// (msg/disk_usage.go). Only a runner in WSL has one so far.
+	DiskUsage *DiskUsageTool `json:"disk_usage,omitempty"`
 }
 
 // ComputerUseTool is a runner's computer-use MCP server: the command a

@@ -177,16 +177,16 @@ type DiskUsageChildren struct {
 
 // DiskUsageDeletionCheck says whether an entry may be deleted.
 type DiskUsageDeletionCheck struct {
-	Path               string             `json:"path"`
-	Kind               DiskUsageEntryKind `json:"kind"`
-	SizeBytes          uint64             `json:"size_bytes"` // from the scan
-	FileCount          int64              `json:"file_count"`
-	DriveUsedBytes     uint64             `json:"drive_used_bytes"`
-	Allowed            bool               `json:"allowed"`
-	RefusalReason      string             `json:"refusal_reason,omitempty"`
-	Warnings           []string           `json:"warnings,omitempty"`
-	ConfirmationName   string             `json:"confirmation_name"` // what the owner must type: the entry's name
-	ScannedAt          time.Time          `json:"scanned_at"`
+	Path             string             `json:"path"`
+	Kind             DiskUsageEntryKind `json:"kind"`
+	SizeBytes        uint64             `json:"size_bytes"` // from the scan
+	FileCount        int64              `json:"file_count"`
+	DriveUsedBytes   uint64             `json:"drive_used_bytes"`
+	Allowed          bool               `json:"allowed"`
+	RefusalReason    string             `json:"refusal_reason,omitempty"`
+	Warnings         []string           `json:"warnings,omitempty"`
+	ConfirmationName string             `json:"confirmation_name"` // what the owner must type: the entry's name
+	ScannedAt        time.Time          `json:"scanned_at"`
 }
 
 // DiskUsageDeletionState is where a deletion is.

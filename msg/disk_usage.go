@@ -94,6 +94,9 @@ type DiskUsageStatus struct {
 	WSLDisks []DiskUsageWSLDisk `json:"wsl_disks,omitempty"`
 	Scans    []DiskUsageScan    `json:"scans"`
 	Deletion *DiskUsageDeletion `json:"deletion,omitempty"` // the deletion running now, or the last one since the runner started
+	// Errors says what the runner could not read, such as WSL's own file
+	// system, while it still answers with the rest.
+	Errors []string `json:"errors,omitempty"`
 }
 
 // DiskUsageDriveKind says whose file system a drive is.

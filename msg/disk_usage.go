@@ -66,6 +66,14 @@ const (
 	// check that it is still the ExpectedKind. The answer comes once the
 	// deletion has started; DeletionFinished reports how it ended.
 	DiskUsageActionDelete DiskUsageAction = "delete"
+	// DiskUsageActionSetUpWSLCompaction shows the machine's owner the one
+	// UAC prompt that installs WSL compaction (DiskUsageWSLCompaction). The
+	// answer comes once the prompt is shown; the status says when it is set up.
+	DiskUsageActionSetUpWSLCompaction DiskUsageAction = "set_up_wsl_compaction"
+	// DiskUsageActionCompactWSL starts compacting every WSL disk file. It shuts
+	// WSL down, the runner with it, so the answer comes before that, and the
+	// runner reads how it went when WSL is back.
+	DiskUsageActionCompactWSL DiskUsageAction = "compact_wsl"
 )
 
 // DiskUsageRequest is a bridge → runner request.
@@ -94,6 +102,9 @@ type DiskUsageStatus struct {
 	WSLDisks []DiskUsageWSLDisk `json:"wsl_disks,omitempty"`
 	Scans    []DiskUsageScan    `json:"scans"`
 	Deletion *DiskUsageDeletion `json:"deletion,omitempty"` // the deletion running now, or the last one since the runner started
+	// WSLCompaction is whether WSL's disk files can be compacted from here
+	// and how the last compaction went; nil on a machine with no WSL disks.
+	WSLCompaction *DiskUsageWSLCompaction `json:"wsl_compaction,omitempty"`
 	// Errors says what the runner could not read, such as WSL's own file
 	// system, while it still answers with the rest.
 	Errors []string `json:"errors,omitempty"`
@@ -267,4 +278,54 @@ type DiskUsageDeletion struct {
 // DiskUsageDeletionFinished reports how a deletion ended.
 type DiskUsageDeletionFinished struct {
 	Deletion DiskUsageDeletion `json:"deletion"`
+}
+
+// DiskUsageWSLCompaction is WSL compaction on a Windows machine. Compacting
+// needs administrator rights, which the runner does not have, so it is set
+// up once with a UAC prompt the owner approves at the machine: that installs
+// a fixed script in a folder only administrators can change, a scheduled
+// task that runs it elevated, and a second task that starts WSL again as the
+// owner afterwards. The script shuts WSL down, compacts each distribution's
+// disk file with diskpart, and starts WSL again.
+type DiskUsageWSLCompaction struct {
+	SetUp bool `json:"set_up"`
+	// NotSetUpReason says what is missing or out of date when SetUp is false.
+	NotSetUpReason string `json:"not_set_up_reason,omitempty"`
+	// SetUpPromptShownAt is when the runner last showed the UAC prompt, and
+	// SetUpError what came of it when it failed or the owner said no.
+	SetUpPromptShownAt *time.Time                 `json:"set_up_prompt_shown_at,omitempty"`
+	SetUpError         string                     `json:"set_up_error,omitempty"`
+	LastRun            *DiskUsageWSLCompactionRun `json:"last_run,omitempty"`
+}
+
+// DiskUsageWSLCompactionRunState is where a compaction is.
+type DiskUsageWSLCompactionRunState string
+
+const (
+	DiskUsageWSLCompactionRunning  DiskUsageWSLCompactionRunState = "running"
+	DiskUsageWSLCompactionFinished DiskUsageWSLCompactionRunState = "finished"
+	DiskUsageWSLCompactionFailed   DiskUsageWSLCompactionRunState = "failed"
+)
+
+// DiskUsageWSLCompactionRun is one run of the compaction script, as it
+// recorded itself.
+type DiskUsageWSLCompactionRun struct {
+	State      DiskUsageWSLCompactionRunState `json:"state"`
+	Step       string                         `json:"step,omitempty"` // what it was doing last
+	StartedAt  time.Time                      `json:"started_at"`
+	FinishedAt *time.Time                     `json:"finished_at,omitempty"`
+	Disks      []DiskUsageWSLCompactedDisk    `json:"disks,omitempty"`
+	Error      string                         `json:"error,omitempty"`
+	// RestartedWSL says whether the script started WSL again; when false
+	// after a run, someone must start it at the machine.
+	RestartedWSL bool `json:"restarted_wsl"`
+}
+
+// DiskUsageWSLCompactedDisk is one disk file a compaction worked on.
+type DiskUsageWSLCompactedDisk struct {
+	Distribution string `json:"distribution"`
+	DiskFilePath string `json:"disk_file_path"`
+	BytesBefore  uint64 `json:"bytes_before"`
+	BytesAfter   uint64 `json:"bytes_after,omitempty"`
+	Compacted    bool   `json:"compacted"`
 }
